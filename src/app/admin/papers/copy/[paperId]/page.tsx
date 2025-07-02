@@ -24,7 +24,7 @@ import { ArrowLeft, Loader2, Sparkles } from "lucide-react";
 import { useEffect, useState, useMemo } from "react";
 import { fetchCategories, getFlattenedCategories, getCategoryPath, getCategoryById } from "@/lib/category-service";
 import { getPaperById } from "@/lib/paper-service";
-import type { Category } from "@/types";
+import type { Category, Paper } from "@/types";
 import { addDoc, collection } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { slugify } from "@/lib/utils";
@@ -82,26 +82,23 @@ export default function CopyPaperPage() {
     const loadData = async () => {
         setLoading(true);
         try {
-            const [cats, sourcePaper] = await Promise.all([
+            const [cats, paper] = await Promise.all([
                 fetchCategories(),
                 getPaperById(paperId),
             ]);
             
             setAllCategories(cats);
 
-            if (sourcePaper) {
-                setSourcePaperTitle(sourcePaper.title);
+            if (paper) {
+                setSourcePaperTitle(paper.title);
                 form.reset({
-                    ...sourcePaper,
-                    title: `Copy of ${sourcePaper.title}`,
-                    slug: '', // Reset slug to be regenerated
-                    published: false, // Default new copy to not published
-                    featured: false, // Default new copy to not featured
-                    year: sourcePaper.year || undefined,
-                    session: sourcePaper.session || 'none', // Use 'none' for empty selection
-                    metaTitle: sourcePaper.metaTitle || '',
-                    metaDescription: sourcePaper.metaDescription || '',
-                    keywords: sourcePaper.keywords || '',
+                    ...paper,
+                    title: `Copy of ${paper.title}`,
+                    slug: '',
+                    published: false,
+                    featured: false,
+                    year: paper.year || undefined,
+                    session: paper.session || undefined,
                 });
             } else {
                 toast({ title: "Error", description: "Source paper not found.", variant: "destructive" });
@@ -195,41 +192,41 @@ export default function CopyPaperPage() {
   async function onSubmit(data: PaperFormValues) {
     setIsSubmitting(true);
     try {
-        const getSlug = () => {
-            if (data.slug) {
-                return slugify(data.slug);
-            }
-            const category = getCategoryById(data.categoryId, allCategories);
-            const categorySlug = category ? category.slug.replace(/\//g, '-') : '';
-            const sessionForSlug = data.session === 'none' ? '' : data.session || '';
-            const titleSlug = slugify(`${data.title} ${data.year || ''} ${sessionForSlug}`.trim());
+      const getSlug = () => {
+        if (data.slug) {
+            return slugify(data.slug);
+        }
+        const category = getCategoryById(data.categoryId, allCategories);
+        const categorySlug = category ? category.slug.replace(/\//g, '-') : '';
+        const sessionForSlug = data.session === 'none' ? '' : data.session || '';
+        const titleSlug = slugify(`${data.title} ${data.year || ''} ${sessionForSlug}`.trim());
 
-            if (categorySlug) {
-                return `${categorySlug}-${titleSlug}`;
-            }
-            return titleSlug;
-        };
+        if (categorySlug) {
+            return `${categorySlug}-${titleSlug}`;
+        }
+        return titleSlug;
+      };
 
-        const paperData = {
+      const paperData = {
           ...data,
           slug: getSlug(),
           published: data.published || false,
           session: data.session === 'none' || !data.session ? null : data.session,
-        };
+      };
+
+      await addDoc(collection(db, "papers"), paperData);
       
-        await addDoc(collection(db, "papers"), paperData);
-      
-        toast({
-            title: "Paper Copied Successfully",
-            description: "The new paper has been created. Note: Questions are not copied and must be added manually.",
-        });
-        router.push("/admin/papers");
-        router.refresh();
+      toast({
+        title: "Paper Copied Successfully",
+        description: "The new paper has been created. Note: Questions are not copied and must be added manually.",
+      });
+      router.push("/admin/papers");
+      router.refresh();
     } catch (error) {
-        console.error("Error copying paper: ", error);
-        toast({ title: "Error", description: "Failed to copy the paper.", variant: "destructive" });
+      console.error("Error copying paper: ", error);
+      toast({ title: "Error", description: "Failed to copy the paper.", variant: "destructive" });
     } finally {
-        setIsSubmitting(false);
+      setIsSubmitting(false);
     }
   }
 
@@ -254,7 +251,7 @@ export default function CopyPaperPage() {
             <Card>
                 <CardHeader>
                     <CardTitle>Copy Paper: {sourcePaperTitle}</CardTitle>
-                    <CardDescription>Create a new paper by modifying the details from an existing one.</CardDescription>
+                    <CardDescription>Create a new paper by modifying the details from an existing one. Questions are not copied.</CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-8">
                     <FormField
@@ -368,7 +365,7 @@ export default function CopyPaperPage() {
                                 <FormControl>
                                 <Input type="number" {...field} disabled={isSubmitting} />
                                 </FormControl>
-                                <FormDescription>Note: This is a static count for display. Questions are added separately.</FormDescription>
+                                <FormDescription>This value is copied from the source paper. Questions must be added manually.</FormDescription>
                                 <FormMessage />
                             </FormItem>
                             )}
@@ -405,7 +402,7 @@ export default function CopyPaperPage() {
                             render={({ field }) => (
                             <FormItem>
                                 <FormLabel>Session (Optional)</FormLabel>
-                                <Select onValueChange={field.onChange} value={field.value || 'none'} disabled={isSubmitting}>
+                                <Select onValueChange={field.onChange} value={field.value || ''} disabled={isSubmitting}>
                                     <FormControl>
                                         <SelectTrigger>
                                         <SelectValue placeholder="Select a session" />
@@ -498,3 +495,5 @@ export default function CopyPaperPage() {
     </div>
   );
 }
+
+    
