@@ -33,24 +33,14 @@ import { generatePaperSeoDetails } from "@/ai/flows/generate-paper-seo-flow";
 import { Switch } from "@/components/ui/switch";
 
 const paperFormSchema = z.object({
-  title: z.string().min(3, {
-    message: "Title must be at least 3 characters.",
-  }),
-  description: z.string().min(10, {
-    message: "Description must be at least 10 characters.",
-  }),
-  categoryId: z.string({
-    required_error: "Please select a category for this paper.",
-  }),
+  title: z.string().min(3, { message: "Title must be at least 3 characters." }),
+  description: z.string().min(10, { message: "Description must be at least 10 characters." }),
+  categoryId: z.string({ required_error: "Please select a category for this paper." }),
   slug: z.string().optional(),
   published: z.boolean().default(false),
   featured: z.boolean().default(false),
-  questionCount: z.coerce.number().int().min(0, {
-    message: "Number of questions cannot be negative.",
-  }).default(0),
-  duration: z.coerce.number().int().positive({
-    message: "Please enter a positive duration in minutes.",
-  }),
+  questionCount: z.coerce.number().int().min(0).default(0),
+  duration: z.coerce.number().int().positive(),
   year: z.coerce.number().int().optional(),
   session: z.string().optional(),
   metaTitle: z.string().optional(),
@@ -75,10 +65,15 @@ export default function CopyPaperPage() {
 
   const form = useForm<PaperFormValues>({
     resolver: zodResolver(paperFormSchema),
+    defaultValues: {
+      published: false,
+      featured: false,
+    }
   });
 
   useEffect(() => {
     if (!paperId) return;
+
     const loadData = async () => {
         setLoading(true);
         try {
@@ -92,13 +87,19 @@ export default function CopyPaperPage() {
             if (paper) {
                 setSourcePaperTitle(paper.title);
                 form.reset({
-                    ...paper,
                     title: `Copy of ${paper.title}`,
+                    description: paper.description,
+                    categoryId: paper.categoryId,
                     slug: '',
                     published: false,
                     featured: false,
+                    questionCount: paper.questionCount,
+                    duration: paper.duration,
                     year: paper.year || undefined,
                     session: paper.session || undefined,
+                    metaTitle: paper.metaTitle,
+                    metaDescription: paper.metaDescription,
+                    keywords: paper.keywords,
                 });
             } else {
                 toast({ title: "Error", description: "Source paper not found.", variant: "destructive" });
@@ -116,23 +117,20 @@ export default function CopyPaperPage() {
 
   const flatCategories = useMemo(() => getFlattenedCategories(allCategories), [allCategories]);
   
-  async function handleGenerateDescription() {
+  const handleGenerateDescription = async () => {
     const title = form.getValues("title");
     const categoryId = form.getValues("categoryId");
     const rawYear = form.getValues("year");
     const sessionValue = form.getValues("session");
     const session = sessionValue === 'none' ? undefined : sessionValue;
 
-    let year: number | undefined = undefined;
-    if (rawYear && String(rawYear).trim()) {
-        const parsed = parseInt(String(rawYear), 10);
-        if (!isNaN(parsed)) {
-            year = parsed;
-        }
+    let year: number | undefined;
+    if (rawYear && !isNaN(Number(rawYear))) {
+        year = Number(rawYear);
     }
 
     if (!title || !categoryId) {
-        toast({ title: "Title & Category Required", description: "Please enter a title and select a category to generate a description.", variant: "destructive" });
+        toast({ title: "Title & Category Required", description: "Please enter a title and select a category.", variant: "destructive" });
         return;
     }
     const categoryPath = getCategoryPath(categoryId, allCategories);
@@ -151,7 +149,7 @@ export default function CopyPaperPage() {
     }
   }
   
-  async function handleGenerateSeo() {
+  const handleGenerateSeo = async () => {
     const title = form.getValues("title");
     const description = form.getValues("description");
     const categoryId = form.getValues("categoryId");
@@ -159,16 +157,13 @@ export default function CopyPaperPage() {
     const sessionValue = form.getValues("session");
     const session = sessionValue === 'none' ? undefined : sessionValue;
 
-    let year: number | undefined = undefined;
-    if (rawYear && String(rawYear).trim()) {
-        const parsed = parseInt(String(rawYear), 10);
-        if (!isNaN(parsed)) {
-            year = parsed;
-        }
+    let year: number | undefined;
+     if (rawYear && !isNaN(Number(rawYear))) {
+        year = Number(rawYear);
     }
 
     if (!title || !description || !categoryId) {
-        toast({ title: "Title, Description & Category Required", description: "Please provide all details to generate SEO content.", variant: "destructive" });
+        toast({ title: "Title, Description & Category Required", description: "Please provide all details.", variant: "destructive" });
         return;
     }
     const categoryPath = getCategoryPath(categoryId, allCategories);
@@ -189,24 +184,21 @@ export default function CopyPaperPage() {
     }
   }
 
-  async function onSubmit(data: PaperFormValues) {
+  const onSubmit = async (data: PaperFormValues) => {
     setIsSubmitting(true);
+    
+    const getSlug = () => {
+        if (data.slug) {
+            return slugify(data.slug);
+        }
+        const category = getCategoryById(data.categoryId, allCategories);
+        const categorySlug = category ? category.slug.replace(/\//g, '-') : '';
+        const sessionForSlug = data.session === 'none' ? '' : data.session || '';
+        const titleSlug = slugify(`${data.title} ${data.year || ''} ${sessionForSlug}`.trim());
+        return categorySlug ? `${categorySlug}-${titleSlug}` : titleSlug;
+    };
+
     try {
-        const getSlug = () => {
-            if (data.slug) {
-                return slugify(data.slug);
-            }
-            const category = getCategoryById(data.categoryId, allCategories);
-            const categorySlug = category ? category.slug.replace(/\//g, '-') : '';
-            const sessionForSlug = data.session === 'none' ? '' : data.session || '';
-            const titleSlug = slugify(`${data.title} ${data.year || ''} ${sessionForSlug}`.trim());
-
-            if (categorySlug) {
-                return `${categorySlug}-${titleSlug}`;
-            }
-            return titleSlug;
-        };
-
         const paperData = {
             ...data,
             slug: getSlug(),
@@ -226,7 +218,7 @@ export default function CopyPaperPage() {
     } finally {
         setIsSubmitting(false);
     }
-  }
+  };
   
   if (loading) {
     return (
@@ -493,5 +485,3 @@ export default function CopyPaperPage() {
     </div>
   );
 }
-
-    
