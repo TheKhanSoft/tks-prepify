@@ -21,8 +21,10 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
 import { ArrowLeft, Loader2, PlusCircle, Trash2 } from "lucide-react";
-import { getQuestionById, getMockPaperById } from "@/lib/data";
-import React, { useEffect } from "react";
+import { getQuestionById } from "@/lib/data";
+import { getPaperById } from "@/lib/paper-service";
+import type { Paper } from "@/types";
+import React, { useEffect, useState } from "react";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 
@@ -64,8 +66,22 @@ export default function EditQuestionPage() {
   const paperId = params.paperId as string;
   const questionId = params.questionId as string;
   
-  const paper = getMockPaperById(paperId);
+  const [paper, setPaper] = useState<Paper | null>(null);
+  const [loading, setLoading] = useState(true);
+
   const question = getQuestionById(questionId);
+
+  useEffect(() => {
+    if (!paperId) return;
+    const loadPaper = async () => {
+        setLoading(true);
+        const fetchedPaper = await getPaperById(paperId);
+        setPaper(fetchedPaper);
+        setLoading(false);
+    };
+    loadPaper();
+  }, [paperId]);
+
 
   const form = useForm<QuestionFormValues>({
     resolver: zodResolver(questionFormSchema),
@@ -109,11 +125,23 @@ export default function EditQuestionPage() {
     router.push(`/admin/papers/${paperId}/questions`);
   }
   
-  if (!paper || !question) return (
-    <div className="flex justify-center items-center h-full">
-        <Loader2 className="h-8 w-8 animate-spin" />
-    </div>
-  );
+  if (loading || !question) {
+    return (
+        <div className="flex justify-center items-center h-full min-h-[calc(100vh-20rem)]">
+            <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        </div>
+    );
+  }
+
+  if (!paper) {
+    return (
+        <div className="container mx-auto text-center py-20">
+            <h1 className="text-2xl font-bold">Paper Not Found</h1>
+            <p>This question paper could not be found or is not available.</p>
+            <Button onClick={() => router.push('/admin/papers')} className="mt-4">Go to Papers</Button>
+        </div>
+    );
+  }
 
   return (
     <div className="space-y-6">

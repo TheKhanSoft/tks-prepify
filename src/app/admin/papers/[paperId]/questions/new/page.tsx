@@ -20,11 +20,12 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
-import { ArrowLeft, PlusCircle, Trash2 } from "lucide-react";
-import { getMockPaperById } from "@/lib/data";
+import { ArrowLeft, PlusCircle, Trash2, Loader2 } from "lucide-react";
+import { getPaperById } from "@/lib/paper-service";
+import type { Paper } from "@/types";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
-import React from "react";
+import React, { useState, useEffect } from "react";
 
 const mcqSchema = z.object({
     type: z.literal('mcq'),
@@ -55,7 +56,7 @@ const questionFormSchema = z.discriminatedUnion("type", [mcqSchema, shortAnswerS
 
 type QuestionFormValues = z.infer<typeof questionFormSchema>;
 
-const defaultValues: QuestionFormValues = {
+const defaultValues: Partial<QuestionFormValues> = {
   type: 'mcq',
   questionText: '',
   options: [{ text: "" }, { text: "" }],
@@ -67,9 +68,21 @@ export default function NewQuestionPage() {
   const router = useRouter();
   const params = useParams();
   const { toast } = useToast();
-
   const paperId = params.paperId as string;
-  const paper = getMockPaperById(paperId);
+
+  const [paper, setPaper] = useState<Paper | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+      if (!paperId) return;
+      const loadPaper = async () => {
+          setLoading(true);
+          const fetchedPaper = await getPaperById(paperId);
+          setPaper(fetchedPaper);
+          setLoading(false);
+      };
+      loadPaper();
+  }, [paperId]);
 
   const form = useForm<QuestionFormValues>({
     resolver: zodResolver(questionFormSchema),
@@ -93,7 +106,23 @@ export default function NewQuestionPage() {
     router.push(`/admin/papers/${paperId}/questions`);
   }
   
-  if (!paper) return <div>Loading...</div>
+  if (loading) {
+    return (
+        <div className="flex justify-center items-center h-full min-h-[calc(100vh-20rem)]">
+            <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        </div>
+    );
+  }
+
+  if (!paper) {
+    return (
+        <div className="container mx-auto text-center py-20">
+            <h1 className="text-2xl font-bold">Paper Not Found</h1>
+            <p>This question paper could not be found or is not available.</p>
+            <Button onClick={() => router.push('/admin/papers')} className="mt-4">Go to Papers</Button>
+        </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
