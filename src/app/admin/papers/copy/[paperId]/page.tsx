@@ -60,21 +60,6 @@ const paperFormSchema = z.object({
 
 type PaperFormValues = z.infer<typeof paperFormSchema>;
 
-function generateSlugForCopy(data: PaperFormValues, allCategories: Category[]): string {
-    if (data.slug) {
-        return slugify(data.slug);
-    }
-    const category = getCategoryById(data.categoryId, allCategories);
-    const categorySlug = category ? category.slug.replace(/\//g, '-') : '';
-    const sessionForSlug = data.session === 'none' ? '' : data.session || '';
-    const titleSlug = slugify(`${data.title} ${data.year || ''} ${sessionForSlug}`.trim());
-
-    if (categorySlug) {
-        return `${categorySlug}-${titleSlug}`;
-    }
-    return titleSlug;
-}
-
 export default function CopyPaperPage() {
   const router = useRouter();
   const params = useParams();
@@ -109,7 +94,7 @@ export default function CopyPaperPage() {
                 form.reset({
                     ...paper,
                     title: `Copy of ${paper.title}`,
-                    slug: '', // Reset slug
+                    slug: '',
                     published: false,
                     featured: false,
                     year: paper.year || undefined,
@@ -207,29 +192,42 @@ export default function CopyPaperPage() {
   async function onSubmit(data: PaperFormValues) {
     setIsSubmitting(true);
     try {
-      const paperData = {
-          ...data,
-          slug: generateSlugForCopy(data, allCategories),
-          published: data.published || false,
-          session: data.session === 'none' || !data.session ? null : data.session,
-      };
+        const getSlug = () => {
+            if (data.slug) {
+                return slugify(data.slug);
+            }
+            const category = getCategoryById(data.categoryId, allCategories);
+            const categorySlug = category ? category.slug.replace(/\//g, '-') : '';
+            const sessionForSlug = data.session === 'none' ? '' : data.session || '';
+            const titleSlug = slugify(`${data.title} ${data.year || ''} ${sessionForSlug}`.trim());
 
-      await addDoc(collection(db, "papers"), paperData);
-      
-      toast({
-        title: "Paper Copied Successfully",
-        description: "The new paper has been created. Note: Questions are not copied and must be added manually.",
-      });
-      router.push("/admin/papers");
-      router.refresh();
+            if (categorySlug) {
+                return `${categorySlug}-${titleSlug}`;
+            }
+            return titleSlug;
+        };
+
+        const paperData = {
+            ...data,
+            slug: getSlug(),
+            published: data.published || false,
+            session: data.session === 'none' || !data.session ? null : data.session,
+        };
+        await addDoc(collection(db, "papers"), paperData);
+        toast({
+            title: "Paper Copied Successfully",
+            description: "A new paper has been created. Questions must be added manually.",
+        });
+        router.push("/admin/papers");
+        router.refresh();
     } catch (error) {
-      console.error("Error copying paper: ", error);
-      toast({ title: "Error", description: "Failed to copy the paper.", variant: "destructive" });
+        console.error("Error creating paper:", error);
+        toast({ title: "Error", description: "Failed to create the copied paper.", variant: "destructive" });
     } finally {
-      setIsSubmitting(false);
+        setIsSubmitting(false);
     }
   }
-
+  
   if (loading) {
     return (
         <div className="flex justify-center items-center h-full min-h-[calc(100vh-20rem)]">
@@ -251,7 +249,7 @@ export default function CopyPaperPage() {
             <Card>
                 <CardHeader>
                     <CardTitle>Copy Paper: {sourcePaperTitle}</CardTitle>
-                    <CardDescription>Create a new paper by modifying the details from an existing one. Questions are not copied.</CardDescription>
+                    <CardDescription>Create a new paper by copying the details from an existing one. Questions are not copied.</CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-8 pt-6">
                     <FormField
@@ -495,3 +493,5 @@ export default function CopyPaperPage() {
     </div>
   );
 }
+
+    
