@@ -50,6 +50,19 @@ const paperFormSchema = z.object({
 
 type PaperFormValues = z.infer<typeof paperFormSchema>;
 
+// Helper function for slug generation to keep onSubmit clean
+const generateSlugForCopy = (data: PaperFormValues, allCategories: Category[]): string => {
+    if (data.slug) {
+        return slugify(data.slug);
+    }
+    const category = getCategoryById(data.categoryId, allCategories);
+    const categorySlug = category ? category.slug.replace(/\//g, '-') : '';
+    const sessionForSlug = data.session === 'none' ? '' : data.session || '';
+    const titleSlug = slugify(`${data.title} ${data.year || ''} ${sessionForSlug}`.trim());
+    return categorySlug ? `${categorySlug}-${titleSlug}` : titleSlug;
+}
+
+
 export default function CopyPaperPage() {
   const router = useRouter();
   const params = useParams();
@@ -86,9 +99,9 @@ export default function CopyPaperPage() {
                     title: `Copy of ${paper.title}`,
                     description: paper.description,
                     categoryId: paper.categoryId,
-                    slug: '',
-                    published: false,
-                    featured: false,
+                    slug: '', // Reset slug
+                    published: false, // Reset published status
+                    featured: false, // Reset featured status
                     questionCount: paper.questionCount,
                     duration: paper.duration,
                     year: paper.year || undefined,
@@ -113,7 +126,7 @@ export default function CopyPaperPage() {
 
   const flatCategories = useMemo(() => getFlattenedCategories(allCategories), [allCategories]);
 
-  async function handleGenerateDescription() {
+  const handleGenerateDescription = async () => {
     const title = form.getValues("title");
     const categoryId = form.getValues("categoryId");
     const rawYear = form.getValues("year");
@@ -142,7 +155,7 @@ export default function CopyPaperPage() {
     }
   }
   
-  async function handleGenerateSeo() {
+  const handleGenerateSeo = async () => {
     const title = form.getValues("title");
     const description = form.getValues("description");
     const categoryId = form.getValues("categoryId");
@@ -174,24 +187,12 @@ export default function CopyPaperPage() {
     }
   }
 
-  async function onSubmit(data: PaperFormValues) {
+  const onSubmit = async (data: PaperFormValues) => {
     setIsSubmitting(true);
     try {
-        let finalSlug = '';
-        if (data.slug) {
-            finalSlug = slugify(data.slug);
-        } else {
-            const category = getCategoryById(data.categoryId, allCategories);
-            const categorySlug = category ? category.slug.replace(/\//g, '-') : '';
-            const sessionForSlug = data.session === 'none' ? '' : data.session || '';
-            const titleSlug = slugify(`${data.title} ${data.year || ''} ${sessionForSlug}`.trim());
-            finalSlug = categorySlug ? `${categorySlug}-${titleSlug}` : titleSlug;
-        }
-
         const paperData = {
             ...data,
-            slug: finalSlug,
-            published: data.published || false,
+            slug: generateSlugForCopy(data, allCategories),
             session: data.session === 'none' || !data.session ? null : data.session,
         };
         await addDoc(collection(db, "papers"), paperData);
@@ -233,36 +234,239 @@ export default function CopyPaperPage() {
                     <CardDescription>Create a new paper by copying the details from an existing one. Questions are not copied.</CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-8 pt-6">
-                    <FormField control={form.control} name="title" render={({ field }) => ( <FormItem> <FormLabel>New Paper Title</FormLabel> <FormControl> <Input {...field} disabled={isSubmitting} /> </FormControl> <FormMessage /> </FormItem> )}/>
-                    <FormField control={form.control} name="slug" render={({ field }) => ( <FormItem> <FormLabel>URL Slug (Optional)</FormLabel> <FormControl> <Input {...field} disabled={isSubmitting} /> </FormControl> <FormDescription>If left blank, a detailed slug will be generated.</FormDescription> <FormMessage /> </FormItem> )}/>
-                    <FormField control={form.control} name="description" render={({ field }) => ( <FormItem> <div className="flex items-center justify-between"> <FormLabel>Description</FormLabel> <Button type="button" variant="ghost" size="sm" className="gap-1.5" onClick={handleGenerateDescription} disabled={isGeneratingDesc || isSubmitting}> {isGeneratingDesc ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />} Generate </Button> </div> <FormControl> <Textarea {...field} disabled={isSubmitting} /> </FormControl> <FormMessage /> </FormItem> )}/>
-                    <FormField control={form.control} name="categoryId" render={({ field }) => ( <FormItem> <FormLabel>Category</FormLabel> <Select onValueChange={field.onChange} defaultValue={field.value} disabled={isSubmitting}> <FormControl> <SelectTrigger> <SelectValue placeholder="Select a category" /> </SelectTrigger> </FormControl> <SelectContent> {flatCategories.map((cat) => ( <SelectItem key={cat.id} value={cat.id} style={{ paddingLeft: `${1 + cat.level * 1.5}rem` }} disabled={cat.isParent}> {cat.name} </SelectItem> ))} </SelectContent> </Select> <FormDescription> You can only assign papers to subcategories that don't have their own children. </FormDescription> <FormMessage /> </FormItem> )}/>
-                    <FormField control={form.control} name="published" render={({ field }) => ( <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4"> <div className="space-y-0.5"> <FormLabel className="text-base">Published</FormLabel> <FormDescription>Published papers will be visible on the public website.</FormDescription> </div> <FormControl> <Switch checked={field.value} onCheckedChange={field.onChange} disabled={isSubmitting} /> </FormControl> </FormItem> )}/>
-                    <FormField control={form.control} name="featured" render={({ field }) => ( <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4"> <div className="space-y-0.5"> <FormLabel className="text-base">Featured Paper</FormLabel> <FormDescription>Featured papers will be highlighted on the homepage.</FormDescription> </div> <FormControl> <Switch checked={field.value} onCheckedChange={field.onChange} disabled={isSubmitting} /> </FormControl> </FormItem> )}/>
+                    <FormField
+                        control={form.control}
+                        name="title"
+                        render={({ field }) => (
+                            <FormItem>
+                                <FormLabel>New Paper Title</FormLabel>
+                                <FormControl>
+                                    <Input {...field} disabled={isSubmitting} />
+                                </FormControl>
+                                <FormMessage />
+                            </FormItem>
+                        )}
+                    />
+                    <FormField
+                        control={form.control}
+                        name="slug"
+                        render={({ field }) => (
+                            <FormItem>
+                                <FormLabel>URL Slug (Optional)</FormLabel>
+                                <FormControl>
+                                    <Input {...field} disabled={isSubmitting} />
+                                </FormControl>
+                                <FormDescription>If left blank, a detailed slug will be generated.</FormDescription>
+                                <FormMessage />
+                            </FormItem>
+                        )}
+                    />
+                    <FormField
+                        control={form.control}
+                        name="description"
+                        render={({ field }) => (
+                            <FormItem>
+                                <div className="flex items-center justify-between">
+                                    <FormLabel>Description</FormLabel>
+                                    <Button type="button" variant="ghost" size="sm" className="gap-1.5" onClick={handleGenerateDescription} disabled={isGeneratingDesc || isSubmitting}>
+                                        {isGeneratingDesc ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />} Generate
+                                    </Button>
+                                </div>
+                                <FormControl>
+                                    <Textarea {...field} disabled={isSubmitting} />
+                                </FormControl>
+                                <FormMessage />
+                            </FormItem>
+                        )}
+                    />
+                    <FormField
+                        control={form.control}
+                        name="categoryId"
+                        render={({ field }) => (
+                            <FormItem>
+                                <FormLabel>Category</FormLabel>
+                                <Select onValueChange={field.onChange} defaultValue={field.value} disabled={isSubmitting}>
+                                    <FormControl>
+                                        <SelectTrigger>
+                                            <SelectValue placeholder="Select a category" />
+                                        </SelectTrigger>
+                                    </FormControl>
+                                    <SelectContent>
+                                        {flatCategories.map((cat) => (
+                                            <SelectItem key={cat.id} value={cat.id} style={{ paddingLeft: `${1 + cat.level * 1.5}rem` }} disabled={cat.isParent}>
+                                                {cat.name}
+                                            </SelectItem>
+                                        ))}
+                                    </SelectContent>
+                                </Select>
+                                <FormDescription>You can only assign papers to subcategories that don't have their own children.</FormDescription>
+                                <FormMessage />
+                            </FormItem>
+                        )}
+                    />
+                    <FormField
+                        control={form.control}
+                        name="published"
+                        render={({ field }) => (
+                            <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4">
+                                <div className="space-y-0.5">
+                                    <FormLabel className="text-base">Published</FormLabel>
+                                    <FormDescription>Published papers will be visible on the public website.</FormDescription>
+                                </div>
+                                <FormControl>
+                                    <Switch checked={field.value} onCheckedChange={field.onChange} disabled={isSubmitting} />
+                                </FormControl>
+                            </FormItem>
+                        )}
+                    />
+                    <FormField
+                        control={form.control}
+                        name="featured"
+                        render={({ field }) => (
+                            <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4">
+                                <div className="space-y-0.5">
+                                    <FormLabel className="text-base">Featured Paper</FormLabel>
+                                    <FormDescription>Featured papers will be highlighted on the homepage.</FormDescription>
+                                </div>
+                                <FormControl>
+                                    <Switch checked={field.value} onCheckedChange={field.onChange} disabled={isSubmitting} />
+                                </FormControl>
+                            </FormItem>
+                        )}
+                    />
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-8">
-                        <FormField control={form.control} name="questionCount" render={({ field }) => ( <FormItem> <FormLabel>Number of Questions</FormLabel> <FormControl> <Input type="number" {...field} disabled={isSubmitting} /> </FormControl> <FormDescription>This value is copied from the source paper.</FormDescription> <FormMessage /> </FormItem> )}/>
-                        <FormField control={form.control} name="duration" render={({ field }) => ( <FormItem> <FormLabel>Duration (minutes)</FormLabel> <FormControl> <Input type="number" {...field} disabled={isSubmitting} /> </FormControl> <FormMessage /> </FormItem> )}/>
-                        <FormField control={form.control} name="year" render={({ field }) => ( <FormItem> <FormLabel>Year (Optional)</FormLabel> <FormControl> <Input type="number" {...field} value={field.value ?? ''} disabled={isSubmitting} /> </FormControl> <FormMessage /> </FormItem> )}/>
-                        <FormField control={form.control} name="session" render={({ field }) => ( <FormItem> <FormLabel>Session (Optional)</FormLabel> <Select onValueChange={field.onChange} value={field.value || ''} disabled={isSubmitting}> <FormControl> <SelectTrigger> <SelectValue placeholder="Select a session" /> </SelectTrigger> </FormControl> <SelectContent> <SelectItem value="none">None</SelectItem> <SelectItem value="Fall">Fall</SelectItem> <SelectItem value="Spring">Spring</SelectItem> <SelectItem value="Summer">Summer</SelectItem> <SelectItem value="Special">Special</SelectItem> <SelectItem value="Other">Other</SelectItem> </SelectContent> </Select> <FormMessage /> </FormItem> )}/>
+                        <FormField
+                            control={form.control}
+                            name="questionCount"
+                            render={({ field }) => (
+                                <FormItem>
+                                    <FormLabel>Number of Questions</FormLabel>
+                                    <FormControl>
+                                        <Input type="number" {...field} disabled={isSubmitting} />
+                                    </FormControl>
+                                    <FormDescription>This value is copied from the source paper.</FormDescription>
+                                    <FormMessage />
+                                </FormItem>
+                            )}
+                        />
+                        <FormField
+                            control={form.control}
+                            name="duration"
+                            render={({ field }) => (
+                                <FormItem>
+                                    <FormLabel>Duration (minutes)</FormLabel>
+                                    <FormControl>
+                                        <Input type="number" {...field} disabled={isSubmitting} />
+                                    </FormControl>
+                                    <FormMessage />
+                                </FormItem>
+                            )}
+                        />
+                        <FormField
+                            control={form.control}
+                            name="year"
+                            render={({ field }) => (
+                                <FormItem>
+                                    <FormLabel>Year (Optional)</FormLabel>
+                                    <FormControl>
+                                        <Input type="number" {...field} value={field.value ?? ''} disabled={isSubmitting} />
+                                    </FormControl>
+                                    <FormMessage />
+                                </FormItem>
+                            )}
+                        />
+                        <FormField
+                            control={form.control}
+                            name="session"
+                            render={({ field }) => (
+                                <FormItem>
+                                    <FormLabel>Session (Optional)</FormLabel>
+                                    <Select onValueChange={field.onChange} value={field.value || ''} disabled={isSubmitting}>
+                                        <FormControl>
+                                            <SelectTrigger>
+                                                <SelectValue placeholder="Select a session" />
+                                            </SelectTrigger>
+                                        </FormControl>
+                                        <SelectContent>
+                                            <SelectItem value="none">None</SelectItem>
+                                            <SelectItem value="Fall">Fall</SelectItem>
+                                            <SelectItem value="Spring">Spring</SelectItem>
+                                            <SelectItem value="Summer">Summer</SelectItem>
+                                            <SelectItem value="Special">Special</SelectItem>
+                                            <SelectItem value="Other">Other</SelectItem>
+                                        </SelectContent>
+                                    </Select>
+                                    <FormMessage />
+                                </FormItem>
+                            )}
+                        />
                     </div>
                 </CardContent>
             </Card>
             <Card>
                 <CardHeader>
                     <div className="flex items-center justify-between">
-                        <div><CardTitle>SEO Details</CardTitle><CardDescription>Optimize this paper for search engines.</CardDescription></div>
-                        <Button type="button" variant="outline" size="sm" onClick={handleGenerateSeo} disabled={isGeneratingSeo || isSubmitting}> {isGeneratingSeo ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Sparkles className="mr-2 h-4 w-4" />} Generate with AI </Button>
+                        <div>
+                            <CardTitle>SEO Details</CardTitle>
+                            <CardDescription>Optimize this paper for search engines.</CardDescription>
+                        </div>
+                        <Button type="button" variant="outline" size="sm" onClick={handleGenerateSeo} disabled={isGeneratingSeo || isSubmitting}>
+                            {isGeneratingSeo ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Sparkles className="mr-2 h-4 w-4" />}
+                            Generate with AI
+                        </Button>
                     </div>
                 </CardHeader>
                 <CardContent className="space-y-6 pt-6">
-                    <FormField control={form.control} name="metaTitle" render={({ field }) => ( <FormItem> <FormLabel>Meta Title (Optional)</FormLabel> <FormControl> <Input {...field} value={field.value ?? ''} disabled={isSubmitting} /> </FormControl> <FormMessage /> </FormItem> )}/>
-                    <FormField control={form.control} name="metaDescription" render={({ field }) => ( <FormItem> <FormLabel>Meta Description (Optional)</FormLabel> <FormControl> <Textarea {...field} value={field.value ?? ''} disabled={isSubmitting} /> </FormControl> <FormMessage /> </FormItem> )}/>
-                    <FormField control={form.control} name="keywords" render={({ field }) => ( <FormItem> <FormLabel>Keywords (Optional)</FormLabel> <FormControl> <Input {...field} value={field.value ?? ''} disabled={isSubmitting} /> </FormControl> <FormDescription>Comma-separated keywords.</FormDescription> <FormMessage /> </FormItem> )}/>
+                    <FormField
+                        control={form.control}
+                        name="metaTitle"
+                        render={({ field }) => (
+                            <FormItem>
+                                <FormLabel>Meta Title (Optional)</FormLabel>
+                                <FormControl>
+                                    <Input {...field} value={field.value ?? ''} disabled={isSubmitting} />
+                                </FormControl>
+                                <FormMessage />
+                            </FormItem>
+                        )}
+                    />
+                    <FormField
+                        control={form.control}
+                        name="metaDescription"
+                        render={({ field }) => (
+                            <FormItem>
+                                <FormLabel>Meta Description (Optional)</FormLabel>
+                                <FormControl>
+                                    <Textarea {...field} value={field.value ?? ''} disabled={isSubmitting} />
+                                </FormControl>
+                                <FormMessage />
+                            </FormItem>
+                        )}
+                    />
+                    <FormField
+                        control={form.control}
+                        name="keywords"
+                        render={({ field }) => (
+                            <FormItem>
+                                <FormLabel>Keywords (Optional)</FormLabel>
+                                <FormControl>
+                                    <Input {...field} value={field.value ?? ''} disabled={isSubmitting} />
+                                </FormControl>
+                                <FormDescription>Comma-separated keywords.</FormDescription>
+                                <FormMessage />
+                            </FormItem>
+                        )}
+                    />
                 </CardContent>
             </Card>
             <div className="flex justify-end gap-4">
-                <Button type="button" variant="outline" onClick={() => router.push('/admin/papers')} disabled={isSubmitting}> Cancel </Button>
-                <Button type="submit" disabled={isSubmitting}> {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />} Save Copy </Button>
+                <Button type="button" variant="outline" onClick={() => router.push('/admin/papers')} disabled={isSubmitting}>
+                    Cancel
+                </Button>
+                <Button type="submit" disabled={isSubmitting}>
+                    {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                    Save Copy
+                </Button>
             </div>
         </form>
       </Form>
