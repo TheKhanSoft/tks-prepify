@@ -60,6 +60,21 @@ const paperFormSchema = z.object({
 
 type PaperFormValues = z.infer<typeof paperFormSchema>;
 
+function generateSlugForCopy(data: PaperFormValues, allCategories: Category[]): string {
+    if (data.slug) {
+        return slugify(data.slug);
+    }
+    const category = getCategoryById(data.categoryId, allCategories);
+    const categorySlug = category ? category.slug.replace(/\//g, '-') : '';
+    const sessionForSlug = data.session === 'none' ? '' : data.session || '';
+    const titleSlug = slugify(`${data.title} ${data.year || ''} ${sessionForSlug}`.trim());
+
+    if (categorySlug) {
+        return `${categorySlug}-${titleSlug}`;
+    }
+    return titleSlug;
+}
+
 export default function CopyPaperPage() {
   const router = useRouter();
   const params = useParams();
@@ -94,7 +109,7 @@ export default function CopyPaperPage() {
                 form.reset({
                     ...paper,
                     title: `Copy of ${paper.title}`,
-                    slug: '',
+                    slug: '', // Reset slug
                     published: false,
                     featured: false,
                     year: paper.year || undefined,
@@ -192,24 +207,9 @@ export default function CopyPaperPage() {
   async function onSubmit(data: PaperFormValues) {
     setIsSubmitting(true);
     try {
-      const getSlug = () => {
-        if (data.slug) {
-            return slugify(data.slug);
-        }
-        const category = getCategoryById(data.categoryId, allCategories);
-        const categorySlug = category ? category.slug.replace(/\//g, '-') : '';
-        const sessionForSlug = data.session === 'none' ? '' : data.session || '';
-        const titleSlug = slugify(`${data.title} ${data.year || ''} ${sessionForSlug}`.trim());
-
-        if (categorySlug) {
-            return `${categorySlug}-${titleSlug}`;
-        }
-        return titleSlug;
-      };
-
       const paperData = {
           ...data,
-          slug: getSlug(),
+          slug: generateSlugForCopy(data, allCategories),
           published: data.published || false,
           session: data.session === 'none' || !data.session ? null : data.session,
       };
@@ -253,7 +253,7 @@ export default function CopyPaperPage() {
                     <CardTitle>Copy Paper: {sourcePaperTitle}</CardTitle>
                     <CardDescription>Create a new paper by modifying the details from an existing one. Questions are not copied.</CardDescription>
                 </CardHeader>
-                <CardContent className="space-y-8">
+                <CardContent className="space-y-8 pt-6">
                     <FormField
                         control={form.control}
                         name="title"
@@ -438,7 +438,7 @@ export default function CopyPaperPage() {
                         </Button>
                     </div>
                 </CardHeader>
-                <CardContent className="space-y-6">
+                <CardContent className="space-y-6 pt-6">
                     <FormField
                         control={form.control}
                         name="metaTitle"
@@ -495,5 +495,3 @@ export default function CopyPaperPage() {
     </div>
   );
 }
-
-    
