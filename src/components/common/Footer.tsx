@@ -23,13 +23,13 @@ export function Footer({ settings }: { settings: Settings }) {
             </Link>
             <p className="text-muted-foreground mb-4">{settings.siteDescription}</p>
             <div className="flex gap-1">
-                {settings.socialLinks && settings.socialLinks.map((link) => {
+                {settings.socialLinks && settings.socialLinks.map((link, index) => {
                     const platformInfo = socialPlatforms.find(p => p.value === link.platform);
                     const Icon = platformInfo ? iconMap[platformInfo.iconName] : null;
 
                     if (!Icon || !link.url) return null;
                     return (
-                        <Button asChild variant="ghost" size="icon" key={link.platform}>
+                        <Button asChild variant="ghost" size="icon" key={index}>
                             <Link href={link.url} target="_blank" rel="noopener noreferrer">
                                 <Icon className="h-5 w-5" />
                                 <span className="sr-only">{link.platform}</span>
