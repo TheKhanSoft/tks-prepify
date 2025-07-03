@@ -90,4 +90,9 @@ export interface Settings {
     heroButton2Text?: string;
     heroButton2Link?: string;
     heroImage?: string;
+    // Social Links
+    facebookUrl?: string;
+    twitterUrl?: string;
+    linkedinUrl?: string;
+    githubUrl?: string;
 }

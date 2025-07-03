@@ -17,7 +17,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2 } from "lucide-react";
+import { Facebook, Github, Linkedin, Loader2, Twitter } from "lucide-react";
 import React, { useState, useEffect } from "react";
 import { fetchSettings, updateSettings } from "@/lib/settings-service";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -38,6 +38,10 @@ const settingsFormSchema = z.object({
   heroButton2Text: z.string().optional(),
   heroButton2Link: z.string().optional(),
   heroImage: z.string().url({ message: "Please enter a valid URL." }).or(z.literal("")).optional(),
+  facebookUrl: z.string().url({ message: "Please enter a valid URL." }).or(z.literal("")).optional(),
+  twitterUrl: z.string().url({ message: "Please enter a valid URL." }).or(z.literal("")).optional(),
+  linkedinUrl: z.string().url({ message: "Please enter a valid URL." }).or(z.literal("")).optional(),
+  githubUrl: z.string().url({ message: "Please enter a valid URL." }).or(z.literal("")).optional(),
 });
 
 type SettingsFormValues = z.infer<typeof settingsFormSchema>;
@@ -110,6 +114,7 @@ export default function AdminSettingsPage() {
             <TabsList>
               <TabsTrigger value="site">Site</TabsTrigger>
               <TabsTrigger value="homepage">Homepage</TabsTrigger>
+              <TabsTrigger value="social">Social Links</TabsTrigger>
               <TabsTrigger value="defaults">Defaults</TabsTrigger>
             </TabsList>
             <TabsContent value="site">
@@ -271,6 +276,82 @@ export default function AdminSettingsPage() {
                         <FormLabel>Hero Image URL</FormLabel>
                         <FormControl>
                           <Input {...field} value={field.value || ''} placeholder="https://..." disabled={isSubmitting} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </CardContent>
+              </Card>
+            </TabsContent>
+            <TabsContent value="social">
+              <Card>
+                <CardHeader>
+                  <CardTitle>Social Media Links</CardTitle>
+                  <CardDescription>
+                    Provide links to your social media profiles. They will appear in the site footer.
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-6">
+                  <FormField
+                    control={form.control}
+                    name="facebookUrl"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Facebook URL</FormLabel>
+                        <FormControl>
+                          <div className="relative">
+                            <Facebook className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                            <Input {...field} value={field.value || ''} placeholder="https://facebook.com/..." className="pl-9" disabled={isSubmitting} />
+                          </div>
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={form.control}
+                    name="twitterUrl"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Twitter (X) URL</FormLabel>
+                        <FormControl>
+                           <div className="relative">
+                            <Twitter className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                            <Input {...field} value={field.value || ''} placeholder="https://x.com/..." className="pl-9" disabled={isSubmitting} />
+                          </div>
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={form.control}
+                    name="linkedinUrl"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>LinkedIn URL</FormLabel>
+                        <FormControl>
+                          <div className="relative">
+                            <Linkedin className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                            <Input {...field} value={field.value || ''} placeholder="https://linkedin.com/in/..." className="pl-9" disabled={isSubmitting} />
+                          </div>
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={form.control}
+                    name="githubUrl"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>GitHub URL</FormLabel>
+                        <FormControl>
+                           <div className="relative">
+                            <Github className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                            <Input {...field} value={field.value || ''} placeholder="https://github.com/..." className="pl-9" disabled={isSubmitting} />
+                          </div>
                         </FormControl>
                         <FormMessage />
                       </FormItem>

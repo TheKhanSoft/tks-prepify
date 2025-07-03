@@ -33,6 +33,10 @@ export async function fetchSettings(): Promise<Settings> {
                 heroButton2Text: data.heroButton2Text || 'Get Started',
                 heroButton2Link: data.heroButton2Link || '/signup',
                 heroImage: data.heroImage || 'https://placehold.co/600x400.png',
+                facebookUrl: data.facebookUrl || '',
+                twitterUrl: data.twitterUrl || '',
+                linkedinUrl: data.linkedinUrl || '',
+                githubUrl: data.githubUrl || '',
             };
         }
     } catch (error) {
@@ -54,6 +58,10 @@ export async function fetchSettings(): Promise<Settings> {
         heroButton2Text: 'Get Started',
         heroButton2Link: '/signup',
         heroImage: 'https://placehold.co/600x400.png',
+        facebookUrl: '',
+        twitterUrl: '',
+        linkedinUrl: '',
+        githubUrl: '',
     };
 }
 
