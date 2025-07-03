@@ -13,7 +13,8 @@ export async function uploadHeroImage(formData: FormData) {
   const bytes = await file.arrayBuffer();
   const buffer = Buffer.from(bytes);
 
-  const relativeUploadDir = join('/images/site');
+  // Correctly define a relative path within the project
+  const relativeUploadDir = join('images', 'site');
   const uploadDir = join(process.cwd(), 'public', relativeUploadDir);
   
   try {
@@ -26,12 +27,13 @@ export async function uploadHeroImage(formData: FormData) {
   }
 
   const uniqueFilename = `${Date.now()}-${file.name.replace(/\s/g, '_')}`;
-  const relativePath = join(relativeUploadDir, uniqueFilename);
+  // Create the public-facing path for the `src` attribute
+  const publicPath = join('/', relativeUploadDir, uniqueFilename);
   const absolutePath = join(uploadDir, uniqueFilename);
 
   try {
     await writeFile(absolutePath, buffer);
-    return { success: true, path: relativePath };
+    return { success: true, path: publicPath };
   } catch (error) {
     console.error("File upload to file system failed:", error);
     return { success: false, error: "File upload failed. Check server permissions." };
