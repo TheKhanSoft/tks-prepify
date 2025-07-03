@@ -1,4 +1,3 @@
-
 "use client";
 
 import React, { useState, useEffect, useCallback } from "react";
@@ -68,21 +67,25 @@ export default function AdminPaperQuestionsPage() {
     const [isImportDialogOpen, setIsImportDialogOpen] = useState(false);
 
     const loadData = useCallback(async () => {
-        // Don't set loading to true here to avoid flicker on re-fetches
         if (!paperId) {
             setLoading(false);
             return;
         }
         try {
-            const [fetchedPaper, fetchedQuestions] = await Promise.all([
-                getPaperById(paperId),
-                fetchQuestionsForPaper(paperId),
-            ]);
+            const fetchedPaper = await getPaperById(paperId);
             setPaper(fetchedPaper);
-            setQuestions(fetchedQuestions);
+
+            if (fetchedPaper) {
+                const fetchedQuestions = await fetchQuestionsForPaper(paperId);
+                setQuestions(fetchedQuestions);
+            }
         } catch(e) {
             console.error(e);
-            toast({ title: "Error", description: "Failed to load paper data.", variant: "destructive" });
+            toast({ 
+                title: "Error loading questions", 
+                description: "A database index might be missing. Please check your browser's developer console for a link to create it.",
+                variant: "destructive",
+            });
         } finally {
             setLoading(false);
         }

@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useForm, useFieldArray } from "react-hook-form";
@@ -79,23 +78,27 @@ export default function NewQuestionPage() {
       const loadData = async () => {
           setLoading(true);
           try {
-            const [fetchedPaper, fetchedQuestions] = await Promise.all([
-                getPaperById(paperId),
-                fetchQuestionsForPaper(paperId),
-            ]);
+            const fetchedPaper = await getPaperById(paperId);
             setPaper(fetchedPaper);
-            const nextOrderNumber = fetchedQuestions.length > 0 ? Math.max(...fetchedQuestions.map(q => q.order)) + 1 : 1;
-            setNextOrder(nextOrderNumber);
-            form.reset({
-                type: 'mcq',
-                order: nextOrderNumber,
-                questionText: '',
-                options: [{ text: "" }, { text: "" }],
-                correctAnswers: [],
-                explanation: '',
-            });
+
+            if(fetchedPaper) {
+                const fetchedQuestions = await fetchQuestionsForPaper(paperId);
+                const nextOrderNumber = fetchedQuestions.length > 0 ? Math.max(...fetchedQuestions.map(q => q.order)) + 1 : 1;
+                setNextOrder(nextOrderNumber);
+                form.reset({
+                    type: 'mcq',
+                    order: nextOrderNumber,
+                    questionText: '',
+                    options: [{ text: "" }, { text: "" }],
+                    correctAnswers: [],
+                    explanation: '',
+                });
+            } else {
+                 toast({ title: "Error", description: "Could not load paper data.", variant: "destructive" });
+            }
           } catch(e) {
-            toast({ title: "Error", description: "Could not load paper data.", variant: "destructive" });
+            console.error(e);
+            toast({ title: "Error", description: "Could not load question data. A database index might be missing. Check browser console.", variant: "destructive" });
           } finally {
             setLoading(false);
           }
