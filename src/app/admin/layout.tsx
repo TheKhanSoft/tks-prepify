@@ -1,6 +1,6 @@
 
 import { SidebarProvider, Sidebar, SidebarHeader, SidebarTrigger, SidebarMenu, SidebarMenuItem, SidebarMenuButton, SidebarContent, SidebarInset, SidebarFooter } from '@/components/ui/sidebar';
-import { LayoutDashboard, FileText, Folder, Home, Users, Settings, Bell, Search, Library, Tags, Mail } from 'lucide-react';
+import { LayoutDashboard, FileText, Folder, Home, Users, Settings, Bell, Search, Library, Tags, Mail, FileSliders, ChevronRight } from 'lucide-react';
 import Link from 'next/link';
 import { BookOpen } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -8,6 +8,7 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Input } from '@/components/ui/input';
 import { fetchSettings } from '@/lib/settings-service';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 
 export default async function AdminLayout({
   children,
@@ -43,6 +44,34 @@ export default async function AdminLayout({
                   </Link>
                 </SidebarMenuButton>
               </SidebarMenuItem>
+              <Collapsible asChild>
+                <SidebarMenuItem>
+                  <div className="w-full">
+                    <CollapsibleTrigger asChild>
+                      <SidebarMenuButton variant="ghost" className="w-full justify-between group-data-[collapsible=icon]:justify-center">
+                        <div className="flex items-center gap-2">
+                          <FileSliders />
+                          <span className="group-data-[collapsible=icon]:hidden">Pages</span>
+                        </div>
+                        <ChevronRight className="h-4 w-4 group-data-[collapsible=icon]:hidden transition-transform [&[data-state=open]]:rotate-90" />
+                      </SidebarMenuButton>
+                    </CollapsibleTrigger>
+                    <CollapsibleContent className="group-data-[collapsible=icon]:hidden">
+                      <div className="pl-8 py-1 flex flex-col gap-1">
+                        <Button asChild variant="link" className="h-auto p-0 justify-start text-muted-foreground hover:text-foreground">
+                          <Link href="/admin/pages/homepage">Homepage</Link>
+                        </Button>
+                        <Button asChild variant="link" className="h-auto p-0 justify-start text-muted-foreground hover:text-foreground">
+                          <Link href="/admin/pages/about">About Page</Link>
+                        </Button>
+                         <Button asChild variant="link" className="h-auto p-0 justify-start text-muted-foreground hover:text-foreground">
+                          <Link href="/admin/pages/contact">Contact Page</Link>
+                        </Button>
+                      </div>
+                    </CollapsibleContent>
+                  </div>
+                </SidebarMenuItem>
+              </Collapsible>
               <SidebarMenuItem>
                 <SidebarMenuButton asChild tooltip="Papers">
                   <Link href="/admin/papers">

@@ -15,17 +15,14 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2, PlusCircle, Trash2, UploadCloud, Link as LinkIcon, Facebook, Github, Instagram, Linkedin, Twitter, Youtube, MessageSquare, MessageCircle, Twitch, Ghost, Send } from "lucide-react";
+import { Loader2, PlusCircle, Trash2, Link as LinkIcon, Facebook, Github, Instagram, Linkedin, Twitter, Youtube, MessageSquare, MessageCircle, Twitch, Ghost, Send } from "lucide-react";
 import React, { useState, useEffect } from "react";
 import { fetchSettings, updateSettings } from "@/lib/settings-service";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import Image from "next/image";
-import { cn } from "@/lib/utils";
 import { socialPlatforms } from "@/lib/social-platforms";
 
 const settingsFormSchema = z.object({
@@ -34,37 +31,10 @@ const settingsFormSchema = z.object({
   defaultQuestionCount: z.coerce.number().int().min(1, "Must be at least 1."),
   defaultDuration: z.coerce.number().int().min(1, "Must be at least 1 minute."),
   defaultQuestionsPerPage: z.coerce.number().int().min(1, "Must be at least 1."),
-  heroTitlePrefix: z.string().optional(),
-  heroTitleHighlight: z.string().optional(),
-  heroTitleSuffix: z.string().optional(),
-  heroSubtitle: z.string().optional(),
-  heroButton1Text: z.string().optional(),
-  heroButton1Link: z.string().optional(),
-  heroButton2Text: z.string().optional(),
-  heroButton2Link: z.string().optional(),
-  heroImage: z.string().or(z.literal("")).optional(),
   socialLinks: z.array(z.object({
     platform: z.string().min(1, "Please select a platform."),
     url: z.string().url({ message: "Please enter a valid URL." }).or(z.literal("")),
   })).optional(),
-  // About Page
-  aboutTitle: z.string().optional(),
-  aboutSubtitle: z.string().optional(),
-  aboutMission: z.string().optional(),
-  aboutVision: z.string().optional(),
-  aboutTeamTitle: z.string().optional(),
-  teamMembers: z.array(z.object({
-      name: z.string().min(1, "Name is required."),
-      role: z.string().min(1, "Role is required."),
-      avatar: z.string().url("Must be a valid URL").or(z.literal("")),
-      hint: z.string().optional(),
-  })).optional(),
-  // Contact Page
-  contactTitle: z.string().optional(),
-  contactSubtitle: z.string().optional(),
-  contactEmail: z.string().email("Must be a valid email").or(z.literal("")).optional(),
-  contactPhone: z.string().optional(),
-  contactAddress: z.string().optional(),
 });
 
 type SettingsFormValues = z.infer<typeof settingsFormSchema>;
@@ -77,17 +47,11 @@ export default function AdminSettingsPage() {
   const { toast } = useToast();
   const [loading, setLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [fileToUpload, setFileToUpload] = useState<File | null>(null);
-  const [imagePreview, setImagePreview] = useState<string | null>(null);
-
-  const MAX_IMAGE_SIZE_KB = 150;
-  const MAX_IMAGE_SIZE_BYTES = MAX_IMAGE_SIZE_KB * 1024;
 
   const form = useForm<SettingsFormValues>({
     resolver: zodResolver(settingsFormSchema),
     defaultValues: {
       socialLinks: [],
-      teamMembers: [],
     }
   });
 
@@ -95,12 +59,6 @@ export default function AdminSettingsPage() {
     control: form.control,
     name: "socialLinks",
   });
-  
-  const { fields: teamFields, append: appendTeam, remove: removeTeam } = useFieldArray({
-      control: form.control,
-      name: "teamMembers",
-  });
-
 
   useEffect(() => {
     const loadSettings = async () => {
@@ -108,9 +66,6 @@ export default function AdminSettingsPage() {
       try {
         const settings = await fetchSettings();
         form.reset(settings);
-        if (settings.heroImage) {
-          setImagePreview(settings.heroImage);
-        }
       } catch (error) {
         toast({
           title: "Error",
@@ -127,22 +82,9 @@ export default function AdminSettingsPage() {
   async function onSubmit(data: SettingsFormValues) {
     setIsSubmitting(true);
     try {
-      let finalData = { ...data };
-
-      if (fileToUpload) {
-        const dataUrl = await new Promise<string>((resolve, reject) => {
-            const reader = new FileReader();
-            reader.onload = () => resolve(reader.result as string);
-            reader.onerror = (error) => reject(error);
-            reader.readAsDataURL(fileToUpload);
-        });
-        finalData.heroImage = dataUrl;
-      }
-
       const settingsData = {
-        ...finalData,
-        socialLinks: finalData.socialLinks?.filter(link => link.url) || [],
-        teamMembers: finalData.teamMembers?.filter(member => member.name && member.role) || [],
+        ...data,
+        socialLinks: data.socialLinks?.filter(link => link.url) || [],
       };
       
       await updateSettings(settingsData);
@@ -152,48 +94,17 @@ export default function AdminSettingsPage() {
         description: "Your global settings have been updated.",
       });
       
-      setFileToUpload(null);
-      if (finalData.heroImage) {
-          form.setValue('heroImage', finalData.heroImage);
-          setImagePreview(finalData.heroImage);
-      }
-
     } catch (error: any) {
       console.error("Error saving settings:", error);
       toast({
         title: "Save Failed",
-        description: "Failed to save settings. If you uploaded an image, it is likely too large for the database. Please use a compressed image under 150KB.",
+        description: "Failed to save settings.",
         variant: "destructive",
         duration: 8000
       });
     } finally {
       setIsSubmitting(false);
     }
-  }
-
-  const handleImageFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      if (file.size > MAX_IMAGE_SIZE_BYTES) {
-        toast({
-          title: "Image is too large",
-          description: `Please select an image smaller than ${MAX_IMAGE_SIZE_KB}KB.`,
-          variant: "destructive"
-        });
-        e.target.value = ''; // Clear the input
-        return;
-      }
-      setFileToUpload(file);
-      setImagePreview(URL.createObjectURL(file));
-      form.setValue('heroImage', ''); // Clear URL field if file is chosen
-    }
-  }
-  
-  const handleImageUrlChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-      const url = e.target.value;
-      form.setValue('heroImage', url);
-      setFileToUpload(null);
-      setImagePreview(url);
   }
 
   if (loading) {
@@ -208,16 +119,13 @@ export default function AdminSettingsPage() {
     <div className="space-y-6">
       <div>
         <h1 className="text-3xl font-bold">Global Settings</h1>
-        <p className="text-muted-foreground">Manage application-wide content and default values.</p>
+        <p className="text-muted-foreground">Manage application-wide settings and default values.</p>
       </div>
       <Form {...form}>
         <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8 max-w-4xl">
           <Tabs defaultValue="site" className="space-y-6">
             <TabsList>
               <TabsTrigger value="site">Site</TabsTrigger>
-              <TabsTrigger value="homepage">Homepage</TabsTrigger>
-              <TabsTrigger value="about">About Page</TabsTrigger>
-              <TabsTrigger value="contact">Contact Page</TabsTrigger>
               <TabsTrigger value="social">Social</TabsTrigger>
               <TabsTrigger value="defaults">Defaults</TabsTrigger>
             </TabsList>
@@ -234,83 +142,6 @@ export default function AdminSettingsPage() {
                 </CardContent>
               </Card>
             </TabsContent>
-
-             <TabsContent value="homepage">
-              <Card>
-                <CardHeader><CardTitle>Homepage Hero Section</CardTitle><CardDescription>Customize the content of the main hero section on your homepage.</CardDescription></CardHeader>
-                <CardContent className="space-y-6">
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                    <FormField control={form.control} name="heroTitlePrefix" render={({ field }) => (<FormItem className="md:col-span-1"><FormLabel>Title Prefix</FormLabel><FormControl><Input {...field} value={field.value || ''} disabled={isSubmitting} /></FormControl></FormItem>)} />
-                    <FormField control={form.control} name="heroTitleHighlight" render={({ field }) => (<FormItem className="md:col-span-1"><FormLabel>Highlighted Title</FormLabel><FormControl><Input {...field} value={field.value || ''} disabled={isSubmitting} /></FormControl></FormItem>)} />
-                    <FormField control={form.control} name="heroTitleSuffix" render={({ field }) => (<FormItem className="md:col-span-1"><FormLabel>Title Suffix</FormLabel><FormControl><Input {...field} value={field.value || ''} disabled={isSubmitting} /></FormControl></FormItem>)} />
-                  </div>
-                  <FormField control={form.control} name="heroSubtitle" render={({ field }) => (<FormItem><FormLabel>Subtitle</FormLabel><FormControl><Textarea {...field} value={field.value || ''} disabled={isSubmitting} /></FormControl></FormItem>)} />
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <FormField control={form.control} name="heroButton1Text" render={({ field }) => (<FormItem><FormLabel>Button 1 Text</FormLabel><FormControl><Input {...field} value={field.value || ''} disabled={isSubmitting} /></FormControl></FormItem>)} />
-                    <FormField control={form.control} name="heroButton1Link" render={({ field }) => (<FormItem><FormLabel>Button 1 Link</FormLabel><FormControl><Input {...field} value={field.value || ''} placeholder="/papers" disabled={isSubmitting} /></FormControl></FormItem>)} />
-                  </div>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <FormField control={form.control} name="heroButton2Text" render={({ field }) => (<FormItem><FormLabel>Button 2 Text</FormLabel><FormControl><Input {...field} value={field.value || ''} disabled={isSubmitting} /></FormControl></FormItem>)} />
-                    <FormField control={form.control} name="heroButton2Link" render={({ field }) => (<FormItem><FormLabel>Button 2 Link</FormLabel><FormControl><Input {...field} value={field.value || ''} placeholder="/signup" disabled={isSubmitting} /></FormControl></FormItem>)} />
-                  </div>
-                  <FormItem>
-                    <FormLabel>Hero Image</FormLabel>
-                    <Card><CardContent className="p-4 space-y-4">
-                      {imagePreview && (<div className="relative aspect-video w-full max-w-sm mx-auto rounded-md overflow-hidden border"><Image src={imagePreview} alt="Hero image preview" fill style={{ objectFit: 'cover' }} /></div>)}
-                      <div className="space-y-2">
-                        <Label htmlFor="hero-image-upload" className={cn("w-full border-2 border-dashed rounded-lg p-6 flex flex-col items-center justify-center text-center cursor-pointer hover:border-primary hover:bg-muted/50 transition-colors", fileToUpload && "border-primary bg-primary/10")}>
-                          <UploadCloud className="w-8 h-8 text-muted-foreground mb-2" />
-                          <span className="font-semibold">{fileToUpload ? fileToUpload.name : "Click to upload a file"}</span>
-                          <span className="text-xs text-muted-foreground">PNG, JPG, WEBP (MAX. {MAX_IMAGE_SIZE_KB}KB)</span>
-                        </Label>
-                        <Input id="hero-image-upload" type="file" className="sr-only" accept="image/*" onChange={handleImageFileChange} />
-                      </div>
-                      <div className="relative"><div className="absolute inset-0 flex items-center"><span className="w-full border-t" /></div><div className="relative flex justify-center text-xs uppercase"><span className="bg-card px-2 text-muted-foreground">Or</span></div></div>
-                      <FormField control={form.control} name="heroImage" render={({ field }) => (<FormItem className="space-y-2"><FormLabel htmlFor="hero-image-url">Paste image URL</FormLabel><FormControl><Input id="hero-image-url" type="text" placeholder="https://..." value={field.value || ''} onChange={handleImageUrlChange} disabled={isSubmitting} /></FormControl><FormMessage /></FormItem>)} />
-                    </CardContent></Card>
-                  </FormItem>
-                </CardContent>
-              </Card>
-            </TabsContent>
-
-            <TabsContent value="about">
-                <Card>
-                    <CardHeader><CardTitle>About Page Content</CardTitle><CardDescription>Manage the content displayed on your About Us page.</CardDescription></CardHeader>
-                    <CardContent className="space-y-6">
-                        <FormField control={form.control} name="aboutTitle" render={({ field }) => (<FormItem><FormLabel>Title</FormLabel><FormControl><Input {...field} value={field.value || ''} /></FormControl></FormItem>)} />
-                        <FormField control={form.control} name="aboutSubtitle" render={({ field }) => (<FormItem><FormLabel>Subtitle</FormLabel><FormControl><Textarea {...field} value={field.value || ''} /></FormControl></FormItem>)} />
-                        <FormField control={form.control} name="aboutMission" render={({ field }) => (<FormItem><FormLabel>Our Mission</FormLabel><FormControl><Textarea {...field} value={field.value || ''} rows={4} /></FormControl></FormItem>)} />
-                        <FormField control={form.control} name="aboutVision" render={({ field }) => (<FormItem><FormLabel>Our Vision</FormLabel><FormControl><Textarea {...field} value={field.value || ''} rows={4} /></FormControl></FormItem>)} />
-                        
-                        <div className="space-y-4 pt-4 border-t">
-                            <FormField control={form.control} name="aboutTeamTitle" render={({ field }) => (<FormItem><FormLabel>Team Section Title</FormLabel><FormControl><Input {...field} value={field.value || ''} /></FormControl></FormItem>)} />
-                            {teamFields.map((item, index) => (
-                                <div key={item.id} className="flex flex-col gap-4 p-4 border rounded-lg relative">
-                                    <Button type="button" variant="ghost" size="icon" className="absolute top-2 right-2 text-destructive hover:text-destructive hover:bg-destructive/10" onClick={() => removeTeam(index)}><Trash2 className="h-4 w-4" /><span className="sr-only">Remove Member</span></Button>
-                                    <FormField control={form.control} name={`teamMembers.${index}.name`} render={({ field }) => (<FormItem><FormLabel>Member Name</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>)} />
-                                    <FormField control={form.control} name={`teamMembers.${index}.role`} render={({ field }) => (<FormItem><FormLabel>Member Role</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>)} />
-                                    <FormField control={form.control} name={`teamMembers.${index}.avatar`} render={({ field }) => (<FormItem><FormLabel>Avatar Image URL</FormLabel><FormControl><Input {...field} placeholder="https://..." /></FormControl><FormMessage /></FormItem>)} />
-                                    <FormField control={form.control} name={`teamMembers.${index}.hint`} render={({ field }) => (<FormItem><FormLabel>Avatar AI Hint</FormLabel><FormControl><Input {...field} /></FormControl><FormDescription>One or two keywords for AI image search (e.g., 'male portrait').</FormDescription><FormMessage /></FormItem>)} />
-                                </div>
-                            ))}
-                            <Button type="button" variant="outline" onClick={() => appendTeam({ name: '', role: '', avatar: '', hint: '' })}><PlusCircle className="mr-2 h-4 w-4" />Add Team Member</Button>
-                        </div>
-                    </CardContent>
-                </Card>
-            </TabsContent>
-
-             <TabsContent value="contact">
-                <Card>
-                    <CardHeader><CardTitle>Contact Page Content</CardTitle><CardDescription>Manage the contact information on your Contact Us page.</CardDescription></CardHeader>
-                    <CardContent className="space-y-6">
-                        <FormField control={form.control} name="contactTitle" render={({ field }) => (<FormItem><FormLabel>Title</FormLabel><FormControl><Input {...field} value={field.value || ''} /></FormControl></FormItem>)} />
-                        <FormField control={form.control} name="contactSubtitle" render={({ field }) => (<FormItem><FormLabel>Subtitle</FormLabel><FormControl><Textarea {...field} value={field.value || ''} /></FormControl></FormItem>)} />
-                        <FormField control={form.control} name="contactEmail" render={({ field }) => (<FormItem><FormLabel>Contact Email</FormLabel><FormControl><Input type="email" {...field} value={field.value || ''} /></FormControl><FormMessage /></FormItem>)} />
-                        <FormField control={form.control} name="contactPhone" render={({ field }) => (<FormItem><FormLabel>Contact Phone</FormLabel><FormControl><Input {...field} value={field.value || ''} /></FormControl></FormItem>)} />
-                        <FormField control={form.control} name="contactAddress" render={({ field }) => (<FormItem><FormLabel>Contact Address</FormLabel><FormControl><Input {...field} value={field.value || ''} /></FormControl></FormItem>)} />
-                    </CardContent>
-                </Card>
-             </TabsContent>
 
             <TabsContent value="social">
               <Card>
