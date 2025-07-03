@@ -32,68 +32,73 @@ type FirestoreCategory = Omit<Category, 'icon' | 'subcategories'> & {
 * It dynamically generates the full slug path for each category.
 */
 export async function fetchCategories(): Promise<Category[]> {
-  const categoriesCol = collection(db, 'categories');
-  const categorySnapshot = await getDocs(categoriesCol);
-  const categoryList: (Category & { parentId?: string | null })[] = categorySnapshot.docs.map(doc => {
-    const data = doc.data() as FirestoreCategory;
-    return {
-      id: doc.id,
-      name: data.name,
-      // Fallback to slugifying the name for any old data that might not have a slug field.
-      slug: data.slug || slugify(data.name),
-      description: data.description,
-      icon: data.icon ? iconMap[data.icon] : undefined,
-      parentId: data.parentId || null,
-      featured: data.featured || false,
-      keywords: data.keywords,
-      metaTitle: data.metaTitle,
-      metaDescription: data.metaDescription,
-    };
-  });
+  try {
+    const categoriesCol = collection(db, 'categories');
+    const categorySnapshot = await getDocs(categoriesCol);
+    const categoryList: (Category & { parentId?: string | null })[] = categorySnapshot.docs.map(doc => {
+      const data = doc.data() as FirestoreCategory;
+      return {
+        id: doc.id,
+        name: data.name,
+        // Fallback to slugifying the name for any old data that might not have a slug field.
+        slug: data.slug || slugify(data.name),
+        description: data.description,
+        icon: data.icon ? iconMap[data.icon] : undefined,
+        parentId: data.parentId || null,
+        featured: data.featured || false,
+        keywords: data.keywords,
+        metaTitle: data.metaTitle,
+        metaDescription: data.metaDescription,
+      };
+    });
 
-  const categoryMap = new Map(categoryList.map(c => [c.id, { ...c, subcategories: [] as Category[] }]));
-  const tree: Category[] = [];
+    const categoryMap = new Map(categoryList.map(c => [c.id, { ...c, subcategories: [] as Category[] }]));
+    const tree: Category[] = [];
 
-  // First pass: build the tree structure
-  for (const category of categoryList) {
-      const mappedCategory = categoryMap.get(category.id)!;
-    if (category.parentId) {
-      const parent = categoryMap.get(category.parentId);
-      if (parent) {
-        parent.subcategories.push(mappedCategory);
-      }
-    } else {
-      tree.push(mappedCategory);
-    }
-  }
-
-  // Second pass: recursively build the full, correct slug path for each category
-  function buildFullSlugs(categories: Category[], parentSlug: string) {
-    for (const category of categories) {
-        const currentSlug = category.slug;
-        category.slug = parentSlug ? `${parentSlug}/${currentSlug}` : currentSlug;
-        if (category.subcategories && category.subcategories.length > 0) {
-            buildFullSlugs(category.subcategories, category.slug);
+    // First pass: build the tree structure
+    for (const category of categoryList) {
+        const mappedCategory = categoryMap.get(category.id)!;
+      if (category.parentId) {
+        const parent = categoryMap.get(category.parentId);
+        if (parent) {
+          parent.subcategories.push(mappedCategory);
         }
+      } else {
+        tree.push(mappedCategory);
+      }
     }
+
+    // Second pass: recursively build the full, correct slug path for each category
+    function buildFullSlugs(categories: Category[], parentSlug: string) {
+      for (const category of categories) {
+          const currentSlug = category.slug;
+          category.slug = parentSlug ? `${parentSlug}/${currentSlug}` : currentSlug;
+          if (category.subcategories && category.subcategories.length > 0) {
+              buildFullSlugs(category.subcategories, category.slug);
+          }
+      }
+    }
+    buildFullSlugs(tree, '');
+
+
+    // Sort top-level categories, featured first
+    tree.sort((a, b) => {
+      if (a.featured && !b.featured) return -1;
+      if (!a.featured && b.featured) return 1;
+      return a.name.localeCompare(b.name);
+    });
+    
+    // Sort sub-categories by name
+    categoryMap.forEach(cat => {
+      if(cat.subcategories) {
+        cat.subcategories.sort((a,b) => a.name.localeCompare(b.name));
+      }
+    });
+
+    return tree;
+  } catch (error) {
+      console.error("Error fetching categories:", error);
+      // Return empty array on error to prevent page crash
+      return [];
   }
-  buildFullSlugs(tree, '');
-
-
-  // Sort top-level categories, featured first
-  tree.sort((a, b) => {
-    if (a.featured && !b.featured) return -1;
-    if (!a.featured && b.featured) return 1;
-    return a.name.localeCompare(b.name);
-  });
-  
-  // Sort sub-categories by name
-  categoryMap.forEach(cat => {
-    if(cat.subcategories) {
-      cat.subcategories.sort((a,b) => a.name.localeCompare(b.name));
-    }
-  });
-
-
-  return tree;
 }

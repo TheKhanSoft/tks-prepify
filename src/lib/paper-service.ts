@@ -6,10 +6,6 @@ import { db } from './firebase';
 import type { Paper } from '@/types';
 import { slugify } from './utils';
 
-// Using Next.js fetch with revalidation strategy instead of unstable_noStore
-// to allow for better caching control.
-const CACHE_REVALIDATION_TIME = 0; // Set to 0 to disable caching for this service.
-
 function docToPaper(doc: DocumentData): Paper {
     const data = doc.data();
     return {
@@ -34,22 +30,17 @@ function docToPaper(doc: DocumentData): Paper {
 
 /**
 * Fetches all papers from Firestore.
-* This function leverages Next.js caching.
 */
 export async function fetchPapers(): Promise<Paper[]> {
-    // This fetch call is a placeholder to integrate with Next.js's caching mechanism.
-    // The actual Firestore call is made below. The URL doesn't matter as long as it's unique per data type.
-    // This is a common pattern to cache non-fetch async operations in Next.js.
-    const res = await fetch('http://localhost/papers', { next: { revalidate: CACHE_REVALIDATION_TIME } });
-    
-    if (!res.ok) {
-        // This log is for server-side debugging.
-        console.error("Cache revalidation fetch failed, but proceeding with Firestore fetch.");
+    try {
+        const papersCol = collection(db, 'papers');
+        const paperSnapshot = await getDocs(papersCol);
+        return paperSnapshot.docs.map(doc => docToPaper(doc));
+    } catch (error) {
+        console.error("Error fetching papers:", error);
+        // Return empty array on error to prevent page crash
+        return [];
     }
-    
-    const papersCol = collection(db, 'papers');
-    const paperSnapshot = await getDocs(papersCol);
-    return paperSnapshot.docs.map(doc => docToPaper(doc));
 }
 
 /**
@@ -57,12 +48,17 @@ export async function fetchPapers(): Promise<Paper[]> {
 */
 export async function getPaperById(id: string): Promise<Paper | null> {
     if (!id) return null;
-    const paperDocRef = doc(db, "papers", id);
-    const paperDoc = await getDoc(paperDocRef);
+    try {
+        const paperDocRef = doc(db, "papers", id);
+        const paperDoc = await getDoc(paperDocRef);
 
-    if (paperDoc.exists()) {
-        return docToPaper(paperDoc);
-    } else {
+        if (paperDoc.exists()) {
+            return docToPaper(paperDoc);
+        } else {
+            return null;
+        }
+    } catch (error) {
+        console.error(`Error fetching paper by ID (${id}):`, error);
         return null;
     }
 }
@@ -72,14 +68,19 @@ export async function getPaperById(id: string): Promise<Paper | null> {
 */
 export async function getPaperBySlug(slug: string): Promise<Paper | null> {
     if (!slug) return null;
-    const papersCol = collection(db, 'papers');
-    const q = query(papersCol, where("slug", "==", slug));
-    const paperSnapshot = await getDocs(q);
+    try {
+        const papersCol = collection(db, 'papers');
+        const q = query(papersCol, where("slug", "==", slug));
+        const paperSnapshot = await getDocs(q);
 
-    if (!paperSnapshot.empty) {
-        // Assuming slugs are unique, return the first one found.
-        return docToPaper(paperSnapshot.docs[0]);
-    } else {
+        if (!paperSnapshot.empty) {
+            // Assuming slugs are unique, return the first one found.
+            return docToPaper(paperSnapshot.docs[0]);
+        } else {
+            return null;
+        }
+    } catch (error) {
+        console.error(`Error fetching paper by slug (${slug}):`, error);
         return null;
     }
 }
