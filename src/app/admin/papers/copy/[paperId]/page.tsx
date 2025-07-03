@@ -347,9 +347,14 @@ export default function CopyPaperPage() {
                                 <FormItem>
                                     <FormLabel>Number of Questions</FormLabel>
                                     <FormControl>
-                                        <Input type="number" {...field} disabled={isSubmitting} />
+                                        <Input
+                                          type="number"
+                                          {...field}
+                                          readOnly
+                                          className="bg-muted/50 cursor-not-allowed"
+                                        />
                                     </FormControl>
-                                    <FormDescription>This value is copied from the source paper.</FormDescription>
+                                    <FormDescription>This value is copied from the source paper and cannot be changed.</FormDescription>
                                     <FormMessage />
                                 </FormItem>
                             )}
