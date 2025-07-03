@@ -43,7 +43,7 @@ export default async function AdminLayout({
                     <CollapsibleTrigger asChild>
                       <SidebarMenuButton variant="ghost" className="w-full justify-between group-data-[collapsible=icon]:justify-center" tooltip="Pages">
                         <div className="flex items-center gap-2">
-                          <FileSliders />
+                          <FileSliders className="h-4 w-4"/>
                           <span className="group-data-[collapsible=icon]:hidden">Pages</span>
                         </div>
                         <ChevronRight className="h-4 w-4 group-data-[collapsible=icon]:hidden transition-transform [&[data-state=open]]:rotate-90" />
@@ -87,7 +87,7 @@ export default async function AdminLayout({
                     <CollapsibleTrigger asChild>
                       <SidebarMenuButton variant="ghost" className="w-full justify-between group-data-[collapsible=icon]:justify-center" tooltip="Question Bank">
                         <div className="flex items-center gap-2">
-                          <Database />
+                          <Database className="h-4 w-4"/>
                           <span className="group-data-[collapsible=icon]:hidden">Question Bank</span>
                         </div>
                         <ChevronRight className="h-4 w-4 group-data-[collapsible=icon]:hidden transition-transform [&[data-state=open]]:rotate-90" />
