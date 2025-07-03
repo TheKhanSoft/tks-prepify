@@ -1,6 +1,4 @@
 
-'use server';
-
 import { collection, getDocs, doc, getDoc } from 'firebase/firestore';
 import { db } from './firebase';
 import type { QuestionCategory } from '@/types';
