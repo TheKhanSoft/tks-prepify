@@ -1,6 +1,9 @@
 
 'use server';
 
+import { writeFile, mkdir, stat } from 'fs/promises';
+import { join } from 'path';
+
 export async function uploadHeroImage(formData: FormData) {
   const file = formData.get('heroImage') as File | null;
   if (!file) {
@@ -12,21 +15,50 @@ export async function uploadHeroImage(formData: FormData) {
     return { success: false, error: 'Invalid file type. Please upload an image.' };
   }
 
-  // Firestore documents have a 1 MiB limit. We need space for other settings.
-  // This limit is for the raw file size before Base64 encoding.
-  const MAX_SIZE_IN_BYTES = 100 * 1024; // 100KB limit
+  // Set a reasonable file size limit
+  const MAX_SIZE_IN_BYTES = 2 * 1024 * 1024; // 2MB
   if (file.size > MAX_SIZE_IN_BYTES) {
-    return { success: false, error: `Image is too large. Please upload an image under 100KB.` };
+    return { success: false, error: `Image is too large. Please upload an image under 2MB.` };
   }
 
   try {
     const bytes = await file.arrayBuffer();
     const buffer = Buffer.from(bytes);
-    const dataUri = `data:${file.type};base64,${buffer.toString('base64')}`;
 
-    return { success: true, path: dataUri };
+    // Get the file extension
+    const extension = file.name.split('.').pop();
+    if (!extension) {
+        return { success: false, error: 'Could not determine file extension.' };
+    }
+    const filename = `hero-image.${extension}`;
+
+    // Define the upload directory
+    const uploadDir = join(process.cwd(), 'public', 'images', 'site');
+
+    // Ensure the directory exists
+    try {
+        await stat(uploadDir);
+    } catch (e: any) {
+        if (e.code === 'ENOENT') {
+            await mkdir(uploadDir, { recursive: true });
+        } else {
+            console.error(e);
+            return { success: false, error: "Could not create upload directory." };
+        }
+    }
+    
+    // Define the full path for writing the file
+    const filePath = join(uploadDir, filename);
+
+    // Write the file to the filesystem
+    await writeFile(filePath, buffer);
+    
+    // The public path to be saved in the database
+    const publicPath = `/images/site/${filename}`;
+
+    return { success: true, path: publicPath };
   } catch (error) {
-    console.error("Error processing image to Base64:", error);
+    console.error("Error processing image upload:", error);
     return { success: false, error: "Failed to process the uploaded image." };
   }
 }

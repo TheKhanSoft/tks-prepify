@@ -121,6 +121,7 @@ export default function AdminSettingsPage() {
     setIsSubmitting(true);
     try {
       let finalData = { ...data };
+      let newImagePath: string | null = null;
 
       if (fileToUpload) {
           const formData = new FormData();
@@ -128,7 +129,9 @@ export default function AdminSettingsPage() {
           const result = await uploadHeroImage(formData);
 
           if (result.success && result.path) {
-              finalData.heroImage = result.path;
+              // Add a timestamp to the path to force the browser to reload the image
+              newImagePath = `${result.path}?t=${new Date().getTime()}`;
+              finalData.heroImage = newImagePath;
           } else {
               toast({ title: "Upload Failed", description: result.error || "Could not upload hero image.", variant: "destructive" });
               setIsSubmitting(false);
@@ -141,30 +144,25 @@ export default function AdminSettingsPage() {
         socialLinks: finalData.socialLinks?.filter(link => link.url) || []
       }
       await updateSettings(settingsData);
+      
       toast({
         title: "Settings Saved",
         description: "Your global settings have been updated.",
       });
+      
       setFileToUpload(null);
+      if (newImagePath) {
+          // Update the form state and preview to show the newly saved image path
+          form.setValue('heroImage', newImagePath);
+          setImagePreview(newImagePath);
+      }
+
     } catch (error: any) {
       console.error("Error saving settings:", error);
-      let title = "Error";
-      let description = "Failed to save settings. Please try again.";
-      
-      // If an image was part of this failed save attempt, it's very likely the cause.
-      if (fileToUpload) {
-        title = "Save Failed";
-        description = "The selected image is likely too large for the database. Please upload a compressed image under 100KB and try again.";
-      } else if (error.message && (error.message.includes('exceeds the maximum size') || error.message.includes('is too large'))) {
-        title = "Save Failed";
-        description = "The settings data is too large for the database. This can be caused by a very long image URL or other text fields.";
-      }
-      
       toast({
-        title: title,
-        description: description,
+        title: "Error",
+        description: "Failed to save settings. Please try again.",
         variant: "destructive",
-        duration: 8000,
       });
     } finally {
       setIsSubmitting(false);
