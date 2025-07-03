@@ -16,13 +16,23 @@ export async function fetchSettings(): Promise<Settings> {
     try {
         const docSnap = await getDoc(settingsDocRef);
         if (docSnap.exists()) {
-            return docSnap.data() as Settings;
+            const data = docSnap.data();
+            // Ensure all fields are present, providing defaults for any that might be missing
+            return {
+                siteName: data.siteName || 'Prepify',
+                siteDescription: data.siteDescription || 'Ace your exams with AI-powered practice.',
+                defaultQuestionCount: data.defaultQuestionCount || 100,
+                defaultDuration: data.defaultDuration || 120,
+                defaultQuestionsPerPage: data.defaultQuestionsPerPage || 2,
+            };
         }
     } catch (error) {
         console.error("Error fetching settings:", error);
     }
     // Return default settings if document doesn't exist or on error
     return {
+        siteName: 'Prepify',
+        siteDescription: 'Ace your exams with AI-powered practice.',
         defaultQuestionCount: 100,
         defaultDuration: 120,
         defaultQuestionsPerPage: 2,

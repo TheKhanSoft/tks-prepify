@@ -75,6 +75,8 @@ export interface User {
 }
 
 export interface Settings {
+    siteName: string;
+    siteDescription: string;
     defaultQuestionCount: number;
     defaultDuration: number;
     defaultQuestionsPerPage: number;

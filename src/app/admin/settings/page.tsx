@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useForm } from "react-hook-form";
@@ -20,8 +19,12 @@ import { useToast } from "@/hooks/use-toast";
 import { Loader2 } from "lucide-react";
 import React, { useState, useEffect } from "react";
 import { fetchSettings, updateSettings } from "@/lib/settings-service";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Textarea } from "@/components/ui/textarea";
 
 const settingsFormSchema = z.object({
+  siteName: z.string().min(1, "Site name is required."),
+  siteDescription: z.string().optional(),
   defaultQuestionCount: z.coerce.number().int().min(1, "Must be at least 1."),
   defaultDuration: z.coerce.number().int().min(1, "Must be at least 1 minute."),
   defaultQuestionsPerPage: z.coerce.number().int().min(1, "Must be at least 1."),
@@ -93,71 +96,121 @@ export default function AdminSettingsPage() {
       </div>
       <Form {...form}>
         <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8 max-w-2xl">
-          <Card>
-            <CardHeader>
-              <CardTitle>New Paper Defaults</CardTitle>
-              <CardDescription>
-                These values will be used as defaults when creating a new paper.
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-6">
-              <FormField
-                control={form.control}
-                name="defaultQuestionCount"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Default Number of Questions</FormLabel>
-                    <FormControl>
-                      <Input type="number" {...field} disabled={isSubmitting} />
-                    </FormControl>
-                    <FormDescription>The default number of questions for a new paper.</FormDescription>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <FormField
-                control={form.control}
-                name="defaultDuration"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Default Duration (in minutes)</FormLabel>
-                    <FormControl>
-                      <Input type="number" {...field} disabled={isSubmitting} />
-                    </FormControl>
-                    <FormDescription>The default duration for a new paper.</FormDescription>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-            </CardContent>
-          </Card>
+          <Tabs defaultValue="site" className="space-y-6">
+            <TabsList>
+              <TabsTrigger value="site">Site</TabsTrigger>
+              <TabsTrigger value="defaults">Defaults</TabsTrigger>
+            </TabsList>
+            <TabsContent value="site">
+              <Card>
+                <CardHeader>
+                  <CardTitle>Site Settings</CardTitle>
+                  <CardDescription>
+                    Manage general site information and branding.
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-6">
+                  <FormField
+                    control={form.control}
+                    name="siteName"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Site Name</FormLabel>
+                        <FormControl>
+                          <Input {...field} disabled={isSubmitting} />
+                        </FormControl>
+                        <FormDescription>The name of your application, displayed in the header and titles.</FormDescription>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={form.control}
+                    name="siteDescription"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Site Description / Tagline</FormLabel>
+                        <FormControl>
+                          <Textarea {...field} value={field.value || ''} disabled={isSubmitting} />
+                        </FormControl>
+                        <FormDescription>A short description or tagline for your site.</FormDescription>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </CardContent>
+              </Card>
+            </TabsContent>
+            <TabsContent value="defaults">
+              <div className="space-y-6">
+                 <Card>
+                  <CardHeader>
+                    <CardTitle>New Paper Defaults</CardTitle>
+                    <CardDescription>
+                      These values will be used as defaults when creating a new paper.
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent className="space-y-6">
+                    <FormField
+                      control={form.control}
+                      name="defaultQuestionCount"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Default Number of Questions</FormLabel>
+                          <FormControl>
+                            <Input type="number" {...field} disabled={isSubmitting} />
+                          </FormControl>
+                          <FormDescription>The default number of questions for a new paper.</FormDescription>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    <FormField
+                      control={form.control}
+                      name="defaultDuration"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Default Duration (in minutes)</FormLabel>
+                          <FormControl>
+                            <Input type="number" {...field} disabled={isSubmitting} />
+                          </FormControl>
+                          <FormDescription>The default duration for a new paper.</FormDescription>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  </CardContent>
+                </Card>
 
-          <Card>
-            <CardHeader>
-              <CardTitle>Public Site Settings</CardTitle>
-              <CardDescription>
-                Settings that affect the public-facing website.
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <FormField
-                control={form.control}
-                name="defaultQuestionsPerPage"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Default Questions Per Page</FormLabel>
-                    <FormControl>
-                      <Input type="number" {...field} disabled={isSubmitting} />
-                    </FormControl>
-                    <FormDescription>
-                      The global number of questions to show on a page if a paper doesn't have a specific value.
-                    </FormDescription>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-            </CardContent>
-          </Card>
+                <Card>
+                  <CardHeader>
+                    <CardTitle>Test Taking Defaults</CardTitle>
+                    <CardDescription>
+                      Settings that affect the public test-taking experience.
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <FormField
+                      control={form.control}
+                      name="defaultQuestionsPerPage"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Default Questions Per Page</FormLabel>
+                          <FormControl>
+                            <Input type="number" {...field} disabled={isSubmitting} />
+                          </FormControl>
+                          <FormDescription>
+                            The global number of questions to show on a page if a paper doesn't have a specific value.
+                          </FormDescription>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  </CardContent>
+                </Card>
+              </div>
+            </TabsContent>
+          </Tabs>
 
           <div className="flex justify-end">
             <Button type="submit" disabled={isSubmitting || loading}>
