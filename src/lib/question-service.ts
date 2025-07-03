@@ -74,7 +74,7 @@ export async function fetchQuestionsForPaper(paperId: string): Promise<PaperQues
     })
     .filter((q): q is PaperQuestion => q !== null);
 
-  // Sort by order
+  // Sort by order client-side to avoid needing an index
   paperQuestions.sort((a, b) => a.order - b.order);
 
   return paperQuestions;
@@ -115,10 +115,6 @@ export async function addQuestionToPaper(paperId: string, questionData: Omit<Que
     // 2. Create the link in 'paper_questions'
     const linkRef = doc(collection(db, 'paper_questions'));
     batch.set(linkRef, { paperId, questionId: questionRef.id, order });
-
-    // 3. Update question count on paper
-    const paperRef = doc(db, "papers", paperId);
-    batch.update(paperRef, { questionCount: increment(1) });
     
     await batch.commit();
 }
@@ -153,10 +149,6 @@ export async function addQuestionsBatch(paperId: string, questions: any[]) {
         }
     }
     
-    // Update question count on paper
-    const paperRef = doc(db, "papers", paperId);
-    batch.update(paperRef, { questionCount: increment(questions.length) });
-
     await batch.commit();
 }
 
@@ -177,7 +169,7 @@ export async function updateQuestionOrderForPaper(linkId: string, newOrder: numb
 export async function removeQuestionsFromPaper(paperId: string, linkIds: string[]) {
   if (!paperId || linkIds.length === 0) return;
 
-  const CHUNK_SIZE = 499; // Firestore batch limit is 500, leave room for other ops.
+  const CHUNK_SIZE = 500;
   
   // Process deletions in chunks
   for (let i = 0; i < linkIds.length; i += CHUNK_SIZE) {
@@ -189,10 +181,6 @@ export async function removeQuestionsFromPaper(paperId: string, linkIds: string[
     });
     await batch.commit();
   }
-  
-  // Decrement the paper's question count
-  const paperRef = doc(db, 'papers', paperId);
-  await updateDoc(paperRef, { questionCount: increment(-linkIds.length) });
 }
 
 

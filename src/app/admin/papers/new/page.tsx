@@ -94,6 +94,8 @@ export default function NewPaperPage() {
       featured: false,
       published: false,
       session: "",
+      questionCount: 100,
+      duration: 120,
     },
   });
 
