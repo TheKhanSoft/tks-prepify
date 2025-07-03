@@ -173,19 +173,26 @@ export async function updateQuestionOrderForPaper(linkId: string, newOrder: numb
     await updateDoc(linkRef, { order: newOrder });
 }
 
-// Removes a question's link from a paper, but doesn't delete it from the bank
-export async function removeQuestionFromPaper(paperId: string, linkId: string) {
+// Removes one or more question links from a paper
+export async function removeQuestionsFromPaper(paperId: string, linkIds: string[]) {
+  if (!paperId || linkIds.length === 0) return;
+
+  const CHUNK_SIZE = 499; // Firestore batch limit is 500, leave room for other ops.
+  
+  // Process deletions in chunks
+  for (let i = 0; i < linkIds.length; i += CHUNK_SIZE) {
+    const chunk = linkIds.slice(i, i + CHUNK_SIZE);
     const batch = writeBatch(db);
-
-    // Delete the link document
-    const linkDocRef = doc(db, 'paper_questions', linkId);
-    batch.delete(linkDocRef);
-
-    // Decrement question count on paper
-    const paperRef = doc(db, "papers", paperId);
-    batch.update(paperRef, { questionCount: increment(-1) });
-    
+    chunk.forEach(linkId => {
+      const linkDocRef = doc(db, 'paper_questions', linkId);
+      batch.delete(linkDocRef);
+    });
     await batch.commit();
+  }
+  
+  // Decrement the paper's question count
+  const paperRef = doc(db, 'papers', paperId);
+  await updateDoc(paperRef, { questionCount: increment(-linkIds.length) });
 }
 
 

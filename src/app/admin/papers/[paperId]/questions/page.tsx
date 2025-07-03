@@ -41,14 +41,15 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { ArrowLeft, PlusCircle, MoreHorizontal, Edit, Trash2, Loader2, FileUp, Save, FileDown } from "lucide-react";
+import { ArrowLeft, PlusCircle, MoreHorizontal, Edit, Trash2, Loader2, FileUp, Save, FileDown, ChevronDown } from "lucide-react";
 import { getPaperById } from "@/lib/paper-service";
-import { fetchQuestionsForPaper, removeQuestionFromPaper, addQuestionsBatch, PaperQuestion, batchUpdateQuestionOrder } from "@/lib/question-service";
+import { fetchQuestionsForPaper, removeQuestionsFromPaper, addQuestionsBatch, PaperQuestion, batchUpdateQuestionOrder } from "@/lib/question-service";
 import type { Paper } from "@/types";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import { Input } from "@/components/ui/input";
 import Papa from "papaparse";
+import { Checkbox } from "@/components/ui/checkbox";
 
 export default function AdminPaperQuestionsPage() {
     const router = useRouter();
@@ -60,7 +61,9 @@ export default function AdminPaperQuestionsPage() {
     const [questions, setQuestions] = useState<PaperQuestion[]>([]);
     const [loading, setLoading] = useState(true);
     const [isDeleting, setIsDeleting] = useState(false);
-    const [questionToDelete, setQuestionToDelete] = useState<PaperQuestion | null>(null);
+    
+    const [selectedQuestions, setSelectedQuestions] = useState<string[]>([]);
+    const [deleteAlert, setDeleteAlert] = useState<{ open: boolean; type: 'single' | 'selected' | 'all'; question?: PaperQuestion }>({ open: false, type: 'single' });
 
     // Import states
     const [isImporting, setIsImporting] = useState(false);
@@ -70,7 +73,6 @@ export default function AdminPaperQuestionsPage() {
     // Reorder states
     const [orderChanges, setOrderChanges] = useState<{ [linkId: string]: number }>({});
     const [isSavingOrder, setIsSavingOrder] = useState(false);
-
 
     const loadData = useCallback(async () => {
         if (!paperId) return;
@@ -108,25 +110,40 @@ export default function AdminPaperQuestionsPage() {
         loadData();
     }, [loadData]);
 
-    const openDeleteDialog = (question: PaperQuestion) => {
-        setQuestionToDelete(question);
+    const openDeleteDialog = (type: 'single' | 'selected' | 'all', question?: PaperQuestion) => {
+        if ((type === 'selected' && selectedQuestions.length === 0) || (type === 'all' && questions.length === 0)) {
+            toast({
+                title: "No questions to remove",
+                description: type === 'selected' ? "Please select at least one question." : "There are no questions in this paper.",
+                variant: "destructive"
+            });
+            return;
+        }
+        setDeleteAlert({ open: true, type, question });
     }
 
-    const handleDeleteQuestion = async () => {
-        if (!questionToDelete) return;
+    const handleDelete = async () => {
         setIsDeleting(true);
         try {
-            await removeQuestionFromPaper(paperId, questionToDelete.linkId);
-            toast({
-                title: "Question Removed",
-                description: "The question has been removed from this paper."
-            });
+            if (deleteAlert.type === 'single' && deleteAlert.question) {
+                await removeQuestionsFromPaper(paperId, [deleteAlert.question.linkId]);
+                toast({ title: "Question Removed", description: "The question has been removed from this paper." });
+            } else if (deleteAlert.type === 'selected') {
+                await removeQuestionsFromPaper(paperId, selectedQuestions);
+                toast({ title: "Questions Removed", description: `${selectedQuestions.length} questions have been removed.` });
+                setSelectedQuestions([]);
+            } else if (deleteAlert.type === 'all') {
+                const allLinkIds = questions.map(q => q.linkId);
+                await removeQuestionsFromPaper(paperId, allLinkIds);
+                toast({ title: "All Questions Removed", description: "All questions have been removed from this paper." });
+                setSelectedQuestions([]);
+            }
             await loadData();
         } catch (error) {
-            toast({ title: "Error", description: "Failed to remove question.", variant: "destructive"});
+            toast({ title: "Error", description: "Failed to remove questions.", variant: "destructive"});
         } finally {
             setIsDeleting(false);
-            setQuestionToDelete(null);
+            setDeleteAlert({ open: false, type: 'single' });
         }
     }
 
@@ -195,13 +212,8 @@ export default function AdminPaperQuestionsPage() {
                         }
 
                         if (row.questionId && row.questionId.trim()) {
-                            // This is a row to link an existing question
-                            return {
-                                questionId: row.questionId.trim(),
-                                order: order,
-                            };
+                            return { questionId: row.questionId.trim(), order: order };
                         } else {
-                            // This is a row to create a new question
                             if (!row.type || !row.questionText || !row.correctAnswer) {
                                 throw new Error(`Row ${index + 2} is for a new question but is missing a required field (type, questionText, correctAnswer).`);
                             }
@@ -239,26 +251,17 @@ export default function AdminPaperQuestionsPage() {
         });
     };
 
-     const handleExportQuestions = () => {
+    const handleExportQuestions = () => {
         if (!paper || questions.length === 0) {
-            toast({
-                title: "Nothing to Export",
-                description: "There are no questions in this paper to export.",
-                variant: "destructive"
-            });
+            toast({ title: "Nothing to Export", description: "There are no questions in this paper to export.", variant: "destructive" });
             return;
         }
-
         const dataToExport = questions.map(q => ({
-            order: q.order,
-            questionId: q.id,
-            type: q.type,
-            questionText: q.questionText,
+            order: q.order, questionId: q.id, type: q.type, questionText: q.questionText,
             options: q.options?.join('|') || '',
             correctAnswer: Array.isArray(q.correctAnswer) ? q.correctAnswer.join('|') : q.correctAnswer,
             explanation: q.explanation || ''
         }));
-
         const csv = Papa.unparse(dataToExport);
         const blob = new Blob([`\uFEFF${csv}`], { type: 'text/csv;charset=utf-8;' });
         const link = document.createElement("a");
@@ -269,11 +272,7 @@ export default function AdminPaperQuestionsPage() {
         document.body.appendChild(link);
         link.click();
         document.body.removeChild(link);
-        
-        toast({
-            title: "Export Started",
-            description: "Your questions CSV file is downloading."
-        });
+        toast({ title: "Export Started", description: "Your questions CSV file is downloading." });
     };
 
     if (loading) {
@@ -290,7 +289,21 @@ export default function AdminPaperQuestionsPage() {
     }
 
     const hasOrderChanges = Object.keys(orderChanges).length > 0;
+    const isAllSelected = selectedQuestions.length === questions.length && questions.length > 0;
+    const isSomeSelected = selectedQuestions.length > 0 && selectedQuestions.length < questions.length;
 
+    const getAlertDialogDescription = () => {
+        switch (deleteAlert.type) {
+            case 'single':
+                return `This will remove the question "${deleteAlert.question?.questionText.substring(0, 30)}..." from this paper, but it will not delete it from the question bank.`;
+            case 'selected':
+                return `This action cannot be undone. This will remove the ${selectedQuestions.length} selected questions from this paper.`;
+            case 'all':
+                return `This action cannot be undone. This will remove all ${questions.length} questions from this paper.`;
+            default: return 'This action cannot be undone.';
+        }
+    };
+    
     return (
         <>
         <div className="space-y-6">
@@ -312,33 +325,31 @@ export default function AdminPaperQuestionsPage() {
                             Save Order
                         </Button>
                     )}
-                    <Button variant="outline" onClick={handleExportQuestions}>
-                        <FileDown className="mr-2 h-4 w-4" /> Export Questions
-                    </Button>
-                    <Dialog open={isImportDialogOpen} onOpenChange={setIsImportDialogOpen}>
-                        <DialogTrigger asChild>
-                            <Button variant="outline"><FileUp className="mr-2 h-4 w-4" /> Import Questions</Button>
-                        </DialogTrigger>
-                        <DialogContent>
-                            <DialogHeader>
-                                <DialogTitle>Import Questions from CSV</DialogTitle>
-                                <DialogDescription>
-                                    Select a CSV file to create new questions or link existing ones from the question bank.
-                                </DialogDescription>
-                            </DialogHeader>
-                            <div className="space-y-4 py-4">
-                                <Button variant="link" onClick={handleDownloadSample} className="p-0 h-auto">Download sample template</Button>
-                                <Input type="file" accept=".csv" onChange={e => setImportFile(e.target.files ? e.target.files[0] : null)} />
-                            </div>
-                            <DialogFooter>
-                                <Button variant="ghost" onClick={() => setIsImportDialogOpen(false)} disabled={isImporting}>Cancel</Button>
-                                <Button onClick={handleImport} disabled={isImporting || !importFile}>
-                                    {isImporting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                                    Import
-                                </Button>
-                            </DialogFooter>
-                        </DialogContent>
-                    </Dialog>
+                    <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                            <Button variant="outline">Actions <ChevronDown className="ml-2 h-4 w-4" /></Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                            <DropdownMenuItem onSelect={() => openDeleteDialog('selected', undefined)} disabled={selectedQuestions.length === 0}>
+                                <Trash2 className="mr-2 h-4 w-4" /> Remove Selected
+                            </DropdownMenuItem>
+                             <DropdownMenuItem onSelect={() => openDeleteDialog('all', undefined)} disabled={questions.length === 0} className="text-destructive">
+                                <Trash2 className="mr-2 h-4 w-4" /> Remove All
+                            </DropdownMenuItem>
+                            <DropdownMenuSeparator />
+                             <DropdownMenuItem onSelect={handleExportQuestions}><FileDown className="mr-2 h-4 w-4" /> Export Questions</DropdownMenuItem>
+                             <Dialog open={isImportDialogOpen} onOpenChange={setIsImportDialogOpen}>
+                                <DialogTrigger asChild>
+                                    <DropdownMenuItem onSelect={(e) => e.preventDefault()}><FileUp className="mr-2 h-4 w-4" /> Import Questions</DropdownMenuItem>
+                                </DialogTrigger>
+                                <DialogContent>
+                                    <DialogHeader><DialogTitle>Import Questions from CSV</DialogTitle><DialogDescription>Select a CSV file to create new questions or link existing ones.</DialogDescription></DialogHeader>
+                                    <div className="space-y-4 py-4"><Button variant="link" onClick={handleDownloadSample} className="p-0 h-auto">Download sample template</Button><Input type="file" accept=".csv" onChange={e => setImportFile(e.target.files ? e.target.files[0] : null)} /></div>
+                                    <DialogFooter><Button variant="ghost" onClick={() => setIsImportDialogOpen(false)} disabled={isImporting}>Cancel</Button><Button onClick={handleImport} disabled={isImporting || !importFile}>{isImporting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />} Import</Button></DialogFooter>
+                                </DialogContent>
+                            </Dialog>
+                        </DropdownMenuContent>
+                    </DropdownMenu>
                     <Button asChild>
                         <Link href={`/admin/papers/${paper.id}/questions/new`}>
                             <PlusCircle className="mr-2 h-4 w-4" />
@@ -355,25 +366,20 @@ export default function AdminPaperQuestionsPage() {
                 <CardContent>
                 <Table>
                     <TableHeader>
-                    <TableRow>
-                        <TableHead className="w-[100px]">Order</TableHead>
-                        <TableHead className="w-[50%]">Question</TableHead>
-                        <TableHead>Type</TableHead>
-                        <TableHead>Answer</TableHead>
-                        <TableHead><span className="sr-only">Actions</span></TableHead>
-                    </TableRow>
+                        <TableRow>
+                            <TableHead className="w-12"><Checkbox onCheckedChange={(checked) => setSelectedQuestions(checked ? questions.map(q => q.linkId) : [])} checked={isAllSelected} aria-label="Select all" /></TableHead>
+                            <TableHead className="w-[100px]">Order</TableHead>
+                            <TableHead className="w-[45%]">Question</TableHead>
+                            <TableHead>Type</TableHead>
+                            <TableHead>Answer</TableHead>
+                            <TableHead><span className="sr-only">Actions</span></TableHead>
+                        </TableRow>
                     </TableHeader>
                     <TableBody>
                     {questions.length > 0 ? questions.map((question) => (
-                        <TableRow key={question.id}>
-                            <TableCell>
-                                <Input 
-                                    type="number"
-                                    value={orderChanges[question.linkId] ?? question.order}
-                                    onChange={(e) => handleOrderChange(question.linkId, e.target.value)}
-                                    className="w-16 h-8"
-                                />
-                            </TableCell>
+                        <TableRow key={question.linkId}>
+                            <TableCell><Checkbox onCheckedChange={(checked) => setSelectedQuestions(prev => checked ? [...prev, question.linkId] : prev.filter(id => id !== question.linkId))} checked={selectedQuestions.includes(question.linkId)} aria-label="Select row" /></TableCell>
+                            <TableCell><Input type="number" value={orderChanges[question.linkId] ?? question.order} onChange={(e) => handleOrderChange(question.linkId, e.target.value)} className="w-16 h-8" /></TableCell>
                             <TableCell className="font-medium">{question.questionText}</TableCell>
                             <TableCell><Badge variant="secondary">{question.type.toUpperCase()}</Badge></TableCell>
                             <TableCell className="truncate max-w-xs">{Array.isArray(question.correctAnswer) ? question.correctAnswer.join(', ') : question.correctAnswer}</TableCell>
@@ -384,28 +390,25 @@ export default function AdminPaperQuestionsPage() {
                                     <DropdownMenuLabel>Actions</DropdownMenuLabel>
                                     <DropdownMenuItem asChild><Link href={`/admin/papers/${paperId}/questions/${question.id}/edit`}><Edit className="mr-2 h-4 w-4" />Edit</Link></DropdownMenuItem>
                                     <DropdownMenuSeparator />
-                                    <DropdownMenuItem className="text-destructive" onSelect={() => openDeleteDialog(question)}><Trash2 className="mr-2 h-4 w-4" />Remove from Paper</DropdownMenuItem>
+                                    <DropdownMenuItem className="text-destructive" onSelect={() => openDeleteDialog('single', question)}><Trash2 className="mr-2 h-4 w-4" />Remove from Paper</DropdownMenuItem>
                                 </DropdownMenuContent>
                                 </DropdownMenu>
                             </TableCell>
                         </TableRow>
                     )) : (
-                        <TableRow><TableCell colSpan={5} className="h-24 text-center">No questions found for this paper yet.</TableCell></TableRow>
+                        <TableRow><TableCell colSpan={6} className="h-24 text-center">No questions found for this paper yet.</TableCell></TableRow>
                     )}
                     </TableBody>
                 </Table>
                 </CardContent>
             </Card>
         </div>
-        <AlertDialog open={!!questionToDelete} onOpenChange={(open) => !open && setQuestionToDelete(null)}>
+        <AlertDialog open={deleteAlert.open} onOpenChange={(open) => !open && setDeleteAlert({ open: false, type: 'single' })}>
             <AlertDialogContent>
-                <AlertDialogHeader>
-                    <AlertDialogTitle>Are you sure?</AlertDialogTitle>
-                    <AlertDialogDescription>This will remove the question from this paper, but it will not delete it from the question bank.</AlertDialogDescription>
-                </AlertDialogHeader>
+                <AlertDialogHeader><AlertDialogTitle>Are you sure?</AlertDialogTitle><AlertDialogDescription>{getAlertDialogDescription()}</AlertDialogDescription></AlertDialogHeader>
                 <AlertDialogFooter>
                     <AlertDialogCancel disabled={isDeleting}>Cancel</AlertDialogCancel>
-                    <AlertDialogAction onClick={handleDeleteQuestion} disabled={isDeleting}>
+                    <AlertDialogAction onClick={handleDelete} disabled={isDeleting}>
                         {isDeleting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                         Remove
                     </AlertDialogAction>
