@@ -74,7 +74,7 @@ export interface User {
 }
 
 export interface SocialLink {
-  platform: 'facebook' | 'instagram' | 'snapchat' | 'douyin' | 'youtube' | 'pinterest' | 'reddit' | 'telegram' | 'whatsapp' | 'linkedin' | 'twitter' | 'wechat' | 'tumblr' | 'messenger' | 'qq' | 'discord' | 'kuaishou' | 'quora' | 'sina-weibo' | 'threads' | 'twitch' | 'github' | 'other';
+  platform: string;
   url: string;
 }
 

@@ -17,13 +17,15 @@ import {
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
-import { Facebook, Github, Instagram, Linkedin, Loader2, PlusCircle, Trash2, Twitter, Youtube, Link as LinkIcon, MessageSquare } from "lucide-react";
+import { Facebook, Github, Instagram, Linkedin, Loader2, PlusCircle, Trash2, Twitter, Youtube, Link as LinkIcon, MessageSquare, MessageCircle, HelpCircle, Twitch, Ghost, UploadCloud } from "lucide-react";
 import React, { useState, useEffect } from "react";
 import { fetchSettings, updateSettings } from "@/lib/settings-service";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import Image from "next/image";
+import { cn } from "@/lib/utils";
+
 
 const settingsFormSchema = z.object({
   siteName: z.string().min(1, "Site name is required."),
@@ -56,10 +58,19 @@ const socialPlatforms = [
   { value: 'youtube', label: 'YouTube', icon: Youtube },
   { value: 'github', label: 'GitHub', icon: Github },
   { value: 'discord', label: 'Discord', icon: MessageSquare },
-  { value: 'telegram', label: 'Telegram', icon: MessageSquare },
+  { value: 'threads', label: 'Threads', icon: MessageCircle },
+  { value: 'twitch', label: 'Twitch', icon: Twitch },
+  { value: 'telegram', label: 'Telegram', icon: Send }, // Using a fallback
   { value: 'whatsapp', label: 'WhatsApp', icon: MessageSquare },
+  { value: 'snapchat', label: 'Snapchat', icon: Ghost },
   { value: 'other', label: 'Other', icon: LinkIcon },
 ];
+
+// A simple Send icon as a fallback if specific ones aren't available
+const Send = (props: any) => (
+  <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}><path d="m22 2-7 20-4-9-9-4Z"/><path d="M22 2 11 13"/></svg>
+);
+
 
 export default function AdminSettingsPage() {
   const { toast } = useToast();
@@ -114,7 +125,7 @@ export default function AdminSettingsPage() {
         if (fileToUpload.size > MAX_IMAGE_SIZE_BYTES) {
             toast({
                 title: "Image Too Large",
-                description: `The selected image is larger than the allowed ${MAX_IMAGE_SIZE_KB}KB.`,
+                description: `The selected image must be smaller than ${MAX_IMAGE_SIZE_KB}KB.`,
                 variant: "destructive",
             });
             setIsSubmitting(false);
@@ -134,6 +145,7 @@ export default function AdminSettingsPage() {
         ...finalData,
         socialLinks: finalData.socialLinks?.filter(link => link.url) || []
       };
+      
       await updateSettings(settingsData);
       
       toast({
@@ -151,13 +163,38 @@ export default function AdminSettingsPage() {
       console.error("Error saving settings:", error);
       toast({
         title: "Save Failed",
-        description: "Failed to save settings. The selected image is likely too large for the database. Please upload a compressed image and try again.",
+        description: "Failed to save settings. If you uploaded an image, it is likely too large for the database. Please use a compressed image under 150KB.",
         variant: "destructive",
         duration: 8000
       });
     } finally {
       setIsSubmitting(false);
     }
+  }
+
+  const handleImageFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      if (file.size > MAX_IMAGE_SIZE_BYTES) {
+        toast({
+          title: "Image is too large",
+          description: `Please select an image smaller than ${MAX_IMAGE_SIZE_KB}KB.`,
+          variant: "destructive"
+        });
+        e.target.value = ''; // Clear the input
+        return;
+      }
+      setFileToUpload(file);
+      setImagePreview(URL.createObjectURL(file));
+      form.setValue('heroImage', ''); // Clear URL field if file is chosen
+    }
+  }
+  
+  const handleImageUrlChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+      const url = e.target.value;
+      form.setValue('heroImage', url);
+      setFileToUpload(null);
+      setImagePreview(url);
   }
 
   if (loading) {
@@ -334,74 +371,56 @@ export default function AdminSettingsPage() {
                       )}
                     />
                   </div>
-                  <FormField
-                    control={form.control}
-                    name="heroImage"
-                    render={({ field }) => (
-                      <FormItem>
+                  <FormItem>
                         <FormLabel>Hero Image</FormLabel>
                         <Card>
-                          <CardContent className="p-4 space-y-4">
-                            {imagePreview && (
-                              <div className="relative aspect-video w-full max-w-sm mx-auto rounded-md overflow-hidden border">
-                                <Image src={imagePreview} alt="Hero image preview" fill style={{ objectFit: 'cover' }} />
-                              </div>
-                            )}
-                            <div className="space-y-2">
-                              <FormLabel htmlFor="hero-image-upload">Upload an image (under {MAX_IMAGE_SIZE_KB}KB)</FormLabel>
-                              <Input
-                                id="hero-image-upload"
-                                type="file"
-                                accept="image/*"
-                                onChange={(e) => {
-                                  const file = e.target.files?.[0];
-                                  if (file) {
-                                    if (file.size > MAX_IMAGE_SIZE_BYTES) {
-                                      toast({
-                                        title: "Image is too large",
-                                        description: `Please select an image smaller than ${MAX_IMAGE_SIZE_KB}KB.`,
-                                        variant: "destructive"
-                                      });
-                                      e.target.value = '';
-                                      return;
-                                    }
-                                    setFileToUpload(file);
-                                    setImagePreview(URL.createObjectURL(file));
-                                  }
-                                }}
-                              />
-                            </div>
-                            <div className="relative">
-                                <div className="absolute inset-0 flex items-center">
-                                    <span className="w-full border-t" />
+                            <CardContent className="p-4 space-y-4">
+                                {imagePreview && (
+                                <div className="relative aspect-video w-full max-w-sm mx-auto rounded-md overflow-hidden border">
+                                    <Image src={imagePreview} alt="Hero image preview" fill style={{ objectFit: 'cover' }} />
                                 </div>
-                                <div className="relative flex justify-center text-xs uppercase">
-                                    <span className="bg-card px-2 text-muted-foreground">
-                                    Or
-                                    </span>
+                                )}
+                                <div className="space-y-2">
+                                <Label
+                                    htmlFor="hero-image-upload"
+                                    className={cn(
+                                        "w-full border-2 border-dashed rounded-lg p-6 flex flex-col items-center justify-center text-center cursor-pointer hover:border-primary hover:bg-muted/50 transition-colors",
+                                        fileToUpload && "border-primary bg-primary/10"
+                                    )}
+                                    >
+                                    <UploadCloud className="w-8 h-8 text-muted-foreground mb-2" />
+                                    <span className="font-semibold">{fileToUpload ? fileToUpload.name : "Click to upload a file"}</span>
+                                    <span className="text-xs text-muted-foreground">PNG, JPG, WEBP (MAX. {MAX_IMAGE_SIZE_KB}KB)</span>
+                                </Label>
+                                <Input id="hero-image-upload" type="file" className="sr-only" accept="image/*" onChange={handleImageFileChange} />
                                 </div>
-                            </div>
-                            <div className="space-y-2">
-                              <FormLabel htmlFor="hero-image-url">Paste image URL</FormLabel>
-                              <Input
-                                id="hero-image-url"
-                                type="text"
-                                placeholder="https://..."
-                                value={field.value || ''}
-                                onChange={(e) => {
-                                  const url = e.target.value;
-                                  field.onChange(url);
-                                  setFileToUpload(null);
-                                  setImagePreview(url);
-                                }}
-                              />
-                            </div>
-                          </CardContent>
+                                <div className="relative">
+                                    <div className="absolute inset-0 flex items-center"><span className="w-full border-t" /></div>
+                                    <div className="relative flex justify-center text-xs uppercase"><span className="bg-card px-2 text-muted-foreground">Or</span></div>
+                                </div>
+                                <FormField
+                                    control={form.control}
+                                    name="heroImage"
+                                    render={({ field }) => (
+                                    <FormItem className="space-y-2">
+                                        <FormLabel htmlFor="hero-image-url">Paste image URL</FormLabel>
+                                        <FormControl>
+                                            <Input
+                                                id="hero-image-url"
+                                                type="text"
+                                                placeholder="https://..."
+                                                value={field.value || ''}
+                                                onChange={handleImageUrlChange}
+                                                disabled={isSubmitting}
+                                            />
+                                        </FormControl>
+                                        <FormMessage />
+                                    </FormItem>
+                                    )}
+                                />
+                            </CardContent>
                         </Card>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
+                    </FormItem>
                 </CardContent>
               </Card>
             </TabsContent>
@@ -564,3 +583,4 @@ export default function AdminSettingsPage() {
     </div>
   );
 }
+

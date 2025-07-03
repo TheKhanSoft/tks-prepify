@@ -5,6 +5,11 @@ import { BookOpen, Facebook, Github, Linkedin, Twitter, Youtube, Instagram, Link
 import { Button } from '../ui/button';
 import type { Settings, SocialLink } from '@/types';
 
+// A simple Send icon as a fallback if specific ones aren't available
+const Send = (props: any) => (
+  <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}><path d="m22 2-7 20-4-9-9-4Z"/><path d="M22 2 11 13"/></svg>
+);
+
 const iconMap: { [key: string]: React.ComponentType<{ className?: string }> } = {
     facebook: Facebook,
     instagram: Instagram,
@@ -14,20 +19,10 @@ const iconMap: { [key: string]: React.ComponentType<{ className?: string }> } = 
     github: Github,
     twitch: Twitch,
     discord: MessageSquare,
-    messenger: MessageCircle,
+    threads: MessageCircle,
+    telegram: Send,
     whatsapp: MessageSquare,
-    telegram: MessageSquare,
     snapchat: Ghost,
-    reddit: LinkIcon,
-    pinterest: LinkIcon,
-    tumblr: LinkIcon,
-    quora: HelpCircle,
-    threads: LinkIcon,
-    wechat: MessageSquare,
-    douyin: LinkIcon,
-    qq: MessageCircle,
-    'sina-weibo': LinkIcon,
-    kuaishou: LinkIcon,
     other: LinkIcon
 };
 
@@ -44,7 +39,7 @@ export function Footer({ settings }: { settings: Settings }) {
             <p className="text-muted-foreground mb-4">{settings.siteDescription}</p>
             <div className="flex gap-1">
                 {settings.socialLinks && settings.socialLinks.map((link) => {
-                    const Icon = iconMap[link.platform];
+                    const Icon = iconMap[link.platform] || LinkIcon;
                     if (!Icon || !link.url) return null;
                     return (
                         <Button asChild variant="ghost" size="icon" key={link.platform}>
