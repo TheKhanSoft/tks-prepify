@@ -41,9 +41,9 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { ArrowLeft, PlusCircle, MoreHorizontal, Edit, Trash2, Loader2, FileUp } from "lucide-react";
+import { ArrowLeft, PlusCircle, MoreHorizontal, Edit, Trash2, Loader2, FileUp, Save } from "lucide-react";
 import { getPaperById } from "@/lib/paper-service";
-import { fetchQuestionsForPaper, removeQuestionFromPaper, addQuestionsBatch, PaperQuestion } from "@/lib/question-service";
+import { fetchQuestionsForPaper, removeQuestionFromPaper, addQuestionsBatch, PaperQuestion, batchUpdateQuestionOrder } from "@/lib/question-service";
 import type { Paper } from "@/types";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
@@ -67,6 +67,11 @@ export default function AdminPaperQuestionsPage() {
     const [importFile, setImportFile] = useState<File | null>(null);
     const [isImportDialogOpen, setIsImportDialogOpen] = useState(false);
 
+    // Reorder states
+    const [orderChanges, setOrderChanges] = useState<{ [linkId: string]: number }>({});
+    const [isSavingOrder, setIsSavingOrder] = useState(false);
+
+
     const loadData = useCallback(async () => {
         if (!paperId) return;
         setLoading(true);
@@ -80,11 +85,20 @@ export default function AdminPaperQuestionsPage() {
             }
         } catch(e) {
             console.error(e);
-            toast({ 
-                title: "Error loading data", 
-                description: "Could not load the paper or its questions. Please try again later.",
-                variant: "destructive",
-            });
+            if (e instanceof Error && e.message.includes('permission-denied')) {
+                 toast({ 
+                    title: "A database index might be missing", 
+                    description: "Please check your browser's developer console for a link to create it.",
+                    variant: "destructive",
+                    duration: 10000,
+                });
+            } else {
+                 toast({ 
+                    title: "Error loading questions", 
+                    description: "Could not load the questions. Please try again later.",
+                    variant: "destructive",
+                });
+            }
         } finally {
             setLoading(false);
         }
@@ -102,7 +116,7 @@ export default function AdminPaperQuestionsPage() {
         if (!questionToDelete) return;
         setIsDeleting(true);
         try {
-            await removeQuestionFromPaper(paperId, questionToDelete.id);
+            await removeQuestionFromPaper(paperId, questionToDelete.linkId);
             toast({
                 title: "Question Removed",
                 description: "The question has been removed from this paper."
@@ -115,6 +129,36 @@ export default function AdminPaperQuestionsPage() {
             setQuestionToDelete(null);
         }
     }
+
+    const handleOrderChange = (linkId: string, newOrder: string) => {
+        const orderValue = parseInt(newOrder, 10);
+        setOrderChanges(prev => ({ ...prev, [linkId]: orderValue }));
+    };
+
+    const handleSaveOrder = async () => {
+        setIsSavingOrder(true);
+        const updates = Object.entries(orderChanges)
+          .map(([linkId, order]) => ({ linkId, order }))
+          .filter(u => !isNaN(u.order));
+
+        if (updates.length === 0) {
+            toast({ title: "No changes", description: "No new order values to save." });
+            setIsSavingOrder(false);
+            return;
+        }
+
+        try {
+            await batchUpdateQuestionOrder(updates);
+            toast({ title: "Success", description: "Question order has been updated." });
+            setOrderChanges({});
+            await loadData(); 
+        } catch (error) {
+            console.error("Failed to save order:", error);
+            toast({ title: "Error", description: "Could not save the new order.", variant: "destructive" });
+        } finally {
+            setIsSavingOrder(false);
+        }
+    };
     
     const handleDownloadSample = () => {
         const csvContent = "data:text/csv;charset=utf-8," +
@@ -209,6 +253,8 @@ export default function AdminPaperQuestionsPage() {
         );
     }
 
+    const hasOrderChanges = Object.keys(orderChanges).length > 0;
+
     return (
         <>
         <div className="space-y-6">
@@ -224,6 +270,12 @@ export default function AdminPaperQuestionsPage() {
                     <p className="text-muted-foreground">Manage the questions for this paper.</p>
                 </div>
                 <div className="flex gap-2">
+                    {hasOrderChanges && (
+                         <Button onClick={handleSaveOrder} disabled={isSavingOrder}>
+                            {isSavingOrder ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
+                            Save Order
+                        </Button>
+                    )}
                     <Dialog open={isImportDialogOpen} onOpenChange={setIsImportDialogOpen}>
                         <DialogTrigger asChild>
                             <Button variant="outline"><FileUp className="mr-2 h-4 w-4" /> Import Questions</Button>
@@ -265,7 +317,7 @@ export default function AdminPaperQuestionsPage() {
                 <Table>
                     <TableHeader>
                     <TableRow>
-                        <TableHead>Order</TableHead>
+                        <TableHead className="w-[100px]">Order</TableHead>
                         <TableHead className="w-[50%]">Question</TableHead>
                         <TableHead>Type</TableHead>
                         <TableHead>Answer</TableHead>
@@ -275,7 +327,14 @@ export default function AdminPaperQuestionsPage() {
                     <TableBody>
                     {questions.length > 0 ? questions.map((question) => (
                         <TableRow key={question.id}>
-                            <TableCell>{question.order}</TableCell>
+                            <TableCell>
+                                <Input 
+                                    type="number"
+                                    value={orderChanges[question.linkId] ?? question.order}
+                                    onChange={(e) => handleOrderChange(question.linkId, e.target.value)}
+                                    className="w-16 h-8"
+                                />
+                            </TableCell>
                             <TableCell className="font-medium">{question.questionText}</TableCell>
                             <TableCell><Badge variant="secondary">{question.type.toUpperCase()}</Badge></TableCell>
                             <TableCell className="truncate max-w-xs">{Array.isArray(question.correctAnswer) ? question.correctAnswer.join(', ') : question.correctAnswer}</TableCell>

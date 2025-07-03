@@ -31,6 +31,7 @@ import { slugify } from "@/lib/utils";
 import { generatePaperDescription } from "@/ai/flows/generate-paper-description-flow";
 import { generatePaperSeoDetails } from "@/ai/flows/generate-paper-seo-flow";
 import { Switch } from "@/components/ui/switch";
+import { copyPaperQuestions } from "@/lib/question-service";
 
 const paperFormSchema = z.object({
   title: z.string().min(3, { message: "Title must be at least 3 characters." }),
@@ -195,10 +196,14 @@ export default function CopyPaperPage() {
             slug: generateSlugForCopy(data, allCategories),
             session: data.session === 'none' || !data.session ? null : data.session,
         };
-        await addDoc(collection(db, "papers"), paperData);
+        const newPaperRef = await addDoc(collection(db, "papers"), paperData);
+
+        // Copy questions from source paper to new paper
+        await copyPaperQuestions(paperId, newPaperRef.id);
+
         toast({
             title: "Paper Copied Successfully",
-            description: "A new paper has been created. Questions must be added manually.",
+            description: "A new paper, including all its questions, has been created.",
         });
         router.push("/admin/papers");
         router.refresh();
@@ -231,7 +236,7 @@ export default function CopyPaperPage() {
             <Card>
                 <CardHeader>
                     <CardTitle>Copy Paper: {sourcePaperTitle}</CardTitle>
-                    <CardDescription>Create a new paper by copying the details from an existing one. Questions are not copied.</CardDescription>
+                    <CardDescription>Create a new paper by copying the details from an existing one. Questions will also be copied.</CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-8 pt-6">
                     <FormField

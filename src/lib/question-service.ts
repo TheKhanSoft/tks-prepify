@@ -19,7 +19,7 @@ import { db } from './firebase';
 import type { Question } from '@/types';
 
 // Combined type for a question within a paper context
-export type PaperQuestion = Question & { order: number };
+export type PaperQuestion = Question & { order: number; linkId: string };
 
 function docToQuestion(doc: DocumentData): Question {
   const data = doc.data();
@@ -33,7 +33,7 @@ function docToQuestion(doc: DocumentData): Question {
   };
 }
 
-// Fetches questions for a specific paper, including their order
+// Fetches questions for a specific paper, including their order and link ID
 export async function fetchQuestionsForPaper(paperId: string): Promise<PaperQuestion[]> {
   if (!paperId) return [];
 
@@ -46,6 +46,7 @@ export async function fetchQuestionsForPaper(paperId: string): Promise<PaperQues
   }
 
   const links = paperQuestionsSnapshot.docs.map(doc => ({
+    linkId: doc.id,
     questionId: doc.data().questionId as string,
     order: doc.data().order as number,
   }));
@@ -69,7 +70,7 @@ export async function fetchQuestionsForPaper(paperId: string): Promise<PaperQues
   const paperQuestions = links
     .map(link => {
       const questionData = questionsMap.get(link.questionId);
-      return questionData ? { ...questionData, order: link.order } : null;
+      return questionData ? { ...questionData, order: link.order, linkId: link.linkId } : null;
     })
     .filter((q): q is PaperQuestion => q !== null);
 
@@ -161,27 +162,56 @@ export async function updateQuestionOrderForPaper(linkId: string, newOrder: numb
 }
 
 // Removes a question's link from a paper, but doesn't delete it from the bank
-export async function removeQuestionFromPaper(paperId: string, questionId: string) {
-    const linkQuery = query(
-        collection(db, 'paper_questions'),
-        where('paperId', '==', paperId),
-        where('questionId', '==', questionId)
-    );
-    const linkSnapshot = await getDocs(linkQuery);
-
-    if (linkSnapshot.empty) {
-        throw new Error("Question link not found for this paper.");
-    }
-    
+export async function removeQuestionFromPaper(paperId: string, linkId: string) {
     const batch = writeBatch(db);
 
     // Delete the link document
-    const linkDoc = linkSnapshot.docs[0];
-    batch.delete(linkDoc.ref);
+    const linkDocRef = doc(db, 'paper_questions', linkId);
+    batch.delete(linkDocRef);
 
     // Decrement question count on paper
     const paperRef = doc(db, "papers", paperId);
     batch.update(paperRef, { questionCount: increment(-1) });
     
     await batch.commit();
+}
+
+
+// Copies all question links from a source paper to a new paper
+export async function copyPaperQuestions(sourcePaperId: string, newPaperId: string) {
+  const linksQuery = query(collection(db, 'paper_questions'), where('paperId', '==', sourcePaperId));
+  const linksSnapshot = await getDocs(linksQuery);
+
+  if (linksSnapshot.empty) {
+    return; // No questions to copy
+  }
+
+  const batch = writeBatch(db);
+  const paperQuestionsCollection = collection(db, 'paper_questions');
+
+  linksSnapshot.forEach(doc => {
+    const linkData = doc.data();
+    const newLinkRef = doc(paperQuestionsCollection);
+    batch.set(newLinkRef, {
+      paperId: newPaperId,
+      questionId: linkData.questionId,
+      order: linkData.order,
+    });
+  });
+
+  await batch.commit();
+}
+
+
+// Updates the order for multiple questions in a single batch
+export async function batchUpdateQuestionOrder(updates: { linkId: string; order: number }[]) {
+  if (updates.length === 0) return;
+
+  const batch = writeBatch(db);
+  updates.forEach(update => {
+    const docRef = doc(db, 'paper_questions', update.linkId);
+    batch.update(docRef, { order: update.order });
+  });
+
+  await batch.commit();
 }
