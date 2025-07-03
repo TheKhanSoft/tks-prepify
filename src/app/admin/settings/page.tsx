@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useForm, useFieldArray } from "react-hook-form";
@@ -22,6 +23,9 @@ import { fetchSettings, updateSettings } from "@/lib/settings-service";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { uploadHeroImage } from "@/lib/upload-action";
+import { Separator } from "@/components/ui/separator";
+import Image from "next/image";
 
 const settingsFormSchema = z.object({
   siteName: z.string().min(1, "Site name is required."),
@@ -76,6 +80,8 @@ export default function AdminSettingsPage() {
   const { toast } = useToast();
   const [loading, setLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [fileToUpload, setFileToUpload] = useState<File | null>(null);
+  const [imagePreview, setImagePreview] = useState<string | null>(null);
 
   const form = useForm<SettingsFormValues>({
     resolver: zodResolver(settingsFormSchema),
@@ -95,6 +101,9 @@ export default function AdminSettingsPage() {
       try {
         const settings = await fetchSettings();
         form.reset(settings);
+        if (settings.heroImage) {
+          setImagePreview(settings.heroImage);
+        }
       } catch (error) {
         toast({
           title: "Error",
@@ -111,15 +120,32 @@ export default function AdminSettingsPage() {
   async function onSubmit(data: SettingsFormValues) {
     setIsSubmitting(true);
     try {
+      let finalData = { ...data };
+
+      if (fileToUpload) {
+          const formData = new FormData();
+          formData.append('heroImage', fileToUpload);
+          const result = await uploadHeroImage(formData);
+
+          if (result.success && result.path) {
+              finalData.heroImage = result.path;
+          } else {
+              toast({ title: "Upload Failed", description: result.error || "Could not upload hero image.", variant: "destructive" });
+              setIsSubmitting(false);
+              return;
+          }
+      }
+
       const settingsData = {
-        ...data,
-        socialLinks: data.socialLinks?.filter(link => link.url) || []
+        ...finalData,
+        socialLinks: finalData.socialLinks?.filter(link => link.url) || []
       }
       await updateSettings(settingsData);
       toast({
         title: "Settings Saved",
         description: "Your global settings have been updated.",
       });
+      setFileToUpload(null);
     } catch (error) {
       console.error("Error saving settings:", error);
       toast({
@@ -311,10 +337,56 @@ export default function AdminSettingsPage() {
                     name="heroImage"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Hero Image URL</FormLabel>
-                        <FormControl>
-                          <Input {...field} value={field.value || ''} placeholder="https://..." disabled={isSubmitting} />
-                        </FormControl>
+                        <FormLabel>Hero Image</FormLabel>
+                        <Card>
+                          <CardContent className="p-4 space-y-4">
+                            {imagePreview && (
+                              <div className="relative aspect-video w-full max-w-sm mx-auto rounded-md overflow-hidden border">
+                                <Image src={imagePreview} alt="Hero image preview" fill style={{ objectFit: 'cover' }} />
+                              </div>
+                            )}
+                            <div className="space-y-2">
+                              <FormLabel htmlFor="hero-image-upload">Upload an image</FormLabel>
+                              <Input
+                                id="hero-image-upload"
+                                type="file"
+                                accept="image/*"
+                                onChange={(e) => {
+                                  const file = e.target.files?.[0];
+                                  if (file) {
+                                    setFileToUpload(file);
+                                    setImagePreview(URL.createObjectURL(file));
+                                  }
+                                }}
+                              />
+                            </div>
+                            <div className="relative">
+                                <div className="absolute inset-0 flex items-center">
+                                    <span className="w-full border-t" />
+                                </div>
+                                <div className="relative flex justify-center text-xs uppercase">
+                                    <span className="bg-card px-2 text-muted-foreground">
+                                    Or
+                                    </span>
+                                </div>
+                            </div>
+                            <div className="space-y-2">
+                              <FormLabel htmlFor="hero-image-url">Paste image URL</FormLabel>
+                              <Input
+                                id="hero-image-url"
+                                type="text"
+                                placeholder="https://..."
+                                value={field.value || ''}
+                                onChange={(e) => {
+                                  const url = e.target.value;
+                                  field.onChange(url);
+                                  setFileToUpload(null);
+                                  setImagePreview(url);
+                                }}
+                              />
+                            </div>
+                          </CardContent>
+                        </Card>
                         <FormMessage />
                       </FormItem>
                     )}
