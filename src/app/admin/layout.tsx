@@ -105,7 +105,6 @@ export default async function AdminLayout({
                   </div>
                 </SidebarMenuItem>
               </Collapsible>
-               <SidebarSeparator />
                <SidebarMenuItem>
                 <SidebarMenuButton asChild tooltip="Users">
                   <Link href="/admin/users">
