@@ -7,10 +7,10 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Badge } from "@/components/ui/badge"
 import { FileText, Users, Folder, PlusCircle, ArrowUpRight, Loader2, Library, Tags } from 'lucide-react';
 import { users } from '@/lib/data';
-import { fetchCategories, getCategoryPath, getFlattenedCategories } from '@/lib/category-service';
+import { fetchCategories, getCategoryPath, getFlattenedCategories, getDescendantCategoryIds } from '@/lib/category-service';
 import { fetchPapers } from '@/lib/paper-service';
 import { fetchAllQuestions } from '@/lib/question-service';
-import { fetchQuestionCategories, getDescendantQuestionCategoryIds } from '@/lib/question-category-service';
+import { fetchQuestionCategories, getDescendantQuestionCategoryIds as getDescendantQCategoryIds } from '@/lib/question-category-service';
 import type { Category, Paper, Question, QuestionCategory } from '@/types';
 import Link from 'next/link';
 import { Bar, BarChart, ResponsiveContainer, XAxis, YAxis, Tooltip } from "recharts"
@@ -67,12 +67,20 @@ export default function AdminDashboardPage() {
 
   const totalUsers = users.length;
 
-  const papersPerCategory = useMemo(() => allCategories
-    .filter(c => !c.parentId) 
-    .map(category => ({
-      name: category.name,
-      total: allPapers.filter(paper => paper.categoryId.startsWith(category.id)).length,
-  })).filter(c => c.total > 0), [allCategories, allPapers]);
+  const papersPerCategory = useMemo(() => {
+    if (allPapers.length === 0 || allCategories.length === 0) return [];
+    
+    const topLevelCategories = allCategories.filter(c => !c.parentId);
+
+    return topLevelCategories.map(category => {
+        const descendantIds = getDescendantCategoryIds(category.id, allCategories);
+        const count = allPapers.filter(p => descendantIds.includes(p.categoryId)).length;
+        return {
+            name: category.name,
+            total: count,
+        };
+    }).filter(c => c.total > 0);
+  }, [allCategories, allPapers]);
   
   const questionsPerCategory = useMemo(() => {
       if (allQuestions.length === 0 || allQuestionCategories.length === 0) return [];
@@ -80,7 +88,7 @@ export default function AdminDashboardPage() {
       const topLevelCategories = allQuestionCategories.filter(c => !c.parentId);
 
       return topLevelCategories.map(category => {
-          const descendantIds = getDescendantQuestionCategoryIds(category.id, allQuestionCategories);
+          const descendantIds = getDescendantQCategoryIds(category.id, allQuestionCategories);
           const count = allQuestions.filter(q => q.questionCategoryId && descendantIds.includes(q.questionCategoryId)).length;
           return {
               name: category.name,
@@ -190,7 +198,7 @@ export default function AdminDashboardPage() {
             <Card>
                 <CardHeader>
                     <CardTitle>Papers Overview</CardTitle>
-                    <CardDescription>Number of papers per top-level category.</CardDescription>
+                    <CardDescription>Total papers per top-level category, including all sub-categories.</CardDescription>
                 </CardHeader>
                 <CardContent className="pl-2">
                     <ResponsiveContainer width="100%" height={350}>
