@@ -24,6 +24,23 @@ const defaultSettings: Settings = {
     heroButton2Link: '/signup',
     heroImage: 'https://placehold.co/600x400.png',
     socialLinks: [],
+    // About Page Defaults
+    aboutTitle: 'About Us',
+    aboutSubtitle: 'We are dedicated to providing the best resources for students to excel in their exams.',
+    aboutMission: 'Our mission is to democratize education by making high-quality exam preparation materials accessible to every student, everywhere. We believe that with the right tools, anyone can achieve their academic goals. We strive to create a platform that is not only comprehensive but also intuitive and motivating to use.',
+    aboutVision: 'We envision a world where exam stress is replaced by confidence. Our goal is to be the most trusted and effective online resource for exam preparation, empowering a global community of learners to unlock their full potential and build a brighter future for themselves.',
+    aboutTeamTitle: 'Meet the Team',
+    teamMembers: [
+        { name: 'Alex Doe', role: 'Founder & CEO', avatar: 'https://placehold.co/100x100.png', hint: 'male portrait' },
+        { name: 'Jane Smith', role: 'Lead Developer', avatar: 'https://placehold.co/100x100.png', hint: 'female portrait' },
+        { name: 'Sam Wilson', role: 'Content Strategist', avatar: 'https://placehold.co/100x100.png', hint: 'person portrait' },
+    ],
+    // Contact Page Defaults
+    contactTitle: 'Contact Us',
+    contactSubtitle: 'Have a question or feedback? We\'d love to hear from you.',
+    contactEmail: 'contact@prepify.com',
+    contactPhone: '+1 (555) 123-4567',
+    contactAddress: '123 Education Lane, Knowledge City, 45678',
 };
 
 /**
@@ -40,6 +57,7 @@ export async function fetchSettings(): Promise<Settings> {
                 ...defaultSettings,
                 ...data,
                 socialLinks: data.socialLinks || [],
+                teamMembers: data.teamMembers || [],
             };
         }
     } catch (error) {

@@ -78,6 +78,13 @@ export interface SocialLink {
   url: string;
 }
 
+export interface TeamMember {
+    name: string;
+    role: string;
+    avatar: string;
+    hint: string;
+}
+
 export interface Settings {
     siteName: string;
     siteDescription: string;
@@ -96,4 +103,17 @@ export interface Settings {
     heroImage?: string;
     // Social Links
     socialLinks: SocialLink[];
+    // About Page
+    aboutTitle?: string;
+    aboutSubtitle?: string;
+    aboutMission?: string;
+    aboutVision?: string;
+    aboutTeamTitle?: string;
+    teamMembers?: TeamMember[];
+    // Contact Page
+    contactTitle?: string;
+    contactSubtitle?: string;
+    contactEmail?: string;
+    contactPhone?: string;
+    contactAddress?: string;
 }

@@ -10,19 +10,23 @@ import { Mail, Phone, MapPin } from "lucide-react";
 
 export async function generateMetadata(): Promise<Metadata> {
   const settings = await fetchSettings();
+  const title = settings.contactTitle || `Contact Us | ${settings.siteName}`;
+  const description = settings.contactSubtitle || `Get in touch with the ${settings.siteName} team.`;
   return {
-    title: `Contact Us | ${settings.siteName}`,
-    description: `Get in touch with the ${settings.siteName} team.`,
+    title,
+    description,
   };
 }
 
-export default function ContactPage() {
+export default async function ContactPage() {
+  const settings = await fetchSettings();
+
   return (
     <div className="container mx-auto px-6 sm:px-10 lg:px-16 py-12 md:py-16">
       <div className="text-center mb-16">
-        <h1 className="text-4xl md:text-5xl font-bold font-headline">Contact Us</h1>
+        <h1 className="text-4xl md:text-5xl font-bold font-headline">{settings.contactTitle}</h1>
         <p className="text-lg text-muted-foreground mt-4 max-w-3xl mx-auto">
-          Have a question or feedback? We'd love to hear from you.
+          {settings.contactSubtitle}
         </p>
       </div>
 
@@ -58,18 +62,24 @@ export default function ContactPage() {
         <div className="space-y-8">
             <h3 className="text-2xl font-bold">Our Contact Information</h3>
             <div className="space-y-4 text-lg">
-                <div className="flex items-center gap-4">
-                    <Mail className="h-6 w-6 text-primary" />
-                    <span className="text-muted-foreground">contact@prepify.com</span>
-                </div>
-                 <div className="flex items-center gap-4">
-                    <Phone className="h-6 w-6 text-primary" />
-                    <span className="text-muted-foreground">+1 (555) 123-4567</span>
-                </div>
-                 <div className="flex items-center gap-4">
-                    <MapPin className="h-6 w-6 text-primary" />
-                    <span className="text-muted-foreground">123 Education Lane, Knowledge City, 45678</span>
-                </div>
+                {settings.contactEmail && (
+                    <div className="flex items-center gap-4">
+                        <Mail className="h-6 w-6 text-primary" />
+                        <span className="text-muted-foreground">{settings.contactEmail}</span>
+                    </div>
+                )}
+                 {settings.contactPhone && (
+                    <div className="flex items-center gap-4">
+                        <Phone className="h-6 w-6 text-primary" />
+                        <span className="text-muted-foreground">{settings.contactPhone}</span>
+                    </div>
+                 )}
+                 {settings.contactAddress && (
+                    <div className="flex items-center gap-4">
+                        <MapPin className="h-6 w-6 text-primary" />
+                        <span className="text-muted-foreground">{settings.contactAddress}</span>
+                    </div>
+                 )}
             </div>
              <p className="text-muted-foreground">
                 You can also reach out to us on our social media channels. We're active and ready to help!

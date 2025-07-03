@@ -47,6 +47,24 @@ const settingsFormSchema = z.object({
     platform: z.string().min(1, "Please select a platform."),
     url: z.string().url({ message: "Please enter a valid URL." }).or(z.literal("")),
   })).optional(),
+  // About Page
+  aboutTitle: z.string().optional(),
+  aboutSubtitle: z.string().optional(),
+  aboutMission: z.string().optional(),
+  aboutVision: z.string().optional(),
+  aboutTeamTitle: z.string().optional(),
+  teamMembers: z.array(z.object({
+      name: z.string().min(1, "Name is required."),
+      role: z.string().min(1, "Role is required."),
+      avatar: z.string().url("Must be a valid URL").or(z.literal("")),
+      hint: z.string().optional(),
+  })).optional(),
+  // Contact Page
+  contactTitle: z.string().optional(),
+  contactSubtitle: z.string().optional(),
+  contactEmail: z.string().email("Must be a valid email").or(z.literal("")).optional(),
+  contactPhone: z.string().optional(),
+  contactAddress: z.string().optional(),
 });
 
 type SettingsFormValues = z.infer<typeof settingsFormSchema>;
@@ -65,13 +83,20 @@ export default function AdminSettingsPage() {
     resolver: zodResolver(settingsFormSchema),
     defaultValues: {
       socialLinks: [],
+      teamMembers: [],
     }
   });
 
-  const { fields, append, remove } = useFieldArray({
+  const { fields: socialFields, append: appendSocial, remove: removeSocial } = useFieldArray({
     control: form.control,
     name: "socialLinks",
   });
+  
+  const { fields: teamFields, append: appendTeam, remove: removeTeam } = useFieldArray({
+      control: form.control,
+      name: "teamMembers",
+  });
+
 
   useEffect(() => {
     const loadSettings = async () => {
@@ -112,7 +137,8 @@ export default function AdminSettingsPage() {
 
       const settingsData = {
         ...finalData,
-        socialLinks: finalData.socialLinks?.filter(link => link.url) || []
+        socialLinks: finalData.socialLinks?.filter(link => link.url) || [],
+        teamMembers: finalData.teamMembers?.filter(member => member.name && member.role) || [],
       };
       
       await updateSettings(settingsData);
@@ -178,7 +204,7 @@ export default function AdminSettingsPage() {
     <div className="space-y-6">
       <div>
         <h1 className="text-3xl font-bold">Global Settings</h1>
-        <p className="text-muted-foreground">Manage default values for the application.</p>
+        <p className="text-muted-foreground">Manage application-wide content and default values.</p>
       </div>
       <Form {...form}>
         <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8 max-w-4xl">
@@ -186,355 +212,135 @@ export default function AdminSettingsPage() {
             <TabsList>
               <TabsTrigger value="site">Site</TabsTrigger>
               <TabsTrigger value="homepage">Homepage</TabsTrigger>
-              <TabsTrigger value="social">Social Links</TabsTrigger>
+              <TabsTrigger value="about">About Page</TabsTrigger>
+              <TabsTrigger value="contact">Contact Page</TabsTrigger>
+              <TabsTrigger value="social">Social</TabsTrigger>
               <TabsTrigger value="defaults">Defaults</TabsTrigger>
             </TabsList>
+
             <TabsContent value="site">
               <Card>
                 <CardHeader>
                   <CardTitle>Site Settings</CardTitle>
-                  <CardDescription>
-                    Manage general site information and branding.
-                  </CardDescription>
+                  <CardDescription>Manage general site information and branding.</CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-6">
-                  <FormField
-                    control={form.control}
-                    name="siteName"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Site Name</FormLabel>
-                        <FormControl>
-                          <Input {...field} disabled={isSubmitting} />
-                        </FormControl>
-                        <FormDescription>The name of your application, displayed in the header and titles.</FormDescription>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  <FormField
-                    control={form.control}
-                    name="siteDescription"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Site Description / Tagline</FormLabel>
-                        <FormControl>
-                          <Textarea {...field} value={field.value || ''} disabled={isSubmitting} />
-                        </FormControl>
-                        <FormDescription>A short description or tagline for your site.</FormDescription>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
+                  <FormField control={form.control} name="siteName" render={({ field }) => (<FormItem><FormLabel>Site Name</FormLabel><FormControl><Input {...field} disabled={isSubmitting} /></FormControl><FormDescription>The name of your application, displayed in the header and titles.</FormDescription><FormMessage /></FormItem>)} />
+                  <FormField control={form.control} name="siteDescription" render={({ field }) => (<FormItem><FormLabel>Site Description / Tagline</FormLabel><FormControl><Textarea {...field} value={field.value || ''} disabled={isSubmitting} /></FormControl><FormDescription>A short description or tagline for your site.</FormDescription><FormMessage /></FormItem>)} />
                 </CardContent>
               </Card>
             </TabsContent>
+
              <TabsContent value="homepage">
               <Card>
-                <CardHeader>
-                  <CardTitle>Homepage Hero Section</CardTitle>
-                  <CardDescription>
-                    Customize the content of the main hero section on your homepage.
-                  </CardDescription>
-                </CardHeader>
+                <CardHeader><CardTitle>Homepage Hero Section</CardTitle><CardDescription>Customize the content of the main hero section on your homepage.</CardDescription></CardHeader>
                 <CardContent className="space-y-6">
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                    <FormField
-                      control={form.control}
-                      name="heroTitlePrefix"
-                      render={({ field }) => (
-                        <FormItem className="md:col-span-1">
-                          <FormLabel>Title Prefix</FormLabel>
-                          <FormControl>
-                            <Input {...field} value={field.value || ''} disabled={isSubmitting} />
-                          </FormControl>
-                        </FormItem>
-                      )}
-                    />
-                    <FormField
-                      control={form.control}
-                      name="heroTitleHighlight"
-                      render={({ field }) => (
-                        <FormItem className="md:col-span-1">
-                          <FormLabel>Highlighted Title</FormLabel>
-                          <FormControl>
-                            <Input {...field} value={field.value || ''} disabled={isSubmitting} />
-                          </FormControl>
-                        </FormItem>
-                      )}
-                    />
-                    <FormField
-                      control={form.control}
-                      name="heroTitleSuffix"
-                      render={({ field }) => (
-                        <FormItem className="md:col-span-1">
-                          <FormLabel>Title Suffix</FormLabel>
-                          <FormControl>
-                            <Input {...field} value={field.value || ''} disabled={isSubmitting} />
-                          </FormControl>
-                        </FormItem>
-                      )}
-                    />
+                    <FormField control={form.control} name="heroTitlePrefix" render={({ field }) => (<FormItem className="md:col-span-1"><FormLabel>Title Prefix</FormLabel><FormControl><Input {...field} value={field.value || ''} disabled={isSubmitting} /></FormControl></FormItem>)} />
+                    <FormField control={form.control} name="heroTitleHighlight" render={({ field }) => (<FormItem className="md:col-span-1"><FormLabel>Highlighted Title</FormLabel><FormControl><Input {...field} value={field.value || ''} disabled={isSubmitting} /></FormControl></FormItem>)} />
+                    <FormField control={form.control} name="heroTitleSuffix" render={({ field }) => (<FormItem className="md:col-span-1"><FormLabel>Title Suffix</FormLabel><FormControl><Input {...field} value={field.value || ''} disabled={isSubmitting} /></FormControl></FormItem>)} />
                   </div>
-                  <FormField
-                    control={form.control}
-                    name="heroSubtitle"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Subtitle</FormLabel>
-                        <FormControl>
-                          <Textarea {...field} value={field.value || ''} disabled={isSubmitting} />
-                        </FormControl>
-                      </FormItem>
-                    )}
-                  />
+                  <FormField control={form.control} name="heroSubtitle" render={({ field }) => (<FormItem><FormLabel>Subtitle</FormLabel><FormControl><Textarea {...field} value={field.value || ''} disabled={isSubmitting} /></FormControl></FormItem>)} />
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <FormField
-                      control={form.control}
-                      name="heroButton1Text"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Button 1 Text</FormLabel>
-                          <FormControl>
-                            <Input {...field} value={field.value || ''} disabled={isSubmitting} />
-                          </FormControl>
-                        </FormItem>
-                      )}
-                    />
-                    <FormField
-                      control={form.control}
-                      name="heroButton1Link"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Button 1 Link</FormLabel>
-                          <FormControl>
-                            <Input {...field} value={field.value || ''} placeholder="/papers" disabled={isSubmitting} />
-                          </FormControl>
-                        </FormItem>
-                      )}
-                    />
+                    <FormField control={form.control} name="heroButton1Text" render={({ field }) => (<FormItem><FormLabel>Button 1 Text</FormLabel><FormControl><Input {...field} value={field.value || ''} disabled={isSubmitting} /></FormControl></FormItem>)} />
+                    <FormField control={form.control} name="heroButton1Link" render={({ field }) => (<FormItem><FormLabel>Button 1 Link</FormLabel><FormControl><Input {...field} value={field.value || ''} placeholder="/papers" disabled={isSubmitting} /></FormControl></FormItem>)} />
                   </div>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <FormField
-                      control={form.control}
-                      name="heroButton2Text"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Button 2 Text</FormLabel>
-                          <FormControl>
-                            <Input {...field} value={field.value || ''} disabled={isSubmitting} />
-                          </FormControl>
-                        </FormItem>
-                      )}
-                    />
-                    <FormField
-                      control={form.control}
-                      name="heroButton2Link"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Button 2 Link</FormLabel>
-                          <FormControl>
-                            <Input {...field} value={field.value || ''} placeholder="/signup" disabled={isSubmitting} />
-                          </FormControl>
-                        </FormItem>
-                      )}
-                    />
+                    <FormField control={form.control} name="heroButton2Text" render={({ field }) => (<FormItem><FormLabel>Button 2 Text</FormLabel><FormControl><Input {...field} value={field.value || ''} disabled={isSubmitting} /></FormControl></FormItem>)} />
+                    <FormField control={form.control} name="heroButton2Link" render={({ field }) => (<FormItem><FormLabel>Button 2 Link</FormLabel><FormControl><Input {...field} value={field.value || ''} placeholder="/signup" disabled={isSubmitting} /></FormControl></FormItem>)} />
                   </div>
                   <FormItem>
-                        <FormLabel>Hero Image</FormLabel>
-                        <Card>
-                            <CardContent className="p-4 space-y-4">
-                                {imagePreview && (
-                                <div className="relative aspect-video w-full max-w-sm mx-auto rounded-md overflow-hidden border">
-                                    <Image src={imagePreview} alt="Hero image preview" fill style={{ objectFit: 'cover' }} />
-                                </div>
-                                )}
-                                <div className="space-y-2">
-                                <Label
-                                    htmlFor="hero-image-upload"
-                                    className={cn(
-                                        "w-full border-2 border-dashed rounded-lg p-6 flex flex-col items-center justify-center text-center cursor-pointer hover:border-primary hover:bg-muted/50 transition-colors",
-                                        fileToUpload && "border-primary bg-primary/10"
-                                    )}
-                                    >
-                                    <UploadCloud className="w-8 h-8 text-muted-foreground mb-2" />
-                                    <span className="font-semibold">{fileToUpload ? fileToUpload.name : "Click to upload a file"}</span>
-                                    <span className="text-xs text-muted-foreground">PNG, JPG, WEBP (MAX. {MAX_IMAGE_SIZE_KB}KB)</span>
-                                </Label>
-                                <Input id="hero-image-upload" type="file" className="sr-only" accept="image/*" onChange={handleImageFileChange} />
-                                </div>
-                                <div className="relative">
-                                    <div className="absolute inset-0 flex items-center"><span className="w-full border-t" /></div>
-                                    <div className="relative flex justify-center text-xs uppercase"><span className="bg-card px-2 text-muted-foreground">Or</span></div>
-                                </div>
-                                <FormField
-                                    control={form.control}
-                                    name="heroImage"
-                                    render={({ field }) => (
-                                    <FormItem className="space-y-2">
-                                        <FormLabel htmlFor="hero-image-url">Paste image URL</FormLabel>
-                                        <FormControl>
-                                            <Input
-                                                id="hero-image-url"
-                                                type="text"
-                                                placeholder="https://..."
-                                                value={field.value || ''}
-                                                onChange={handleImageUrlChange}
-                                                disabled={isSubmitting}
-                                            />
-                                        </FormControl>
-                                        <FormMessage />
-                                    </FormItem>
-                                    )}
-                                />
-                            </CardContent>
-                        </Card>
-                    </FormItem>
+                    <FormLabel>Hero Image</FormLabel>
+                    <Card><CardContent className="p-4 space-y-4">
+                      {imagePreview && (<div className="relative aspect-video w-full max-w-sm mx-auto rounded-md overflow-hidden border"><Image src={imagePreview} alt="Hero image preview" fill style={{ objectFit: 'cover' }} /></div>)}
+                      <div className="space-y-2">
+                        <Label htmlFor="hero-image-upload" className={cn("w-full border-2 border-dashed rounded-lg p-6 flex flex-col items-center justify-center text-center cursor-pointer hover:border-primary hover:bg-muted/50 transition-colors", fileToUpload && "border-primary bg-primary/10")}>
+                          <UploadCloud className="w-8 h-8 text-muted-foreground mb-2" />
+                          <span className="font-semibold">{fileToUpload ? fileToUpload.name : "Click to upload a file"}</span>
+                          <span className="text-xs text-muted-foreground">PNG, JPG, WEBP (MAX. {MAX_IMAGE_SIZE_KB}KB)</span>
+                        </Label>
+                        <Input id="hero-image-upload" type="file" className="sr-only" accept="image/*" onChange={handleImageFileChange} />
+                      </div>
+                      <div className="relative"><div className="absolute inset-0 flex items-center"><span className="w-full border-t" /></div><div className="relative flex justify-center text-xs uppercase"><span className="bg-card px-2 text-muted-foreground">Or</span></div></div>
+                      <FormField control={form.control} name="heroImage" render={({ field }) => (<FormItem className="space-y-2"><FormLabel htmlFor="hero-image-url">Paste image URL</FormLabel><FormControl><Input id="hero-image-url" type="text" placeholder="https://..." value={field.value || ''} onChange={handleImageUrlChange} disabled={isSubmitting} /></FormControl><FormMessage /></FormItem>)} />
+                    </CardContent></Card>
+                  </FormItem>
                 </CardContent>
               </Card>
             </TabsContent>
+
+            <TabsContent value="about">
+                <Card>
+                    <CardHeader><CardTitle>About Page Content</CardTitle><CardDescription>Manage the content displayed on your About Us page.</CardDescription></CardHeader>
+                    <CardContent className="space-y-6">
+                        <FormField control={form.control} name="aboutTitle" render={({ field }) => (<FormItem><FormLabel>Title</FormLabel><FormControl><Input {...field} value={field.value || ''} /></FormControl></FormItem>)} />
+                        <FormField control={form.control} name="aboutSubtitle" render={({ field }) => (<FormItem><FormLabel>Subtitle</FormLabel><FormControl><Textarea {...field} value={field.value || ''} /></FormControl></FormItem>)} />
+                        <FormField control={form.control} name="aboutMission" render={({ field }) => (<FormItem><FormLabel>Our Mission</FormLabel><FormControl><Textarea {...field} value={field.value || ''} rows={4} /></FormControl></FormItem>)} />
+                        <FormField control={form.control} name="aboutVision" render={({ field }) => (<FormItem><FormLabel>Our Vision</FormLabel><FormControl><Textarea {...field} value={field.value || ''} rows={4} /></FormControl></FormItem>)} />
+                        
+                        <div className="space-y-4 pt-4 border-t">
+                            <FormField control={form.control} name="aboutTeamTitle" render={({ field }) => (<FormItem><FormLabel>Team Section Title</FormLabel><FormControl><Input {...field} value={field.value || ''} /></FormControl></FormItem>)} />
+                            {teamFields.map((item, index) => (
+                                <div key={item.id} className="flex flex-col gap-4 p-4 border rounded-lg relative">
+                                    <Button type="button" variant="ghost" size="icon" className="absolute top-2 right-2 text-destructive hover:text-destructive hover:bg-destructive/10" onClick={() => removeTeam(index)}><Trash2 className="h-4 w-4" /><span className="sr-only">Remove Member</span></Button>
+                                    <FormField control={form.control} name={`teamMembers.${index}.name`} render={({ field }) => (<FormItem><FormLabel>Member Name</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>)} />
+                                    <FormField control={form.control} name={`teamMembers.${index}.role`} render={({ field }) => (<FormItem><FormLabel>Member Role</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>)} />
+                                    <FormField control={form.control} name={`teamMembers.${index}.avatar`} render={({ field }) => (<FormItem><FormLabel>Avatar Image URL</FormLabel><FormControl><Input {...field} placeholder="https://..." /></FormControl><FormMessage /></FormItem>)} />
+                                    <FormField control={form.control} name={`teamMembers.${index}.hint`} render={({ field }) => (<FormItem><FormLabel>Avatar AI Hint</FormLabel><FormControl><Input {...field} /></FormControl><FormDescription>One or two keywords for AI image search (e.g., 'male portrait').</FormDescription><FormMessage /></FormItem>)} />
+                                </div>
+                            ))}
+                            <Button type="button" variant="outline" onClick={() => appendTeam({ name: '', role: '', avatar: '', hint: '' })}><PlusCircle className="mr-2 h-4 w-4" />Add Team Member</Button>
+                        </div>
+                    </CardContent>
+                </Card>
+            </TabsContent>
+
+             <TabsContent value="contact">
+                <Card>
+                    <CardHeader><CardTitle>Contact Page Content</CardTitle><CardDescription>Manage the contact information on your Contact Us page.</CardDescription></CardHeader>
+                    <CardContent className="space-y-6">
+                        <FormField control={form.control} name="contactTitle" render={({ field }) => (<FormItem><FormLabel>Title</FormLabel><FormControl><Input {...field} value={field.value || ''} /></FormControl></FormItem>)} />
+                        <FormField control={form.control} name="contactSubtitle" render={({ field }) => (<FormItem><FormLabel>Subtitle</FormLabel><FormControl><Textarea {...field} value={field.value || ''} /></FormControl></FormItem>)} />
+                        <FormField control={form.control} name="contactEmail" render={({ field }) => (<FormItem><FormLabel>Contact Email</FormLabel><FormControl><Input type="email" {...field} value={field.value || ''} /></FormControl><FormMessage /></FormItem>)} />
+                        <FormField control={form.control} name="contactPhone" render={({ field }) => (<FormItem><FormLabel>Contact Phone</FormLabel><FormControl><Input {...field} value={field.value || ''} /></FormControl></FormItem>)} />
+                        <FormField control={form.control} name="contactAddress" render={({ field }) => (<FormItem><FormLabel>Contact Address</FormLabel><FormControl><Input {...field} value={field.value || ''} /></FormControl></FormItem>)} />
+                    </CardContent>
+                </Card>
+             </TabsContent>
+
             <TabsContent value="social">
               <Card>
-                <CardHeader>
-                  <CardTitle>Social Media Links</CardTitle>
-                  <CardDescription>
-                    Add and manage links to your social media profiles. They will appear in the site footer.
-                  </CardDescription>
-                </CardHeader>
+                <CardHeader><CardTitle>Social Media Links</CardTitle><CardDescription>Add and manage links to your social media profiles. They will appear in the site footer.</CardDescription></CardHeader>
                 <CardContent className="space-y-4">
-                  {fields.map((item, index) => {
+                  {socialFields.map((item, index) => {
                     const selectedPlatform = socialPlatforms.find(p => p.value === form.watch(`socialLinks.${index}.platform`));
                     const Icon = selectedPlatform?.icon || LinkIcon;
                     return (
                         <div key={item.id} className="flex items-end gap-4 p-4 border rounded-lg">
-                            <FormField
-                                control={form.control}
-                                name={`socialLinks.${index}.platform`}
-                                render={({ field }) => (
-                                    <FormItem className="w-48">
-                                        <FormLabel>Platform</FormLabel>
-                                        <Select onValueChange={field.onChange} defaultValue={field.value}>
-                                            <FormControl>
-                                                <SelectTrigger>
-                                                    <SelectValue placeholder="Select platform..." />
-                                                </SelectTrigger>
-                                            </FormControl>
-                                            <SelectContent>
-                                                {socialPlatforms.map(p => (
-                                                    <SelectItem key={p.value} value={p.value}>{p.label}</SelectItem>
-                                                ))}
-                                            </SelectContent>
-                                        </Select>
-                                        <FormMessage />
-                                    </FormItem>
-                                )}
-                            />
-                            <FormField
-                                control={form.control}
-                                name={`socialLinks.${index}.url`}
-                                render={({ field }) => (
-                                    <FormItem className="flex-grow">
-                                        <FormLabel>URL</FormLabel>
-                                        <FormControl>
-                                            <div className="relative">
-                                                <Icon className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                                                <Input {...field} value={field.value || ''} placeholder="https://..." className="pl-9" />
-                                            </div>
-                                        </FormControl>
-                                        <FormMessage />
-                                    </FormItem>
-                                )}
-                            />
-                             <Button
-                                type="button"
-                                variant="ghost"
-                                size="icon"
-                                className="text-destructive hover:text-destructive hover:bg-destructive/10"
-                                onClick={() => remove(index)}
-                            >
-                                <Trash2 className="h-4 w-4" />
-                                <span className="sr-only">Remove link</span>
-                            </Button>
+                            <FormField control={form.control} name={`socialLinks.${index}.platform`} render={({ field }) => (<FormItem className="w-48"><FormLabel>Platform</FormLabel><Select onValueChange={field.onChange} defaultValue={field.value}><FormControl><SelectTrigger><SelectValue placeholder="Select platform..." /></SelectTrigger></FormControl><SelectContent>{socialPlatforms.map(p => (<SelectItem key={p.value} value={p.value}>{p.label}</SelectItem>))}</SelectContent></Select><FormMessage /></FormItem>)} />
+                            <FormField control={form.control} name={`socialLinks.${index}.url`} render={({ field }) => (<FormItem className="flex-grow"><FormLabel>URL</FormLabel><FormControl><div className="relative"><Icon className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" /><Input {...field} value={field.value || ''} placeholder="https://..." className="pl-9" /></div></FormControl><FormMessage /></FormItem>)} />
+                             <Button type="button" variant="ghost" size="icon" className="text-destructive hover:text-destructive hover:bg-destructive/10" onClick={() => removeSocial(index)}><Trash2 className="h-4 w-4" /><span className="sr-only">Remove link</span></Button>
                         </div>
                     )
                   })}
-
-                  <Button
-                    type="button"
-                    variant="outline"
-                    onClick={() => append({ platform: 'other', url: '' })}
-                    >
-                    <PlusCircle className="mr-2 h-4 w-4" />
-                    Add Social Link
-                  </Button>
+                  <Button type="button" variant="outline" onClick={() => appendSocial({ platform: 'other', url: '' })}><PlusCircle className="mr-2 h-4 w-4" />Add Social Link</Button>
                 </CardContent>
               </Card>
             </TabsContent>
+            
             <TabsContent value="defaults">
               <div className="space-y-6">
                  <Card>
-                  <CardHeader>
-                    <CardTitle>New Paper Defaults</CardTitle>
-                    <CardDescription>
-                      These values will be used as defaults when creating a new paper.
-                    </CardDescription>
-                  </CardHeader>
+                  <CardHeader><CardTitle>New Paper Defaults</CardTitle><CardDescription>These values will be used as defaults when creating a new paper.</CardDescription></CardHeader>
                   <CardContent className="space-y-6">
-                    <FormField
-                      control={form.control}
-                      name="defaultQuestionCount"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Default Number of Questions</FormLabel>
-                          <FormControl>
-                            <Input type="number" {...field} disabled={isSubmitting} />
-                          </FormControl>
-                          <FormDescription>The default number of questions for a new paper.</FormDescription>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                    <FormField
-                      control={form.control}
-                      name="defaultDuration"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Default Duration (in minutes)</FormLabel>
-                          <FormControl>
-                            <Input type="number" {...field} disabled={isSubmitting} />
-                          </FormControl>
-                          <FormDescription>The default duration for a new paper.</FormDescription>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
+                    <FormField control={form.control} name="defaultQuestionCount" render={({ field }) => (<FormItem><FormLabel>Default Number of Questions</FormLabel><FormControl><Input type="number" {...field} disabled={isSubmitting} /></FormControl><FormDescription>The default number of questions for a new paper.</FormDescription><FormMessage /></FormItem>)} />
+                    <FormField control={form.control} name="defaultDuration" render={({ field }) => (<FormItem><FormLabel>Default Duration (in minutes)</FormLabel><FormControl><Input type="number" {...field} disabled={isSubmitting} /></FormControl><FormDescription>The default duration for a new paper.</FormDescription><FormMessage /></FormItem>)} />
                   </CardContent>
                 </Card>
-
                 <Card>
-                  <CardHeader>
-                    <CardTitle>Test Taking Defaults</CardTitle>
-                    <CardDescription>
-                      Settings that affect the public test-taking experience.
-                    </CardDescription>
-                  </CardHeader>
+                  <CardHeader><CardTitle>Test Taking Defaults</CardTitle><CardDescription>Settings that affect the public test-taking experience.</CardDescription></CardHeader>
                   <CardContent>
-                    <FormField
-                      control={form.control}
-                      name="defaultQuestionsPerPage"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Default Questions Per Page</FormLabel>
-                          <FormControl>
-                            <Input type="number" {...field} disabled={isSubmitting} />
-                          </FormControl>
-                          <FormDescription>
-                            The global number of questions to show on a page if a paper doesn't have a specific value.
-                          </FormDescription>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
+                    <FormField control={form.control} name="defaultQuestionsPerPage" render={({ field }) => (<FormItem><FormLabel>Default Questions Per Page</FormLabel><FormControl><Input type="number" {...field} disabled={isSubmitting} /></FormControl><FormDescription>The global number of questions to show on a page if a paper doesn't have a specific value.</FormDescription><FormMessage /></FormItem>)} />
                   </CardContent>
                 </Card>
               </div>
