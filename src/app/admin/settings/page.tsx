@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useForm, useFieldArray } from "react-hook-form";
@@ -17,7 +16,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
-import { Facebook, Github, Instagram, Linkedin, Loader2, PlusCircle, Trash2, Twitter, Youtube, Link as LinkIcon, Telegram, MessageSquare, Tumblr, MessageCircle, HelpCircle, Twitch, Ghost } from "lucide-react";
+import { Facebook, Github, Instagram, Linkedin, Loader2, PlusCircle, Trash2, Twitter, Youtube, Link as LinkIcon, MessageSquare, MessageCircle, HelpCircle, Twitch, Ghost } from "lucide-react";
 import React, { useState, useEffect } from "react";
 import { fetchSettings, updateSettings } from "@/lib/settings-service";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -48,24 +47,28 @@ const settingsFormSchema = z.object({
 type SettingsFormValues = z.infer<typeof settingsFormSchema>;
 
 const socialPlatforms = [
-  { value: 'twitter', label: 'Twitter / X', icon: Twitter },
   { value: 'facebook', label: 'Facebook', icon: Facebook },
   { value: 'instagram', label: 'Instagram', icon: Instagram },
-  { value: 'youtube', label: 'YouTube', icon: Youtube },
+  { value: 'twitter', label: 'Twitter / X', icon: Twitter },
   { value: 'linkedin', label: 'LinkedIn', icon: Linkedin },
+  { value: 'youtube', label: 'YouTube', icon: Youtube },
   { value: 'github', label: 'GitHub', icon: Github },
-  { value: 'discord', label: 'Discord', icon: MessageSquare },
   { value: 'twitch', label: 'Twitch', icon: Twitch },
+  { value: 'discord', label: 'Discord', icon: MessageSquare },
+  { value: 'messenger', label: 'Messenger', icon: MessageCircle },
+  { value: 'whatsapp', label: 'WhatsApp', icon: MessageSquare },
+  { value: 'telegram', label: 'Telegram', icon: MessageSquare },
+  { value: 'snapchat', label: 'Snapchat', icon: Ghost },
   { value: 'reddit', label: 'Reddit', icon: LinkIcon },
   { value: 'pinterest', label: 'Pinterest', icon: LinkIcon },
-  { value: 'telegram', label: 'Telegram', icon: Telegram },
-  { value: 'whatsapp', label: 'WhatsApp', icon: MessageSquare },
-  { value: 'messenger', label: 'Messenger', icon: MessageCircle },
-  { value: 'tumblr', label: 'Tumblr', icon: Tumblr },
-  { value: 'snapchat', label: 'Snapchat', icon: Ghost },
-  { value: 'wechat', label: 'WeChat', icon: MessageSquare },
+  { value: 'tumblr', label: 'Tumblr', icon: LinkIcon },
   { value: 'quora', label: 'Quora', icon: HelpCircle },
   { value: 'threads', label: 'Threads', icon: LinkIcon },
+  { value: 'wechat', label: 'WeChat', icon: MessageSquare },
+  { value: 'douyin', label: 'Douyin', icon: LinkIcon },
+  { value: 'qq', label: 'QQ', icon: MessageCircle },
+  { value: 'sina-weibo', label: 'Sina Weibo', icon: LinkIcon },
+  { value: 'kuaishou', label: 'Kuaishou', icon: LinkIcon },
   { value: 'other', label: 'Other', icon: LinkIcon },
 ];
 

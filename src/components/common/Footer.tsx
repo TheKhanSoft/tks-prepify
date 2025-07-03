@@ -1,35 +1,37 @@
+"use client";
 
 import Link from 'next/link';
-import { BookOpen, Facebook, Github, Linkedin, Twitter, Youtube, Instagram, Link as LinkIcon, Telegram, MessageSquare, Tumblr, MessageCircle, HelpCircle, Twitch, Ghost } from 'lucide-react';
-import { fetchSettings } from '@/lib/settings-service';
+import { BookOpen, Facebook, Github, Linkedin, Twitter, Youtube, Instagram, Link as LinkIcon, MessageSquare, MessageCircle, HelpCircle, Twitch, Ghost } from 'lucide-react';
 import { Button } from '../ui/button';
-import type { SocialLink } from '@/types';
+import type { Settings, SocialLink } from '@/types';
 
 const iconMap: { [key: string]: React.ComponentType<{ className?: string }> } = {
     facebook: Facebook,
+    instagram: Instagram,
     twitter: Twitter,
     linkedin: Linkedin,
-    github: Github,
     youtube: Youtube,
-    instagram: Instagram,
-    snapchat: Ghost,
-    pinterest: LinkIcon,
-    reddit: LinkIcon,
-    telegram: Telegram,
-    whatsapp: MessageSquare,
-    wechat: MessageSquare,
-    tumblr: Tumblr,
-    messenger: MessageCircle,
-    discord: MessageSquare,
-    quora: HelpCircle,
+    github: Github,
     twitch: Twitch,
+    discord: MessageSquare,
+    messenger: MessageCircle,
+    whatsapp: MessageSquare,
+    telegram: MessageSquare,
+    snapchat: Ghost,
+    reddit: LinkIcon,
+    pinterest: LinkIcon,
+    tumblr: LinkIcon,
+    quora: HelpCircle,
     threads: LinkIcon,
+    wechat: MessageSquare,
+    douyin: LinkIcon,
+    qq: MessageCircle,
+    'sina-weibo': LinkIcon,
+    kuaishou: LinkIcon,
     other: LinkIcon
 };
 
-export async function Footer() {
-  const settings = await fetchSettings();
-
+export function Footer({ settings }: { settings: Settings }) {
   return (
     <footer className="bg-card border-t">
       <div className="container mx-auto px-6 sm:px-10 lg:px-16 py-8">
