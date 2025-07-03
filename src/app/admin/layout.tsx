@@ -36,7 +36,6 @@ export default async function AdminLayout({
                   </Link>
                 </SidebarMenuButton>
               </SidebarMenuItem>
-              <SidebarSeparator />
               <Collapsible asChild>
                 <SidebarMenuItem>
                   <div className="w-full">
