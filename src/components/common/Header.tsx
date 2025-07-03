@@ -1,3 +1,4 @@
+
 "use client";
 
 import Link from "next/link";
@@ -7,8 +8,9 @@ import { Input } from "@/components/ui/input";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from "@/components/ui/dropdown-menu";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import React from "react";
+import type { Settings } from "@/types";
 
-export function Header() {
+export function Header({ settings }: { settings: Settings }) {
   const [isScrolled, setIsScrolled] = React.useState(false);
 
   React.useEffect(() => {
@@ -41,7 +43,7 @@ export function Header() {
       <div className="container mx-auto flex h-20 items-center justify-between px-6 sm:px-10 lg:px-16">
         <Link href="/" className="flex items-center gap-2 font-bold text-lg">
           <BookOpen className="h-6 w-6 text-primary" />
-          <span className="font-headline">Prepify</span>
+          <span className="font-headline">{settings.siteName}</span>
         </Link>
         
         <div className="hidden md:flex items-center gap-4">
@@ -109,7 +111,7 @@ export function Header() {
               <div className="p-4">
                 <Link href="/" className="flex items-center gap-2 font-bold text-xl mb-6">
                   <BookOpen className="h-7 w-7 text-primary" />
-                  <span className="font-headline">Prepify</span>
+                  <span className="font-headline">{settings.siteName}</span>
                 </Link>
                 <NavLinks className="flex flex-col gap-2" />
               </div>

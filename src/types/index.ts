@@ -74,6 +74,11 @@ export interface User {
   createdAt: string;
 }
 
+export interface SocialLink {
+  platform: 'facebook' | 'twitter' | 'linkedin' | 'github' | 'youtube' | 'instagram' | 'other';
+  url: string;
+}
+
 export interface Settings {
     siteName: string;
     siteDescription: string;
@@ -91,8 +96,5 @@ export interface Settings {
     heroButton2Link?: string;
     heroImage?: string;
     // Social Links
-    facebookUrl?: string;
-    twitterUrl?: string;
-    linkedinUrl?: string;
-    githubUrl?: string;
+    socialLinks: SocialLink[];
 }

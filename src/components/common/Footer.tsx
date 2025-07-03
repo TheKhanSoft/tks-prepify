@@ -1,8 +1,19 @@
 
 import Link from 'next/link';
-import { BookOpen, Facebook, Github, Linkedin, Twitter } from 'lucide-react';
+import { BookOpen, Facebook, Github, Linkedin, Twitter, Youtube, Instagram, Link as LinkIcon } from 'lucide-react';
 import { fetchSettings } from '@/lib/settings-service';
 import { Button } from '../ui/button';
+import type { SocialLink } from '@/types';
+
+const iconMap: { [key in SocialLink['platform']]: React.ComponentType<{ className?: string }> } = {
+    facebook: Facebook,
+    twitter: Twitter,
+    linkedin: Linkedin,
+    github: Github,
+    youtube: Youtube,
+    instagram: Instagram,
+    other: LinkIcon
+};
 
 export async function Footer() {
   const settings = await fetchSettings();
@@ -18,38 +29,18 @@ export async function Footer() {
             </Link>
             <p className="text-muted-foreground mb-4">{settings.siteDescription}</p>
             <div className="flex gap-1">
-                {settings.twitterUrl && (
-                    <Button asChild variant="ghost" size="icon">
-                        <Link href={settings.twitterUrl} target="_blank" rel="noopener noreferrer">
-                            <Twitter className="h-5 w-5" />
-                            <span className="sr-only">Twitter</span>
-                        </Link>
-                    </Button>
-                )}
-                {settings.facebookUrl && (
-                    <Button asChild variant="ghost" size="icon">
-                        <Link href={settings.facebookUrl} target="_blank" rel="noopener noreferrer">
-                            <Facebook className="h-5 w-5" />
-                            <span className="sr-only">Facebook</span>
-                        </Link>
-                    </Button>
-                )}
-                 {settings.linkedinUrl && (
-                    <Button asChild variant="ghost" size="icon">
-                        <Link href={settings.linkedinUrl} target="_blank" rel="noopener noreferrer">
-                            <Linkedin className="h-5 w-5" />
-                            <span className="sr-only">LinkedIn</span>
-                        </Link>
-                    </Button>
-                )}
-                 {settings.githubUrl && (
-                    <Button asChild variant="ghost" size="icon">
-                        <Link href={settings.githubUrl} target="_blank" rel="noopener noreferrer">
-                            <Github className="h-5 w-5" />
-                            <span className="sr-only">GitHub</span>
-                        </Link>
-                    </Button>
-                )}
+                {settings.socialLinks && settings.socialLinks.map((link) => {
+                    const Icon = iconMap[link.platform];
+                    if (!Icon || !link.url) return null;
+                    return (
+                        <Button asChild variant="ghost" size="icon" key={link.platform}>
+                            <Link href={link.url} target="_blank" rel="noopener noreferrer">
+                                <Icon className="h-5 w-5" />
+                                <span className="sr-only">{link.platform}</span>
+                            </Link>
+                        </Button>
+                    )
+                })}
             </div>
           </div>
           <div className="grid grid-cols-2 gap-8 md:col-span-2 md:grid-cols-3">

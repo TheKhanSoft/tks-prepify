@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useForm } from "react-hook-form";
+import { useForm, useFieldArray } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import { Button } from "@/components/ui/button";
@@ -17,11 +17,12 @@ import {
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
-import { Facebook, Github, Linkedin, Loader2, Twitter } from "lucide-react";
+import { Facebook, Github, Instagram, Linkedin, Loader2, PlusCircle, Trash2, Twitter, Youtube, Link as LinkIcon } from "lucide-react";
 import React, { useState, useEffect } from "react";
 import { fetchSettings, updateSettings } from "@/lib/settings-service";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 const settingsFormSchema = z.object({
   siteName: z.string().min(1, "Site name is required."),
@@ -38,13 +39,23 @@ const settingsFormSchema = z.object({
   heroButton2Text: z.string().optional(),
   heroButton2Link: z.string().optional(),
   heroImage: z.string().url({ message: "Please enter a valid URL." }).or(z.literal("")).optional(),
-  facebookUrl: z.string().url({ message: "Please enter a valid URL." }).or(z.literal("")).optional(),
-  twitterUrl: z.string().url({ message: "Please enter a valid URL." }).or(z.literal("")).optional(),
-  linkedinUrl: z.string().url({ message: "Please enter a valid URL." }).or(z.literal("")).optional(),
-  githubUrl: z.string().url({ message: "Please enter a valid URL." }).or(z.literal("")).optional(),
+  socialLinks: z.array(z.object({
+    platform: z.string().min(1, "Please select a platform."),
+    url: z.string().url({ message: "Please enter a valid URL." }).or(z.literal("")),
+  })).optional(),
 });
 
 type SettingsFormValues = z.infer<typeof settingsFormSchema>;
+
+const socialPlatforms = [
+  { value: 'twitter', label: 'Twitter / X', icon: Twitter },
+  { value: 'facebook', label: 'Facebook', icon: Facebook },
+  { value: 'linkedin', label: 'LinkedIn', icon: Linkedin },
+  { value: 'github', label: 'GitHub', icon: Github },
+  { value: 'youtube', label: 'YouTube', icon: Youtube },
+  { value: 'instagram', label: 'Instagram', icon: Instagram },
+  { value: 'other', label: 'Other', icon: LinkIcon },
+];
 
 export default function AdminSettingsPage() {
   const { toast } = useToast();
@@ -53,6 +64,14 @@ export default function AdminSettingsPage() {
 
   const form = useForm<SettingsFormValues>({
     resolver: zodResolver(settingsFormSchema),
+    defaultValues: {
+      socialLinks: [],
+    }
+  });
+
+  const { fields, append, remove } = useFieldArray({
+    control: form.control,
+    name: "socialLinks",
   });
 
   useEffect(() => {
@@ -77,7 +96,11 @@ export default function AdminSettingsPage() {
   async function onSubmit(data: SettingsFormValues) {
     setIsSubmitting(true);
     try {
-      await updateSettings(data);
+      const settingsData = {
+        ...data,
+        socialLinks: data.socialLinks?.filter(link => link.url) || []
+      }
+      await updateSettings(settingsData);
       toast({
         title: "Settings Saved",
         description: "Your global settings have been updated.",
@@ -109,7 +132,7 @@ export default function AdminSettingsPage() {
         <p className="text-muted-foreground">Manage default values for the application.</p>
       </div>
       <Form {...form}>
-        <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8 max-w-2xl">
+        <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8 max-w-4xl">
           <Tabs defaultValue="site" className="space-y-6">
             <TabsList>
               <TabsTrigger value="site">Site</TabsTrigger>
@@ -289,74 +312,75 @@ export default function AdminSettingsPage() {
                 <CardHeader>
                   <CardTitle>Social Media Links</CardTitle>
                   <CardDescription>
-                    Provide links to your social media profiles. They will appear in the site footer.
+                    Add and manage links to your social media profiles. They will appear in the site footer.
                   </CardDescription>
                 </CardHeader>
-                <CardContent className="space-y-6">
-                  <FormField
-                    control={form.control}
-                    name="facebookUrl"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Facebook URL</FormLabel>
-                        <FormControl>
-                          <div className="relative">
-                            <Facebook className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                            <Input {...field} value={field.value || ''} placeholder="https://facebook.com/..." className="pl-9" disabled={isSubmitting} />
-                          </div>
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  <FormField
-                    control={form.control}
-                    name="twitterUrl"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Twitter (X) URL</FormLabel>
-                        <FormControl>
-                           <div className="relative">
-                            <Twitter className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                            <Input {...field} value={field.value || ''} placeholder="https://x.com/..." className="pl-9" disabled={isSubmitting} />
-                          </div>
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  <FormField
-                    control={form.control}
-                    name="linkedinUrl"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>LinkedIn URL</FormLabel>
-                        <FormControl>
-                          <div className="relative">
-                            <Linkedin className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                            <Input {...field} value={field.value || ''} placeholder="https://linkedin.com/in/..." className="pl-9" disabled={isSubmitting} />
-                          </div>
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  <FormField
-                    control={form.control}
-                    name="githubUrl"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>GitHub URL</FormLabel>
-                        <FormControl>
-                           <div className="relative">
-                            <Github className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                            <Input {...field} value={field.value || ''} placeholder="https://github.com/..." className="pl-9" disabled={isSubmitting} />
-                          </div>
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
+                <CardContent className="space-y-4">
+                  {fields.map((item, index) => {
+                    const selectedPlatform = socialPlatforms.find(p => p.value === form.watch(`socialLinks.${index}.platform`));
+                    const Icon = selectedPlatform?.icon || LinkIcon;
+                    return (
+                        <div key={item.id} className="flex items-end gap-4 p-4 border rounded-lg">
+                            <FormField
+                                control={form.control}
+                                name={`socialLinks.${index}.platform`}
+                                render={({ field }) => (
+                                    <FormItem className="w-48">
+                                        <FormLabel>Platform</FormLabel>
+                                        <Select onValueChange={field.onChange} defaultValue={field.value}>
+                                            <FormControl>
+                                                <SelectTrigger>
+                                                    <SelectValue placeholder="Select platform..." />
+                                                </SelectTrigger>
+                                            </FormControl>
+                                            <SelectContent>
+                                                {socialPlatforms.map(p => (
+                                                    <SelectItem key={p.value} value={p.value}>{p.label}</SelectItem>
+                                                ))}
+                                            </SelectContent>
+                                        </Select>
+                                        <FormMessage />
+                                    </FormItem>
+                                )}
+                            />
+                            <FormField
+                                control={form.control}
+                                name={`socialLinks.${index}.url`}
+                                render={({ field }) => (
+                                    <FormItem className="flex-grow">
+                                        <FormLabel>URL</FormLabel>
+                                        <FormControl>
+                                            <div className="relative">
+                                                <Icon className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                                                <Input {...field} placeholder="https://..." className="pl-9" />
+                                            </div>
+                                        </FormControl>
+                                        <FormMessage />
+                                    </FormItem>
+                                )}
+                            />
+                             <Button
+                                type="button"
+                                variant="ghost"
+                                size="icon"
+                                className="text-destructive hover:text-destructive hover:bg-destructive/10"
+                                onClick={() => remove(index)}
+                            >
+                                <Trash2 className="h-4 w-4" />
+                                <span className="sr-only">Remove link</span>
+                            </Button>
+                        </div>
+                    )
+                  })}
+
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => append({ platform: 'other', url: '' })}
+                    >
+                    <PlusCircle className="mr-2 h-4 w-4" />
+                    Add Social Link
+                  </Button>
                 </CardContent>
               </Card>
             </TabsContent>

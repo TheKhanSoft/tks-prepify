@@ -1,3 +1,4 @@
+
 import { SidebarProvider, Sidebar, SidebarHeader, SidebarTrigger, SidebarMenu, SidebarMenuItem, SidebarMenuButton, SidebarContent, SidebarInset, SidebarFooter } from '@/components/ui/sidebar';
 import { LayoutDashboard, FileText, Folder, Home, Users, Settings, Bell, Search, Library, Tags } from 'lucide-react';
 import Link from 'next/link';
@@ -6,19 +7,22 @@ import { Button } from '@/components/ui/button';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator, DropdownMenuLabel } from "@/components/ui/dropdown-menu";
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Input } from '@/components/ui/input';
+import { fetchSettings } from '@/lib/settings-service';
 
-export default function AdminLayout({
+export default async function AdminLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
+  const settings = await fetchSettings();
+
   return (
     <SidebarProvider>
         <Sidebar collapsible="icon" variant="sidebar">
           <SidebarHeader className="px-4 py-2">
             <Link href="/admin/dashboard" className="flex items-center gap-2 font-bold text-lg">
               <BookOpen className="h-6 w-6 text-primary" />
-              <span className="font-headline group-data-[collapsible=icon]:hidden">Prepify</span>
+              <span className="font-headline group-data-[collapsible=icon]:hidden">{settings.siteName}</span>
             </Link>
           </SidebarHeader>
           <SidebarContent className="pt-4">
