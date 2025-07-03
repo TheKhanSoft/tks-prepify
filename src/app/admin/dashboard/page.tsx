@@ -283,7 +283,7 @@ export default function AdminDashboardPage() {
                                 <TableRow key={paper.id}>
                                     <TableCell>
                                         <Link href={`/admin/papers/${paper.id}/edit`} className="font-medium hover:underline">{paper.title}</Link>
-                                        <div className="hidden text-sm text-muted-foreground md:inline">
+                                        <div className="text-sm text-muted-foreground">
                                             {categoryName}
                                         </div>
                                     </TableCell>
