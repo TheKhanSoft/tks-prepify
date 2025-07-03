@@ -30,10 +30,19 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { MoreHorizontal, Trash2, Loader2, Edit, ChevronDown } from "lucide-react";
-import { fetchAllQuestions, deleteQuestionsFromBank, getUsageCountForQuestions } from "@/lib/question-service";
+import { MoreHorizontal, Trash2, Loader2, Edit, ChevronDown, FileUp, FileDown } from "lucide-react";
+import { fetchAllQuestions, deleteQuestionsFromBank, getUsageCountForQuestions, addQuestionsToBankBatch } from "@/lib/question-service";
 import type { Question, QuestionCategory } from "@/types";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
@@ -41,6 +50,7 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { fetchQuestionCategories, getFlattenedQuestionCategories, getDescendantQuestionCategoryIds } from "@/lib/question-category-service";
 import { Checkbox } from "@/components/ui/checkbox";
+import Papa from "papaparse";
 
 export default function AllQuestionsPage() {
     const router = useRouter();
@@ -56,6 +66,10 @@ export default function AllQuestionsPage() {
     const [selectedQuestions, setSelectedQuestions] = useState<string[]>([]);
     const [deleteAlertOpen, setDeleteAlertOpen] = useState(false);
     const [questionsToDelete, setQuestionsToDelete] = useState<string[]>([]);
+
+    const [isImporting, setIsImporting] = useState(false);
+    const [importFile, setImportFile] = useState<File | null>(null);
+    const [isImportDialogOpen, setIsImportDialogOpen] = useState(false);
 
     const loadData = useCallback(async () => {
         setLoading(true);
@@ -151,6 +165,97 @@ export default function AllQuestionsPage() {
         }
     }
     
+    const handleDownloadSample = () => {
+        const csvContent = "data:text/csv;charset=utf-8," +
+            'type,questionText,options,correctAnswer,explanation,questionCategoryId\n' +
+            'mcq,"What is 2+2?","2|4|6","4","This is basic arithmetic.","some-category-id-optional"\n' +
+            'short_answer,"What is the capital of France?","","Paris","Paris is the capital.","another-category-id"';
+
+        const encodedUri = encodeURI(csvContent);
+        const link = document.createElement("a");
+        link.setAttribute("href", encodedUri);
+        link.setAttribute("download", "sample_questions_import_bank.csv");
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+    };
+
+    const handleExportQuestions = () => {
+        if (questions.length === 0) {
+            toast({ title: "Nothing to Export", description: "There are no questions in the bank to export.", variant: "destructive" });
+            return;
+        }
+        const dataToExport = questions.map(q => ({
+            questionId: q.id,
+            type: q.type,
+            questionText: q.questionText,
+            options: q.options?.join('|') || '',
+            correctAnswer: Array.isArray(q.correctAnswer) ? q.correctAnswer.join('|') : q.correctAnswer,
+            explanation: q.explanation || '',
+            questionCategoryId: q.questionCategoryId || ''
+        }));
+        const csv = Papa.unparse(dataToExport);
+        const blob = new Blob([`\uFEFF${csv}`], { type: 'text/csv;charset=utf-8;' });
+        const link = document.createElement("a");
+        const url = URL.createObjectURL(blob);
+        link.setAttribute("href", url);
+        link.setAttribute("download", `question-bank-export.csv`);
+        link.style.visibility = 'hidden';
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        toast({ title: "Export Started", description: "Your questions CSV file is downloading." });
+    };
+
+    const handleImport = async () => {
+        if (!importFile) {
+            toast({ title: "No file selected", description: "Please select a CSV file to import.", variant: "destructive" });
+            return;
+        }
+        setIsImporting(true);
+
+        Papa.parse(importFile, {
+            header: true,
+            skipEmptyLines: true,
+            complete: async (results) => {
+                try {
+                    const questionsToProcess = results.data.map((row: any, index: number) => {
+                        if (!row.type || !row.questionText || !row.correctAnswer) {
+                            throw new Error(`Row ${index + 2} is missing a required field (type, questionText, correctAnswer).`);
+                        }
+                        return {
+                            type: row.type.trim() as 'mcq' | 'short_answer',
+                            questionText: row.questionText.trim(),
+                            options: row.options ? row.options.split('|').map((s: string) => s.trim()) : [],
+                            correctAnswer: row.type.trim() === 'mcq' && row.correctAnswer.includes('|') ? row.correctAnswer.split('|').map((s: string) => s.trim()) : row.correctAnswer.trim(),
+                            explanation: row.explanation ? row.explanation.trim() : "",
+                            questionCategoryId: row.questionCategoryId ? row.questionCategoryId.trim() : undefined,
+                        };
+                    });
+                    
+                    if (questionsToProcess.length > 0) {
+                        await addQuestionsToBankBatch(questionsToProcess);
+                        toast({ title: "Import Successful", description: `${questionsToProcess.length} questions have been added to the bank.` });
+                        await loadData();
+                    } else {
+                         toast({ title: "Nothing to import", description: "The selected file was empty or invalid.", variant: "destructive" });
+                    }
+                    
+                    setIsImportDialogOpen(false);
+                    setImportFile(null);
+                } catch (error: any) {
+                    toast({ title: "Import Error", description: error.message || "An error occurred during import.", variant: "destructive" });
+                } finally {
+                    setIsImporting(false);
+                }
+            },
+            error: (error: any) => {
+                toast({ title: "Parsing Error", description: error.message, variant: "destructive" });
+                setIsImporting(false);
+            }
+        });
+    };
+    
     const isAllSelected = selectedQuestions.length === filteredQuestions.length && filteredQuestions.length > 0;
 
     return (
@@ -169,6 +274,18 @@ export default function AllQuestionsPage() {
                         <DropdownMenuItem onSelect={() => openDeleteDialog(selectedQuestions)} disabled={selectedQuestions.length === 0} className="text-destructive">
                             <Trash2 className="mr-2 h-4 w-4" /> Delete Selected
                         </DropdownMenuItem>
+                         <DropdownMenuSeparator />
+                        <DropdownMenuItem onSelect={handleExportQuestions}><FileDown className="mr-2 h-4 w-4" /> Export All Questions</DropdownMenuItem>
+                        <Dialog open={isImportDialogOpen} onOpenChange={setIsImportDialogOpen}>
+                            <DialogTrigger asChild>
+                                <DropdownMenuItem onSelect={(e) => e.preventDefault()}><FileUp className="mr-2 h-4 w-4" /> Import Questions</DropdownMenuItem>
+                            </DialogTrigger>
+                            <DialogContent>
+                                <DialogHeader><DialogTitle>Import Questions to Bank</DialogTitle><DialogDescription>Select a CSV file to create new questions.</DialogDescription></DialogHeader>
+                                <div className="space-y-4 py-4"><Button variant="link" onClick={handleDownloadSample} className="p-0 h-auto">Download sample template</Button><Input type="file" accept=".csv" onChange={e => setImportFile(e.target.files ? e.target.files[0] : null)} /></div>
+                                <DialogFooter><Button variant="ghost" onClick={() => setIsImportDialogOpen(false)} disabled={isImporting}>Cancel</Button><Button onClick={handleImport} disabled={isImporting || !importFile}>{isImporting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />} Import</Button></DialogFooter>
+                            </DialogContent>
+                        </Dialog>
                     </DropdownMenuContent>
                 </DropdownMenu>
             </div>

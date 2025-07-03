@@ -300,3 +300,18 @@ export async function batchUpdateQuestionOrder(updates: { linkId: string; order:
 
   await batch.commit();
 }
+
+// Adds a batch of questions directly to the central question bank.
+export async function addQuestionsToBankBatch(questions: Omit<Question, 'id'>[]) {
+    if (questions.length === 0) return;
+
+    const batch = writeBatch(db);
+    const questionsCollection = collection(db, 'questions');
+
+    for (const questionData of questions) {
+        const questionRef = doc(questionsCollection);
+        batch.set(questionRef, questionData);
+    }
+    
+    await batch.commit();
+}
