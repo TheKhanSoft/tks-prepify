@@ -148,13 +148,21 @@ export default function AdminSettingsPage() {
       setFileToUpload(null);
     } catch (error: any) {
       console.error("Error saving settings:", error);
-      let errorMessage = "Failed to save settings. Please try again.";
-       if (error.message && (error.message.includes('exceeds the maximum size') || error.message.includes('is too large'))) {
-        errorMessage = "Save failed: The settings data, likely including the hero image, is too large for the database. Please use a smaller image file.";
+      let title = "Error";
+      let description = "Failed to save settings. Please try again.";
+      
+      // If an image was part of this failed save attempt, it's very likely the cause.
+      if (fileToUpload) {
+        title = "Save Failed";
+        description = "The selected image is likely too large for the database. Please upload a compressed image under 100KB and try again.";
+      } else if (error.message && (error.message.includes('exceeds the maximum size') || error.message.includes('is too large'))) {
+        title = "Save Failed";
+        description = "The settings data is too large for the database. This can be caused by a very long image URL or other text fields.";
       }
+      
       toast({
-        title: "Error",
-        description: errorMessage,
+        title: title,
+        description: description,
         variant: "destructive",
         duration: 8000,
       });

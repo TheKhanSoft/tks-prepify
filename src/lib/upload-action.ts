@@ -12,24 +12,17 @@ export async function uploadHeroImage(formData: FormData) {
     return { success: false, error: 'Invalid file type. Please upload an image.' };
   }
 
-  // A very strict size limit to avoid Firestore document size issues.
-  // Firestore documents have a 1 MiB limit. We need space for other settings too.
-  const MAX_SIZE_IN_BYTES = 150 * 1024; // 150KB limit
+  // Firestore documents have a 1 MiB limit. We need space for other settings.
+  // This limit is for the raw file size before Base64 encoding.
+  const MAX_SIZE_IN_BYTES = 100 * 1024; // 100KB limit
   if (file.size > MAX_SIZE_IN_BYTES) {
-    return { success: false, error: `Image is too large. Please upload an image under 150KB.` };
+    return { success: false, error: `Image is too large. Please upload an image under 100KB.` };
   }
 
   try {
     const bytes = await file.arrayBuffer();
     const buffer = Buffer.from(bytes);
     const dataUri = `data:${file.type};base64,${buffer.toString('base64')}`;
-
-    // Final check on the generated data URI size. 
-    // This is an extra safeguard against exceeding Firestore limits.
-    const dataUriSize = Buffer.byteLength(dataUri, 'utf8');
-    if (dataUriSize > 750 * 1024) { // 750KB, should be very safe
-       return { success: false, error: `The processed image data is too large for the database. Please use a smaller or more compressed image.` };
-    }
 
     return { success: true, path: dataUri };
   } catch (error) {
