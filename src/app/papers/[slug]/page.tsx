@@ -12,6 +12,8 @@ import { getPaperBySlug } from '@/lib/paper-service';
 import { fetchQuestionsForPaper, PaperQuestion } from '@/lib/question-service';
 import type { Paper } from '@/types';
 
+const GLOBAL_QUESTIONS_PER_PAGE = 2;
+
 export default function SolvedPaperPage() {
   const router = useRouter();
   const params = useParams();
@@ -22,7 +24,7 @@ export default function SolvedPaperPage() {
   const [loading, setLoading] = useState(true);
 
   const [currentPage, setCurrentPage] = useState(1);
-  const questionsPerPage = 2;
+  const questionsPerPage = paper?.questionsPerPage || GLOBAL_QUESTIONS_PER_PAGE;
 
   useEffect(() => {
     const loadData = async () => {

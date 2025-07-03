@@ -24,6 +24,7 @@ export interface Paper {
   session?: string;
   featured?: boolean;
   published?: boolean;
+  questionsPerPage?: number;
   // SEO fields
   keywords?: string;
   metaTitle?: string;

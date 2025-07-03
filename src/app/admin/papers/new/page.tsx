@@ -50,6 +50,10 @@ const paperFormSchema = z.object({
   duration: z.coerce.number().int().positive({
     message: "Please enter a positive duration in minutes.",
   }),
+  questionsPerPage: z.preprocess(
+    (val) => (val === "" ? undefined : val),
+    z.coerce.number({ invalid_type_error: "Must be a number" }).int().min(1).optional()
+  ),
   year: z.coerce.number().int().optional(),
   session: z.string().optional(),
   metaTitle: z.string().optional(),
@@ -355,6 +359,20 @@ export default function NewPaperPage() {
                                 <FormControl>
                                 <Input type="number" placeholder="e.g., 60" {...field} disabled={isSubmitting} />
                                 </FormControl>
+                                <FormMessage />
+                            </FormItem>
+                            )}
+                        />
+                         <FormField
+                            control={form.control}
+                            name="questionsPerPage"
+                            render={({ field }) => (
+                            <FormItem>
+                                <FormLabel>Questions Per Page (Optional)</FormLabel>
+                                <FormControl>
+                                <Input type="number" {...field} value={field.value ?? ''} placeholder="Default: 2" disabled={isSubmitting} />
+                                </FormControl>
+                                 <FormDescription>Leave blank to use the global default (2).</FormDescription>
                                 <FormMessage />
                             </FormItem>
                             )}

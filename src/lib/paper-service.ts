@@ -24,6 +24,7 @@ function docToPaper(doc: DocumentData): Paper {
         session: data.session,
         featured: data.featured || false,
         published: data.published || false,
+        questionsPerPage: data.questionsPerPage,
         keywords: data.keywords,
         metaTitle: data.metaTitle,
         metaDescription: data.metaDescription,

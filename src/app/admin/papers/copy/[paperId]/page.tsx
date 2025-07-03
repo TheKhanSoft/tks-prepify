@@ -42,6 +42,10 @@ const paperFormSchema = z.object({
   featured: z.boolean().default(false),
   questionCount: z.coerce.number().int().min(0).default(0),
   duration: z.coerce.number().int().positive(),
+  questionsPerPage: z.preprocess(
+    (val) => (val === "" ? undefined : val),
+    z.coerce.number({ invalid_type_error: "Must be a number" }).int().min(1).optional()
+  ),
   year: z.coerce.number().int().optional(),
   session: z.string().optional(),
   metaTitle: z.string().optional(),
@@ -97,22 +101,17 @@ export default function CopyPaperPage() {
             if (paper) {
                 setSourcePaperTitle(paper.title);
                 form.reset({
+                    ...paper,
                     title: `Copy of ${paper.title}`,
-                    description: paper.description,
-                    categoryId: paper.categoryId,
                     slug: '', // Reset slug
                     published: false, // Reset published status
                     featured: false, // Reset featured status
-                    questionCount: paper.questionCount,
-                    duration: paper.duration,
                     year: paper.year || undefined,
                     session: paper.session || undefined,
                     metaTitle: paper.metaTitle || '',
                     metaDescription: paper.metaDescription || '',
                     keywords: paper.keywords || '',
                 });
-                // Explicitly set the questionCount value to ensure it's correct
-                form.setValue('questionCount', paper.questionCount);
             } else {
                 toast({ title: "Error", description: "Source paper not found.", variant: "destructive" });
                 router.push('/admin/papers');
@@ -372,6 +371,20 @@ export default function CopyPaperPage() {
                                     </FormControl>
                                     <FormMessage />
                                 </FormItem>
+                            )}
+                        />
+                         <FormField
+                            control={form.control}
+                            name="questionsPerPage"
+                            render={({ field }) => (
+                            <FormItem>
+                                <FormLabel>Questions Per Page (Optional)</FormLabel>
+                                <FormControl>
+                                <Input type="number" {...field} value={field.value ?? ''} placeholder="Default: 2" disabled={isSubmitting} />
+                                </FormControl>
+                                 <FormDescription>Leave blank to use the global default (2).</FormDescription>
+                                <FormMessage />
+                            </FormItem>
                             )}
                         />
                         <FormField
