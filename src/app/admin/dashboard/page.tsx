@@ -9,34 +9,46 @@ import { FileText, Users, Folder, PlusCircle, ArrowUpRight, Loader2, Library, Ta
 import { users } from '@/lib/data';
 import { fetchCategories, getCategoryPath, getFlattenedCategories, getDescendantCategoryIds } from '@/lib/category-service';
 import { fetchPapers } from '@/lib/paper-service';
-import { fetchAllQuestions } from '@/lib/question-service';
+import { fetchAllQuestions, fetchAllPaperQuestionLinks } from '@/lib/question-service';
 import { fetchQuestionCategories, getDescendantQuestionCategoryIds as getDescendantQCategoryIds } from '@/lib/question-category-service';
 import type { Category, Paper, Question, QuestionCategory } from '@/types';
 import Link from 'next/link';
 import { Bar, BarChart, ResponsiveContainer, XAxis, YAxis, Tooltip } from "recharts"
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { cn } from '@/lib/utils';
 
 export default function AdminDashboardPage() {
   const [allCategories, setAllCategories] = useState<Category[]>([]);
   const [allQuestionCategories, setAllQuestionCategories] = useState<QuestionCategory[]>([]);
   const [allPapers, setAllPapers] = useState<Paper[]>([]);
   const [allQuestions, setAllQuestions] = useState<Question[]>([]);
+  const [questionCounts, setQuestionCounts] = useState<Record<string, number>>({});
   const [loading, setLoading] = useState(true);
 
   const loadData = useCallback(async () => {
     setLoading(true);
     try {
-        const [cats, papersData, questionsData, questionCatsData] = await Promise.all([
+        const [cats, papersData, questionsData, questionCatsData, linksData] = await Promise.all([
             fetchCategories(),
             fetchPapers(),
             fetchAllQuestions(),
-            fetchQuestionCategories()
+            fetchQuestionCategories(),
+            fetchAllPaperQuestionLinks()
         ]);
         setAllCategories(cats);
         setAllPapers(papersData);
         setAllQuestions(questionsData);
         setAllQuestionCategories(questionCatsData);
+
+        const counts = linksData.reduce((acc, link) => {
+            if (link.paperId) {
+                acc[link.paperId] = (acc[link.paperId] || 0) + 1;
+            }
+            return acc;
+        }, {} as Record<string, number>);
+        setQuestionCounts(counts);
+
     } catch(error) {
         console.error("Failed to load dashboard data:", error);
     } finally {
@@ -254,24 +266,35 @@ export default function AdminDashboardPage() {
                     <Table>
                         <TableHeader>
                             <TableRow>
-                                <TableHead>Title</TableHead>
-                                <TableHead className="text-right">Category</TableHead>
+                                <TableHead className="w-[50%]">Title</TableHead>
+                                <TableHead>Status</TableHead>
+                                <TableHead>Questions</TableHead>
+                                <TableHead className="text-right">Duration</TableHead>
                             </TableRow>
                         </TableHeader>
                         <TableBody>
                             {recentPapers.map((paper) => {
+                                const addedQuestions = questionCounts[paper.id] || 0;
                                 const categoryPath = getCategoryPath(paper.categoryId, allCategories);
                                 const categoryName = categoryPath?.map(c => c.name).join(' / ') || 'N/A';
                                 return (
                                 <TableRow key={paper.id}>
                                     <TableCell>
-                                        <div className="font-medium">{paper.title}</div>
+                                        <Link href={`/admin/papers/${paper.id}/edit`} className="font-medium hover:underline">{paper.title}</Link>
                                         <div className="hidden text-sm text-muted-foreground md:inline">
-                                            {paper.questionCount} questions
+                                            {categoryName}
                                         </div>
                                     </TableCell>
+                                    <TableCell>
+                                        <Badge variant={paper.published ? "default" : "secondary"} className={cn(paper.published && "bg-green-600 hover:bg-green-700")}>
+                                            {paper.published ? 'Published' : 'Draft'}
+                                        </Badge>
+                                    </TableCell>
+                                    <TableCell>
+                                        {addedQuestions} / {paper.questionCount}
+                                    </TableCell>
                                     <TableCell className="text-right">
-                                        <Badge variant="outline">{categoryName}</Badge>
+                                        {paper.duration} min
                                     </TableCell>
                                 </TableRow>
                             )})}
