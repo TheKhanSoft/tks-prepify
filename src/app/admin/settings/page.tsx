@@ -17,13 +17,12 @@ import {
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
-import { Facebook, Github, Instagram, Linkedin, Loader2, PlusCircle, Trash2, Twitter, Youtube, Link as LinkIcon, MessageSquare, MessageCircle, HelpCircle, Twitch, Ghost } from "lucide-react";
+import { Facebook, Github, Instagram, Linkedin, Loader2, PlusCircle, Trash2, Twitter, Youtube, Link as LinkIcon, MessageSquare } from "lucide-react";
 import React, { useState, useEffect } from "react";
 import { fetchSettings, updateSettings } from "@/lib/settings-service";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Separator } from "@/components/ui/separator";
 import Image from "next/image";
 
 const settingsFormSchema = z.object({
@@ -56,22 +55,9 @@ const socialPlatforms = [
   { value: 'linkedin', label: 'LinkedIn', icon: Linkedin },
   { value: 'youtube', label: 'YouTube', icon: Youtube },
   { value: 'github', label: 'GitHub', icon: Github },
-  { value: 'twitch', label: 'Twitch', icon: Twitch },
   { value: 'discord', label: 'Discord', icon: MessageSquare },
-  { value: 'messenger', label: 'Messenger', icon: MessageCircle },
-  { value: 'whatsapp', label: 'WhatsApp', icon: MessageSquare },
   { value: 'telegram', label: 'Telegram', icon: MessageSquare },
-  { value: 'snapchat', label: 'Snapchat', icon: Ghost },
-  { value: 'reddit', label: 'Reddit', icon: LinkIcon },
-  { value: 'pinterest', label: 'Pinterest', icon: LinkIcon },
-  { value: 'tumblr', label: 'Tumblr', icon: LinkIcon },
-  { value: 'quora', label: 'Quora', icon: HelpCircle },
-  { value: 'threads', label: 'Threads', icon: LinkIcon },
-  { value: 'wechat', label: 'WeChat', icon: MessageSquare },
-  { value: 'douyin', label: 'Douyin', icon: LinkIcon },
-  { value: 'qq', label: 'QQ', icon: MessageCircle },
-  { value: 'sina-weibo', label: 'Sina Weibo', icon: LinkIcon },
-  { value: 'kuaishou', label: 'Kuaishou', icon: LinkIcon },
+  { value: 'whatsapp', label: 'WhatsApp', icon: MessageSquare },
   { value: 'other', label: 'Other', icon: LinkIcon },
 ];
 
@@ -128,13 +114,13 @@ export default function AdminSettingsPage() {
         if (fileToUpload.size > MAX_IMAGE_SIZE_BYTES) {
             toast({
                 title: "Image Too Large",
-                description: `Please select an image smaller than ${MAX_IMAGE_SIZE_KB}KB.`,
+                description: `The selected image is larger than the allowed ${MAX_IMAGE_SIZE_KB}KB.`,
                 variant: "destructive",
             });
             setIsSubmitting(false);
             return;
         }
-
+        
         const dataUrl = await new Promise<string>((resolve, reject) => {
             const reader = new FileReader();
             reader.onload = () => resolve(reader.result as string);
@@ -164,8 +150,8 @@ export default function AdminSettingsPage() {
     } catch (error: any) {
       console.error("Error saving settings:", error);
       toast({
-        title: "Error",
-        description: "Failed to save settings. If you uploaded an image, it may be too large for the database. Try a smaller, compressed image.",
+        title: "Save Failed",
+        description: "Failed to save settings. The selected image is likely too large for the database. Please upload a compressed image and try again.",
         variant: "destructive",
         duration: 8000
       });
@@ -376,6 +362,7 @@ export default function AdminSettingsPage() {
                                         description: `Please select an image smaller than ${MAX_IMAGE_SIZE_KB}KB.`,
                                         variant: "destructive"
                                       });
+                                      e.target.value = '';
                                       return;
                                     }
                                     setFileToUpload(file);
