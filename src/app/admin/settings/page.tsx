@@ -23,7 +23,6 @@ import { fetchSettings, updateSettings } from "@/lib/settings-service";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { uploadHeroImage } from "@/lib/upload-action";
 import { Separator } from "@/components/ui/separator";
 import Image from "next/image";
 
@@ -41,7 +40,7 @@ const settingsFormSchema = z.object({
   heroButton1Link: z.string().optional(),
   heroButton2Text: z.string().optional(),
   heroButton2Link: z.string().optional(),
-  heroImage: z.string().url({ message: "Please enter a valid URL." }).or(z.literal("")).optional(),
+  heroImage: z.string().or(z.literal("")).optional(),
   socialLinks: z.array(z.object({
     platform: z.string().min(1, "Please select a platform."),
     url: z.string().url({ message: "Please enter a valid URL." }).or(z.literal("")),
@@ -83,6 +82,9 @@ export default function AdminSettingsPage() {
   const [fileToUpload, setFileToUpload] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
 
+  const MAX_IMAGE_SIZE_KB = 150;
+  const MAX_IMAGE_SIZE_BYTES = MAX_IMAGE_SIZE_KB * 1024;
+
   const form = useForm<SettingsFormValues>({
     resolver: zodResolver(settingsFormSchema),
     defaultValues: {
@@ -121,28 +123,31 @@ export default function AdminSettingsPage() {
     setIsSubmitting(true);
     try {
       let finalData = { ...data };
-      let newImagePath: string | null = null;
 
       if (fileToUpload) {
-          const formData = new FormData();
-          formData.append('heroImage', fileToUpload);
-          const result = await uploadHeroImage(formData);
+        if (fileToUpload.size > MAX_IMAGE_SIZE_BYTES) {
+            toast({
+                title: "Image Too Large",
+                description: `Please select an image smaller than ${MAX_IMAGE_SIZE_KB}KB.`,
+                variant: "destructive",
+            });
+            setIsSubmitting(false);
+            return;
+        }
 
-          if (result.success && result.path) {
-              // Add a timestamp to the path to force the browser to reload the image
-              newImagePath = `${result.path}?t=${new Date().getTime()}`;
-              finalData.heroImage = newImagePath;
-          } else {
-              toast({ title: "Upload Failed", description: result.error || "Could not upload hero image.", variant: "destructive" });
-              setIsSubmitting(false);
-              return;
-          }
+        const dataUrl = await new Promise<string>((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onload = () => resolve(reader.result as string);
+            reader.onerror = (error) => reject(error);
+            reader.readAsDataURL(fileToUpload);
+        });
+        finalData.heroImage = dataUrl;
       }
 
       const settingsData = {
         ...finalData,
         socialLinks: finalData.socialLinks?.filter(link => link.url) || []
-      }
+      };
       await updateSettings(settingsData);
       
       toast({
@@ -151,18 +156,18 @@ export default function AdminSettingsPage() {
       });
       
       setFileToUpload(null);
-      if (newImagePath) {
-          // Update the form state and preview to show the newly saved image path
-          form.setValue('heroImage', newImagePath);
-          setImagePreview(newImagePath);
+      if (finalData.heroImage) {
+          form.setValue('heroImage', finalData.heroImage);
+          setImagePreview(finalData.heroImage);
       }
 
     } catch (error: any) {
       console.error("Error saving settings:", error);
       toast({
         title: "Error",
-        description: "Failed to save settings. Please try again.",
+        description: "Failed to save settings. If you uploaded an image, it may be too large for the database. Try a smaller, compressed image.",
         variant: "destructive",
+        duration: 8000
       });
     } finally {
       setIsSubmitting(false);
@@ -357,7 +362,7 @@ export default function AdminSettingsPage() {
                               </div>
                             )}
                             <div className="space-y-2">
-                              <FormLabel htmlFor="hero-image-upload">Upload an image</FormLabel>
+                              <FormLabel htmlFor="hero-image-upload">Upload an image (under {MAX_IMAGE_SIZE_KB}KB)</FormLabel>
                               <Input
                                 id="hero-image-upload"
                                 type="file"
@@ -365,6 +370,14 @@ export default function AdminSettingsPage() {
                                 onChange={(e) => {
                                   const file = e.target.files?.[0];
                                   if (file) {
+                                    if (file.size > MAX_IMAGE_SIZE_BYTES) {
+                                      toast({
+                                        title: "Image is too large",
+                                        description: `Please select an image smaller than ${MAX_IMAGE_SIZE_KB}KB.`,
+                                        variant: "destructive"
+                                      });
+                                      return;
+                                    }
                                     setFileToUpload(file);
                                     setImagePreview(URL.createObjectURL(file));
                                   }
