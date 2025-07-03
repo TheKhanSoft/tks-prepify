@@ -238,7 +238,7 @@ export default function AdminPapersPage() {
                     <TableRow key={paper.id}>
                         <TableCell>
                           <div className="font-medium">{paper.title}</div>
-                          <div className="text-sm text-muted-foreground">{categoryName}</div>
+                          <div className="text-xs text-muted-foreground">{categoryName}</div>
                           <div className="text-sm text-muted-foreground font-mono">{paper.slug}</div>
                         </TableCell>
                          <TableCell className="text-muted-foreground text-sm">
@@ -345,4 +345,6 @@ export default function AdminPapersPage() {
     </>
   )
 }
+    
+
     

@@ -268,10 +268,9 @@ export default function AdminDashboardPage() {
                     <Table>
                         <TableHeader>
                             <TableRow>
-                                <TableHead className="w-[50%]">Title</TableHead>
-                                <TableHead>Status</TableHead>
-                                <TableHead>Questions</TableHead>
-                                <TableHead className="text-right">Duration</TableHead>
+                                <TableHead className="w-[60%]">Title</TableHead>
+                                <TableHead>Details</TableHead>
+                                <TableHead className="text-right">Status</TableHead>
                             </TableRow>
                         </TableHeader>
                         <TableBody>
@@ -279,24 +278,25 @@ export default function AdminDashboardPage() {
                                 const addedQuestions = questionCounts[paper.id] || 0;
                                 const categoryPath = getCategoryPath(paper.categoryId, allCategories);
                                 const categoryName = categoryPath?.map(c => c.name).join(' / ') || 'N/A';
+                                const isComplete = addedQuestions >= paper.questionCount;
                                 return (
                                 <TableRow key={paper.id}>
                                     <TableCell>
                                         <Link href={`/admin/papers/${paper.id}/edit`} className="font-medium hover:underline">{paper.title}</Link>
-                                        <div className="text-sm text-muted-foreground">
+                                        <div className="text-xs text-muted-foreground">
                                             {categoryName}
                                         </div>
                                     </TableCell>
-                                    <TableCell>
+                                    <TableCell className="text-sm text-muted-foreground">
+                                        <div className={cn(isComplete ? "text-green-600" : "text-destructive")}>
+                                            {addedQuestions} / {paper.questionCount} Qs
+                                        </div>
+                                        <div>{paper.duration} min</div>
+                                    </TableCell>
+                                    <TableCell className="text-right">
                                         <Badge variant={paper.published ? "default" : "secondary"} className={cn(paper.published && "bg-green-600 hover:bg-green-700")}>
                                             {paper.published ? 'Published' : 'Draft'}
                                         </Badge>
-                                    </TableCell>
-                                    <TableCell>
-                                        {addedQuestions} / {paper.questionCount}
-                                    </TableCell>
-                                    <TableCell className="text-right">
-                                        {paper.duration} min
                                     </TableCell>
                                 </TableRow>
                             )})}
@@ -341,3 +341,5 @@ export default function AdminDashboardPage() {
     </div>
   );
 }
+
+    
