@@ -32,14 +32,15 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { MoreHorizontal, Trash2, Loader2, Edit } from "lucide-react";
-import { fetchAllQuestions, deleteQuestionFromBank } from "@/lib/question-service";
+import { MoreHorizontal, Trash2, Loader2, Edit, ChevronDown } from "lucide-react";
+import { fetchAllQuestions, deleteQuestionsFromBank, getUsageCountForQuestions } from "@/lib/question-service";
 import type { Question, QuestionCategory } from "@/types";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { fetchQuestionCategories, getFlattenedQuestionCategories, getDescendantQuestionCategoryIds } from "@/lib/question-category-service";
+import { Checkbox } from "@/components/ui/checkbox";
 
 export default function AllQuestionsPage() {
     const router = useRouter();
@@ -52,8 +53,9 @@ export default function AllQuestionsPage() {
     
     const [searchTerm, setSearchTerm] = useState("");
     const [selectedCategory, setSelectedCategory] = useState("all");
+    const [selectedQuestions, setSelectedQuestions] = useState<string[]>([]);
     const [deleteAlertOpen, setDeleteAlertOpen] = useState(false);
-    const [questionToDelete, setQuestionToDelete] = useState<Question | null>(null);
+    const [questionsToDelete, setQuestionsToDelete] = useState<string[]>([]);
 
     const loadData = useCallback(async () => {
         setLoading(true);
@@ -99,28 +101,58 @@ export default function AllQuestionsPage() {
         });
     }, [searchTerm, selectedCategory, questions, questionCategories]);
 
-    const openDeleteDialog = (question: Question) => {
-        setQuestionToDelete(question);
+    const openDeleteDialog = (questionIds: string[]) => {
+        if (questionIds.length === 0) {
+            toast({ title: "No questions selected", description: "Please select questions to delete.", variant: "destructive" });
+            return;
+        }
+        setQuestionsToDelete(questionIds);
         setDeleteAlertOpen(true);
     }
 
     const handleDelete = async () => {
-        if (!questionToDelete) return;
+        if (questionsToDelete.length === 0) return;
 
         setIsDeleting(true);
         try {
-            await deleteQuestionFromBank(questionToDelete.id);
-            toast({ title: "Question Deleted", description: "The question and all its links to papers have been deleted." });
-            await loadData();
-        } catch (error) {
-            toast({ title: "Error", description: "Failed to delete question.", variant: "destructive"});
+            const usageCounts = await getUsageCountForQuestions(questionsToDelete);
+            
+            const deletableIds = questionsToDelete.filter(id => (usageCounts[id] || 0) === 0);
+            const usedIds = questionsToDelete.filter(id => (usageCounts[id] || 0) > 0);
+
+            if (usedIds.length > 0) {
+                toast({
+                    title: "Some Questions in Use",
+                    description: `${usedIds.length} question(s) are in use and were not deleted. Please remove them from all papers first.`,
+                    variant: "destructive",
+                    duration: 8000
+                });
+            }
+
+            if (deletableIds.length > 0) {
+                await deleteQuestionsFromBank(deletableIds);
+                toast({
+                    title: "Questions Deleted",
+                    description: `${deletableIds.length} question(s) have been permanently deleted.`
+                });
+            }
+
+            if (deletableIds.length > 0) {
+                setSelectedQuestions([]);
+                await loadData();
+            }
+
+        } catch (error: any) {
+            toast({ title: "Error", description: error.message || "Failed to delete questions.", variant: "destructive"});
         } finally {
             setIsDeleting(false);
             setDeleteAlertOpen(false);
-            setQuestionToDelete(null);
+            setQuestionsToDelete([]);
         }
     }
     
+    const isAllSelected = selectedQuestions.length === filteredQuestions.length && filteredQuestions.length > 0;
+
     return (
         <>
         <div className="space-y-6">
@@ -129,6 +161,16 @@ export default function AllQuestionsPage() {
                     <h1 className="text-3xl font-bold">All Questions</h1>
                     <p className="text-muted-foreground">Manage the central question bank.</p>
                 </div>
+                 <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                        <Button variant="outline">Actions <ChevronDown className="ml-2 h-4 w-4" /></Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end">
+                        <DropdownMenuItem onSelect={() => openDeleteDialog(selectedQuestions)} disabled={selectedQuestions.length === 0} className="text-destructive">
+                            <Trash2 className="mr-2 h-4 w-4" /> Delete Selected
+                        </DropdownMenuItem>
+                    </DropdownMenuContent>
+                </DropdownMenu>
             </div>
             <Card>
                 <CardHeader>
@@ -169,6 +211,13 @@ export default function AllQuestionsPage() {
                 <Table>
                     <TableHeader>
                         <TableRow>
+                            <TableHead className="w-12">
+                                <Checkbox
+                                    checked={isAllSelected}
+                                    onCheckedChange={(checked) => setSelectedQuestions(checked ? filteredQuestions.map(q => q.id) : [])}
+                                    aria-label="Select all"
+                                />
+                            </TableHead>
                             <TableHead className="w-[45%]">Question</TableHead>
                             <TableHead>Category</TableHead>
                             <TableHead>Type</TableHead>
@@ -179,9 +228,19 @@ export default function AllQuestionsPage() {
                     <TableBody>
                     {filteredQuestions.length > 0 ? filteredQuestions.map((question) => {
                         const category = question.questionCategoryId ? questionCategories.flatMap(c => getFlattenedQuestionCategories([c])).find(fc => fc.id === question.questionCategoryId) : null;
+                        const isSelected = selectedQuestions.includes(question.id);
 
                         return (
-                        <TableRow key={question.id}>
+                        <TableRow key={question.id} data-state={isSelected ? "selected" : ""}>
+                            <TableCell>
+                                <Checkbox
+                                    checked={isSelected}
+                                    onCheckedChange={(checked) => {
+                                        setSelectedQuestions(prev => checked ? [...prev, question.id] : prev.filter(id => id !== question.id));
+                                    }}
+                                    aria-label="Select row"
+                                />
+                            </TableCell>
                             <TableCell className="font-medium">{question.questionText}</TableCell>
                             <TableCell>{category ? <Badge variant="outline">{category.name}</Badge> : <span className="text-muted-foreground">-</span>}</TableCell>
                             <TableCell><Badge variant="secondary">{question.type.toUpperCase()}</Badge></TableCell>
@@ -198,14 +257,14 @@ export default function AllQuestionsPage() {
                                         </Link>
                                     </DropdownMenuItem>
                                     <DropdownMenuSeparator />
-                                    <DropdownMenuItem className="text-destructive" onSelect={() => openDeleteDialog(question)}><Trash2 className="mr-2 h-4 w-4" />Delete from Bank</DropdownMenuItem>
+                                    <DropdownMenuItem className="text-destructive" onSelect={() => openDeleteDialog([question.id])}><Trash2 className="mr-2 h-4 w-4" />Delete from Bank</DropdownMenuItem>
                                 </DropdownMenuContent>
                                 </DropdownMenu>
                             </TableCell>
                         </TableRow>
                         );
                     }) : (
-                        <TableRow><TableCell colSpan={5} className="h-24 text-center">No questions found.</TableCell></TableRow>
+                        <TableRow><TableCell colSpan={6} className="h-24 text-center">No questions found.</TableCell></TableRow>
                     )}
                     </TableBody>
                 </Table>
@@ -218,7 +277,7 @@ export default function AllQuestionsPage() {
                 <AlertDialogHeader>
                     <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
                     <AlertDialogDescription>
-                        This will permanently delete the question "{questionToDelete?.questionText.substring(0, 50)}..." from the question bank and remove it from all papers. This action cannot be undone.
+                       This action will attempt to permanently delete {questionsToDelete.length} question(s) from the question bank. This cannot be undone. Questions currently in use in any paper will not be deleted.
                     </AlertDialogDescription>
                 </AlertDialogHeader>
                 <AlertDialogFooter>

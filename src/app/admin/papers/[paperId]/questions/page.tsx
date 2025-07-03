@@ -90,7 +90,7 @@ export default function AdminPaperQuestionsPage() {
             if (e instanceof Error && e.message.includes('permission-denied')) {
                  toast({ 
                     title: "A database index might be missing", 
-                    description: "Please check your browser's developer console for a link to create it.",
+                    description: "Please check your browser's developer console for a link to create the required Firestore index.",
                     variant: "destructive",
                     duration: 10000,
                 });

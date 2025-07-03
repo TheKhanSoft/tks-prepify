@@ -5,7 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Badge } from "@/components/ui/badge"
-import { FileText, Users, Folder, PlusCircle, ArrowUpRight, HelpCircle, Loader2 } from 'lucide-react';
+import { FileText, Users, Folder, PlusCircle, ArrowUpRight, HelpCircle, Loader2, Library } from 'lucide-react';
 import { users } from '@/lib/data';
 import { fetchCategories, getCategoryPath, getFlattenedCategories } from '@/lib/category-service';
 import { fetchPapers } from '@/lib/paper-service';
@@ -118,7 +118,7 @@ export default function AdminDashboardPage() {
           <Card className="hover:bg-muted/50 transition-colors">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium">Total Questions</CardTitle>
-              <HelpCircle className="h-4 w-4 text-muted-foreground" />
+              <Library className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold">{totalQuestions}</div>

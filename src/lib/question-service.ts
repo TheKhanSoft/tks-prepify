@@ -13,6 +13,7 @@ import {
   updateDoc,
   writeBatch,
   DocumentData,
+  limit,
 } from 'firebase/firestore';
 import { db } from './firebase';
 import type { Question } from '@/types';
@@ -203,22 +204,36 @@ export async function removeQuestionsFromPaper(paperId: string, linkIds: string[
   }
 }
 
-// Deletes a question from the bank and all its links from papers.
-export async function deleteQuestionFromBank(questionId: string) {
-    if (!questionId) return;
+// Checks how many papers a list of questions are used in.
+export async function getUsageCountForQuestions(questionIds: string[]): Promise<Record<string, number>> {
+  if (questionIds.length === 0) return {};
+
+  const usageCount: Record<string, number> = {};
+  questionIds.forEach(id => usageCount[id] = 0);
+
+  const linksQuery = query(collection(db, 'paper_questions'), where('questionId', 'in', questionIds));
+  const linksSnapshot = await getDocs(linksQuery);
+  
+  linksSnapshot.forEach(doc => {
+      const { questionId } = doc.data();
+      if (usageCount[questionId] !== undefined) {
+          usageCount[questionId]++;
+      }
+  });
+
+  return usageCount;
+}
+
+
+// Deletes questions from the bank. This is a hard delete.
+export async function deleteQuestionsFromBank(questionIds: string[]) {
+    if (questionIds.length === 0) return;
 
     const batch = writeBatch(db);
-
-    // 1. Find all links to this question in 'paper_questions'
-    const linksQuery = query(collection(db, 'paper_questions'), where('questionId', '==', questionId));
-    const linksSnapshot = await getDocs(linksQuery);
-    linksSnapshot.forEach(doc => {
-        batch.delete(doc.ref);
+    questionIds.forEach(id => {
+        const questionRef = doc(db, 'questions', id);
+        batch.delete(questionRef);
     });
-
-    // 2. Delete the question itself from the 'questions' collection
-    const questionRef = doc(db, 'questions', questionId);
-    batch.delete(questionRef);
 
     await batch.commit();
 }
