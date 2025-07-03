@@ -59,6 +59,12 @@ export default async function AdminLayout({
                          <Button asChild variant="link" className="h-auto p-0 justify-start text-muted-foreground hover:text-foreground">
                           <Link href="/admin/pages/contact">Contact Page</Link>
                         </Button>
+                         <Button asChild variant="link" className="h-auto p-0 justify-start text-muted-foreground hover:text-foreground">
+                          <Link href="/admin/pages/terms">Terms of Service</Link>
+                        </Button>
+                         <Button asChild variant="link" className="h-auto p-0 justify-start text-muted-foreground hover:text-foreground">
+                          <Link href="/admin/pages/privacy">Privacy Policy</Link>
+                        </Button>
                       </div>
                     </CollapsibleContent>
                   </div>

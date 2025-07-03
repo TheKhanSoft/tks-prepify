@@ -60,8 +60,8 @@ export function Footer({ settings }: { settings: Settings }) {
             <div>
               <h3 className="font-semibold mb-2">Legal</h3>
               <ul className="space-y-2 text-muted-foreground">
-                <li><Link href="#" className="hover:text-primary">Terms of Service</Link></li>
-                <li><Link href="#" className="hover:text-primary">Privacy Policy</Link></li>
+                <li><Link href="/terms" className="hover:text-primary">Terms of Service</Link></li>
+                <li><Link href="/privacy" className="hover:text-primary">Privacy Policy</Link></li>
               </ul>
             </div>
           </div>

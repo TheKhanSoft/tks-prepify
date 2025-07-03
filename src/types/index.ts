@@ -86,6 +86,14 @@ export interface TeamMember {
     hint: string;
 }
 
+export interface Page {
+  id: string; // slug
+  title: string;
+  content: string;
+  metaTitle?: string;
+  metaDescription?: string;
+}
+
 export interface Settings {
     siteName: string;
     siteDescription: string;
