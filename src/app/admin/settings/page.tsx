@@ -50,6 +50,11 @@ const settingsFormSchema = z.object({
 
 type SettingsFormValues = z.infer<typeof settingsFormSchema>;
 
+// A simple Send icon as a fallback if specific ones aren't available
+const Send = (props: any) => (
+  <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}><path d="m22 2-7 20-4-9-9-4Z"/><path d="M22 2 11 13"/></svg>
+);
+
 const socialPlatforms = [
   { value: 'facebook', label: 'Facebook', icon: Facebook },
   { value: 'instagram', label: 'Instagram', icon: Instagram },
@@ -65,12 +70,6 @@ const socialPlatforms = [
   { value: 'snapchat', label: 'Snapchat', icon: Ghost },
   { value: 'other', label: 'Other', icon: LinkIcon },
 ];
-
-// A simple Send icon as a fallback if specific ones aren't available
-const Send = (props: any) => (
-  <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}><path d="m22 2-7 20-4-9-9-4Z"/><path d="M22 2 11 13"/></svg>
-);
-
 
 export default function AdminSettingsPage() {
   const { toast } = useToast();
@@ -125,8 +124,9 @@ export default function AdminSettingsPage() {
         if (fileToUpload.size > MAX_IMAGE_SIZE_BYTES) {
             toast({
                 title: "Image Too Large",
-                description: `The selected image must be smaller than ${MAX_IMAGE_SIZE_KB}KB.`,
+                description: `The selected image must be smaller than ${MAX_IMAGE_SIZE_KB}KB. Please upload a compressed image.`,
                 variant: "destructive",
+                duration: 8000
             });
             setIsSubmitting(false);
             return;
@@ -583,4 +583,3 @@ export default function AdminSettingsPage() {
     </div>
   );
 }
-
