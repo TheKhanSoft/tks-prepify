@@ -98,7 +98,7 @@ export default function AdminDashboardPage() {
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold">{totalPapers}</div>
-              <p className="text-xs text-muted-foreground">+2 since last month</p>
+              <p className="text-xs text-muted-foreground">Published and unpublished papers</p>
             </CardContent>
           </Card>
         </Link>
@@ -110,7 +110,7 @@ export default function AdminDashboardPage() {
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold">{totalCategories}</div>
-              <p className="text-xs text-muted-foreground">+4 since last month</p>
+              <p className="text-xs text-muted-foreground">All paper categories</p>
             </CardContent>
           </Card>
         </Link>
@@ -122,7 +122,7 @@ export default function AdminDashboardPage() {
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold">{totalQuestions}</div>
-              <p className="text-xs text-muted-foreground">+20 since last month</p>
+              <p className="text-xs text-muted-foreground">Questions in the central bank</p>
             </CardContent>
           </Card>
         </Link>
@@ -133,8 +133,8 @@ export default function AdminDashboardPage() {
               <Users className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">+{totalUsers}</div>
-              <p className="text-xs text-muted-foreground">+1 since last month</p>
+              <div className="text-2xl font-bold">{totalUsers}</div>
+              <p className="text-xs text-muted-foreground">Registered users (mock data)</p>
             </CardContent>
           </Card>
         </Link>
