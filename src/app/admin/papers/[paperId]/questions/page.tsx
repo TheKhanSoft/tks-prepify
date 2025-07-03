@@ -179,10 +179,10 @@ export default function AdminPaperQuestionsPage() {
     
     const handleDownloadSample = () => {
         const csvContent = "data:text/csv;charset=utf-8," +
-            'order,questionId,type,questionText,options,correctAnswer,explanation\n' +
-            '1,,mcq,"What is the chemical symbol for Helium?","He|H|Hl|Hm","He","Creates a new MCQ question. Leave questionId blank."\n' +
-            '2,,short_answer,"What planet is known as the Red Planet?","","Mars","Creates a new short answer question. Leave questionId blank."\n' +
-            '3,some_existing_question_id,,,,,"Links an existing question. Only questionId and order are needed."';
+            'order,questionId,type,questionText,options,correctAnswer,explanation,questionCategoryId\n' +
+            '1,,mcq,"What is the chemical symbol for Helium?","He|H|Hl|Hm","He","Creates a new MCQ question. Leave questionId blank.","your-category-id-here"\n' +
+            '2,,short_answer,"What planet is known as the Red Planet?","","Mars","Creates a new short answer question.","another-category-id"\n' +
+            '3,some_existing_question_id,,,,,,,';
 
         const encodedUri = encodeURI(csvContent);
         const link = document.createElement("a");
@@ -224,6 +224,7 @@ export default function AdminPaperQuestionsPage() {
                                 options: row.options ? row.options.split('|').map((s: string) => s.trim()) : [],
                                 correctAnswer: row.type.trim() === 'mcq' && row.correctAnswer.includes('|') ? row.correctAnswer.split('|').map((s: string) => s.trim()) : row.correctAnswer.trim(),
                                 explanation: row.explanation ? row.explanation.trim() : "",
+                                questionCategoryId: row.questionCategoryId ? row.questionCategoryId.trim() : undefined,
                             };
                         }
                     });
@@ -343,7 +344,12 @@ export default function AdminPaperQuestionsPage() {
                                     <DropdownMenuItem onSelect={(e) => e.preventDefault()}><FileUp className="mr-2 h-4 w-4" /> Import Questions</DropdownMenuItem>
                                 </DialogTrigger>
                                 <DialogContent>
-                                    <DialogHeader><DialogTitle>Import Questions from CSV</DialogTitle><DialogDescription>Select a CSV file to create new questions or link existing ones.</DialogDescription></DialogHeader>
+                                    <DialogHeader>
+                                        <DialogTitle>Import Questions from CSV</DialogTitle>
+                                        <DialogDescription>
+                                            Select a CSV file to create new questions or link existing ones. The CSV must have headers: `order`, `questionId`, `type`, `questionText`, `options`, `correctAnswer`, `explanation`, and `questionCategoryId`.
+                                        </DialogDescription>
+                                    </DialogHeader>
                                     <div className="space-y-4 py-4"><Button variant="link" onClick={handleDownloadSample} className="p-0 h-auto">Download sample template</Button><Input type="file" accept=".csv" onChange={e => setImportFile(e.target.files ? e.target.files[0] : null)} /></div>
                                     <DialogFooter><Button variant="ghost" onClick={() => setIsImportDialogOpen(false)} disabled={isImporting}>Cancel</Button><Button onClick={handleImport} disabled={isImporting || !importFile}>{isImporting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />} Import</Button></DialogFooter>
                                 </DialogContent>
