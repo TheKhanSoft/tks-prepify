@@ -131,6 +131,24 @@ export async function getQuestionLink(paperId: string, questionId: string) {
     return null;
 }
 
+/**
+ * Checks if a question with the exact same text already exists in the bank.
+ * @param questionText The text of the question to check.
+ * @returns The ID of the existing question, or null if it doesn't exist.
+ */
+export async function findQuestionByText(questionText: string): Promise<string | null> {
+    const q = query(
+        collection(db, "questions"),
+        where("questionText", "==", questionText.trim()),
+        limit(1)
+    );
+    const snapshot = await getDocs(q);
+    if (!snapshot.empty) {
+        return snapshot.docs[0].id;
+    }
+    return null;
+}
+
 
 // Adds a new question to the bank and links it to a paper
 export async function addQuestionToPaper(paperId: string, questionData: Omit<Question, 'id'>, order: number) {

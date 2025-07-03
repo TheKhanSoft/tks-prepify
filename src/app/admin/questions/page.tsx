@@ -42,7 +42,7 @@ import {
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { MoreHorizontal, Trash2, Loader2, Edit, ChevronDown, FileUp, FileDown } from "lucide-react";
-import { fetchAllQuestions, deleteQuestionsFromBank, getUsageCountForQuestions, addQuestionsToBankBatch } from "@/lib/question-service";
+import { fetchAllQuestions, deleteQuestionsFromBank, getUsageCountForQuestions, addQuestionsToBankBatch, findQuestionByText } from "@/lib/question-service";
 import type { Question, QuestionCategory } from "@/types";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
@@ -219,26 +219,52 @@ export default function AllQuestionsPage() {
             skipEmptyLines: true,
             complete: async (results) => {
                 try {
-                    const questionsToProcess = results.data.map((row: any, index: number) => {
+                    const questionsToProcess: Omit<Question, 'id'>[] = [];
+                    let skippedCount = 0;
+
+                    for (const row of results.data as any[]) {
                         if (!row.type || !row.questionText || !row.correctAnswer) {
-                            throw new Error(`Row ${index + 2} is missing a required field (type, questionText, correctAnswer).`);
+                            throw new Error(`A row is missing a required field (type, questionText, correctAnswer).`);
                         }
-                        return {
+                        
+                        const existingQuestionId = await findQuestionByText(row.questionText);
+                        if (existingQuestionId) {
+                            skippedCount++;
+                            continue;
+                        }
+                        
+                        questionsToProcess.push({
                             type: row.type.trim() as 'mcq' | 'short_answer',
                             questionText: row.questionText.trim(),
                             options: row.options ? row.options.split('|').map((s: string) => s.trim()) : [],
                             correctAnswer: row.type.trim() === 'mcq' && row.correctAnswer.includes('|') ? row.correctAnswer.split('|').map((s: string) => s.trim()) : row.correctAnswer.trim(),
                             explanation: row.explanation ? row.explanation.trim() : "",
                             questionCategoryId: row.questionCategoryId ? row.questionCategoryId.trim() : undefined,
-                        };
-                    });
+                        });
+                    }
                     
                     if (questionsToProcess.length > 0) {
                         await addQuestionsToBankBatch(questionsToProcess);
-                        toast({ title: "Import Successful", description: `${questionsToProcess.length} questions have been added to the bank.` });
+                    }
+                    
+                    let description = '';
+                    if (questionsToProcess.length > 0) {
+                        description += `${questionsToProcess.length} new question(s) added to the bank. `;
+                    }
+                    if (skippedCount > 0) {
+                        description += `${skippedCount} question(s) were skipped as duplicates.`;
+                    }
+                    if (!description) {
+                        description = "No new questions were added."
+                    }
+
+                    toast({ 
+                        title: "Import Complete", 
+                        description: description.trim()
+                    });
+
+                    if (questionsToProcess.length > 0) {
                         await loadData();
-                    } else {
-                         toast({ title: "Nothing to import", description: "The selected file was empty or invalid.", variant: "destructive" });
                     }
                     
                     setIsImportDialogOpen(false);

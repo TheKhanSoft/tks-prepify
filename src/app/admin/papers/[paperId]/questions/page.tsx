@@ -43,7 +43,7 @@ import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/com
 import { Button } from "@/components/ui/button";
 import { ArrowLeft, PlusCircle, MoreHorizontal, Edit, Trash2, Loader2, FileUp, Save, FileDown, ChevronDown } from "lucide-react";
 import { getPaperById } from "@/lib/paper-service";
-import { fetchQuestionsForPaper, removeQuestionsFromPaper, addQuestionsBatch, PaperQuestion, batchUpdateQuestionOrder } from "@/lib/question-service";
+import { fetchQuestionsForPaper, removeQuestionsFromPaper, addQuestionsBatch, PaperQuestion, batchUpdateQuestionOrder, findQuestionByText } from "@/lib/question-service";
 import type { Paper } from "@/types";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
@@ -205,29 +205,36 @@ export default function AdminPaperQuestionsPage() {
             skipEmptyLines: true,
             complete: async (results) => {
                 try {
-                    const questionsToProcess = results.data.map((row: any, index: number) => {
+                    const questionsToProcess = [];
+                    for (const row of results.data as any[]) {
                         const order = parseInt(row.order, 10);
                         if(isNaN(order)) {
-                            throw new Error(`Row ${index + 2} has an invalid or missing 'order' value.`);
+                            throw new Error(`A row has an invalid or missing 'order' value.`);
                         }
 
                         if (row.questionId && row.questionId.trim()) {
-                            return { questionId: row.questionId.trim(), order: order };
+                            questionsToProcess.push({ questionId: row.questionId.trim(), order: order });
                         } else {
                             if (!row.type || !row.questionText || !row.correctAnswer) {
-                                throw new Error(`Row ${index + 2} is for a new question but is missing a required field (type, questionText, correctAnswer).`);
+                                throw new Error(`A row for a new question is missing a required field (type, questionText, correctAnswer).`);
                             }
-                            return {
-                                order: order,
-                                type: row.type.trim() as 'mcq' | 'short_answer',
-                                questionText: row.questionText.trim(),
-                                options: row.options ? row.options.split('|').map((s: string) => s.trim()) : [],
-                                correctAnswer: row.type.trim() === 'mcq' && row.correctAnswer.includes('|') ? row.correctAnswer.split('|').map((s: string) => s.trim()) : row.correctAnswer.trim(),
-                                explanation: row.explanation ? row.explanation.trim() : "",
-                                questionCategoryId: row.questionCategoryId ? row.questionCategoryId.trim() : undefined,
-                            };
+                            
+                            const existingQuestionId = await findQuestionByText(row.questionText);
+                            if (existingQuestionId) {
+                                questionsToProcess.push({ questionId: existingQuestionId, order: order });
+                            } else {
+                                questionsToProcess.push({
+                                    order: order,
+                                    type: row.type.trim() as 'mcq' | 'short_answer',
+                                    questionText: row.questionText.trim(),
+                                    options: row.options ? row.options.split('|').map((s: string) => s.trim()) : [],
+                                    correctAnswer: row.type.trim() === 'mcq' && row.correctAnswer.includes('|') ? row.correctAnswer.split('|').map((s: string) => s.trim()) : row.correctAnswer.trim(),
+                                    explanation: row.explanation ? row.explanation.trim() : "",
+                                    questionCategoryId: row.questionCategoryId ? row.questionCategoryId.trim() : undefined,
+                                });
+                            }
                         }
-                    });
+                    }
                     
                     if (questionsToProcess.length > 0) {
                         await addQuestionsBatch(paperId, questionsToProcess);

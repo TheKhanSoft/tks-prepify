@@ -22,7 +22,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { useToast } from "@/hooks/use-toast";
 import { ArrowLeft, PlusCircle, Trash2, Loader2 } from "lucide-react";
 import { getPaperById } from "@/lib/paper-service";
-import { addQuestionToPaper, fetchQuestionsForPaper } from "@/lib/question-service";
+import { addQuestionToPaper, fetchQuestionsForPaper, findQuestionByText } from "@/lib/question-service";
 import type { Paper, Question, QuestionCategory } from "@/types";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
@@ -126,6 +126,18 @@ export default function NewQuestionPage() {
   async function onSubmit(data: QuestionFormValues) {
     setIsSubmitting(true);
     try {
+        const existingQuestionId = await findQuestionByText(data.questionText);
+        if (existingQuestionId) {
+            toast({
+                title: "Duplicate Question",
+                description: "A question with this exact text already exists. Please import it from the question bank instead of creating a new one.",
+                variant: "destructive",
+                duration: 8000
+            });
+            setIsSubmitting(false);
+            return;
+        }
+
         const { order, ...restOfData } = data;
         
         const questionData: Omit<Question, 'id'> = {
