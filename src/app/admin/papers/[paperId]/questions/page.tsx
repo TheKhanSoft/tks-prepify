@@ -43,8 +43,8 @@ import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/com
 import { Button } from "@/components/ui/button";
 import { ArrowLeft, PlusCircle, MoreHorizontal, Edit, Trash2, Loader2, FileUp } from "lucide-react";
 import { getPaperById } from "@/lib/paper-service";
-import { fetchQuestionsForPaper, deleteQuestion, addQuestionsBatch } from "@/lib/question-service";
-import type { Paper, Question } from "@/types";
+import { fetchQuestionsForPaper, removeQuestionFromPaper, addQuestionsBatch, PaperQuestion } from "@/lib/question-service";
+import type { Paper } from "@/types";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import { Input } from "@/components/ui/input";
@@ -57,10 +57,10 @@ export default function AdminPaperQuestionsPage() {
     const paperId = params.paperId as string;
     
     const [paper, setPaper] = useState<Paper | null>(null);
-    const [questions, setQuestions] = useState<Question[]>([]);
+    const [questions, setQuestions] = useState<PaperQuestion[]>([]);
     const [loading, setLoading] = useState(true);
     const [isDeleting, setIsDeleting] = useState(false);
-    const [questionToDelete, setQuestionToDelete] = useState<Question | null>(null);
+    const [questionToDelete, setQuestionToDelete] = useState<PaperQuestion | null>(null);
 
     // Import states
     const [isImporting, setIsImporting] = useState(false);
@@ -68,6 +68,7 @@ export default function AdminPaperQuestionsPage() {
     const [isImportDialogOpen, setIsImportDialogOpen] = useState(false);
 
     const loadData = useCallback(async () => {
+        if (!paperId) return;
         setLoading(true);
         try {
             const fetchedPaper = await getPaperById(paperId);
@@ -75,15 +76,13 @@ export default function AdminPaperQuestionsPage() {
 
             if (fetchedPaper) {
                 const fetchedQuestions = await fetchQuestionsForPaper(paperId);
-                // Sort questions client-side to avoid needing a composite index
-                fetchedQuestions.sort((a, b) => a.order - b.order);
                 setQuestions(fetchedQuestions);
             }
         } catch(e) {
             console.error(e);
             toast({ 
                 title: "Error loading data", 
-                description: "Could not load the questions for this paper. Please try again later.",
+                description: "Could not load the paper or its questions. Please try again later.",
                 variant: "destructive",
             });
         } finally {
@@ -95,7 +94,7 @@ export default function AdminPaperQuestionsPage() {
         loadData();
     }, [loadData]);
 
-    const openDeleteDialog = (question: Question) => {
+    const openDeleteDialog = (question: PaperQuestion) => {
         setQuestionToDelete(question);
     }
 
@@ -103,14 +102,14 @@ export default function AdminPaperQuestionsPage() {
         if (!questionToDelete) return;
         setIsDeleting(true);
         try {
-            await deleteQuestion(questionToDelete.id, paperId);
+            await removeQuestionFromPaper(paperId, questionToDelete.id);
             toast({
-                title: "Question Deleted",
-                description: "The question has been successfully deleted."
+                title: "Question Removed",
+                description: "The question has been removed from this paper."
             });
             await loadData();
         } catch (error) {
-            toast({ title: "Error", description: "Failed to delete question.", variant: "destructive"});
+            toast({ title: "Error", description: "Failed to remove question.", variant: "destructive"});
         } finally {
             setIsDeleting(false);
             setQuestionToDelete(null);
@@ -144,7 +143,7 @@ export default function AdminPaperQuestionsPage() {
             header: true,
             skipEmptyLines: true,
             complete: async (results) => {
-                const requiredHeaders = ["type", "questionText", "correctAnswer"];
+                const requiredHeaders = ["type", "questionText", "correctAnswer", "order"];
                 const headers = results.meta.fields || [];
                 const missingHeaders = requiredHeaders.filter(h => !headers.includes(h));
 
@@ -155,18 +154,16 @@ export default function AdminPaperQuestionsPage() {
                 }
 
                 try {
-                    let existingQuestions = await fetchQuestionsForPaper(paperId);
-                    existingQuestions.sort((a, b) => a.order - b.order);
-                    let nextOrder = existingQuestions.length > 0 ? Math.max(...existingQuestions.map(q => q.order)) + 1 : 1;
-
-                    const newQuestions = results.data.map((row: any) => {
-                        if (!row.type || !row.questionText || !row.correctAnswer) {
-                            throw new Error("Each row must have type, questionText, and correctAnswer.");
+                    const newQuestions = results.data.map((row: any, index: number) => {
+                        if (!row.type || !row.questionText || !row.correctAnswer || !row.order) {
+                            throw new Error(`Row ${index + 2} is missing a required field (type, questionText, correctAnswer, order).`);
                         }
-                        const order = row.order && !isNaN(parseInt(row.order, 10)) ? parseInt(row.order, 10) : nextOrder++;
+                        const order = parseInt(row.order, 10);
+                        if(isNaN(order)) {
+                            throw new Error(`Row ${index + 2} has an invalid 'order' value.`);
+                        }
 
-                        const question: Omit<Question, 'id'> = {
-                            paperId: paperId,
+                        return {
                             order: order,
                             type: row.type.trim() as 'mcq' | 'short_answer',
                             questionText: row.questionText.trim(),
@@ -174,7 +171,6 @@ export default function AdminPaperQuestionsPage() {
                             correctAnswer: row.type.trim() === 'mcq' && row.correctAnswer.includes('|') ? row.correctAnswer.split('|').map((s: string) => s.trim()) : row.correctAnswer.trim(),
                             explanation: row.explanation ? row.explanation.trim() : "",
                         };
-                        return question;
                     });
                     
                     if (newQuestions.length > 0) {
@@ -290,7 +286,7 @@ export default function AdminPaperQuestionsPage() {
                                     <DropdownMenuLabel>Actions</DropdownMenuLabel>
                                     <DropdownMenuItem asChild><Link href={`/admin/papers/${paperId}/questions/${question.id}/edit`}><Edit className="mr-2 h-4 w-4" />Edit</Link></DropdownMenuItem>
                                     <DropdownMenuSeparator />
-                                    <DropdownMenuItem className="text-destructive" onSelect={() => openDeleteDialog(question)}><Trash2 className="mr-2 h-4 w-4" />Delete</DropdownMenuItem>
+                                    <DropdownMenuItem className="text-destructive" onSelect={() => openDeleteDialog(question)}><Trash2 className="mr-2 h-4 w-4" />Remove from Paper</DropdownMenuItem>
                                 </DropdownMenuContent>
                                 </DropdownMenu>
                             </TableCell>
@@ -306,14 +302,14 @@ export default function AdminPaperQuestionsPage() {
         <AlertDialog open={!!questionToDelete} onOpenChange={(open) => !open && setQuestionToDelete(null)}>
             <AlertDialogContent>
                 <AlertDialogHeader>
-                    <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
-                    <AlertDialogDescription>This action cannot be undone. This will permanently delete the question.</AlertDialogDescription>
+                    <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+                    <AlertDialogDescription>This will remove the question from this paper, but it will not delete it from the question bank.</AlertDialogDescription>
                 </AlertDialogHeader>
                 <AlertDialogFooter>
                     <AlertDialogCancel disabled={isDeleting}>Cancel</AlertDialogCancel>
                     <AlertDialogAction onClick={handleDeleteQuestion} disabled={isDeleting}>
                         {isDeleting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                        Delete
+                        Remove
                     </AlertDialogAction>
                 </AlertDialogFooter>
             </AlertDialogContent>

@@ -22,8 +22,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { useToast } from "@/hooks/use-toast";
 import { ArrowLeft, Loader2, PlusCircle, Trash2 } from "lucide-react";
 import { getPaperById } from "@/lib/paper-service";
-import { getQuestionById, updateQuestion } from "@/lib/question-service";
-import type { Paper, Question } from "@/types";
+import { getQuestionById, updateQuestion, getQuestionLink, updateQuestionOrderForPaper } from "@/lib/question-service";
+import type { Paper } from "@/types";
 import React, { useEffect, useState } from "react";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
@@ -72,6 +72,7 @@ export default function EditQuestionPage() {
   const [paper, setPaper] = useState<Paper | null>(null);
   const [loading, setLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [linkId, setLinkId] = useState<string | null>(null);
 
   const form = useForm<QuestionFormValues>({
     resolver: zodResolver(questionFormSchema),
@@ -82,17 +83,19 @@ export default function EditQuestionPage() {
     const loadData = async () => {
         setLoading(true);
         try {
-            const [fetchedPaper, fetchedQuestion] = await Promise.all([
+            const [fetchedPaper, fetchedQuestion, fetchedLink] = await Promise.all([
                 getPaperById(paperId),
                 getQuestionById(questionId),
+                getQuestionLink(paperId, questionId),
             ]);
             setPaper(fetchedPaper);
+            setLinkId(fetchedLink?.id || null);
 
-            if (fetchedQuestion) {
+            if (fetchedQuestion && fetchedLink) {
                 if (fetchedQuestion.type === 'mcq') {
                     form.reset({
                         type: 'mcq',
-                        order: fetchedQuestion.order,
+                        order: fetchedLink.order,
                         questionText: fetchedQuestion.questionText,
                         options: fetchedQuestion.options?.map(opt => ({ text: opt })) || [],
                         correctAnswers: Array.isArray(fetchedQuestion.correctAnswer) ? fetchedQuestion.correctAnswer : [fetchedQuestion.correctAnswer],
@@ -101,14 +104,14 @@ export default function EditQuestionPage() {
                 } else {
                      form.reset({
                         type: 'short_answer',
-                        order: fetchedQuestion.order,
+                        order: fetchedLink.order,
                         questionText: fetchedQuestion.questionText,
                         correctAnswer: fetchedQuestion.correctAnswer as string,
                         explanation: fetchedQuestion.explanation || '',
                     });
                 }
             } else {
-                 toast({ title: "Error", description: "Question not found.", variant: "destructive" });
+                 toast({ title: "Error", description: "Question or its link to the paper not found.", variant: "destructive" });
             }
         } catch (error) {
             toast({ title: "Error", description: "Failed to load data.", variant: "destructive" });
@@ -129,13 +132,21 @@ export default function EditQuestionPage() {
   async function onSubmit(data: QuestionFormValues) {
     setIsSubmitting(true);
     try {
-        let questionData: Partial<Question> = { ...data };
+        const { order, ...questionFields } = data;
+
+        let questionData: Partial<any> = { ...questionFields };
         if (questionData.type === 'mcq') {
-            questionData.options = (data as any).options.map((o: any) => o.text);
+            questionData.options = (questionData as any).options.map((o: any) => o.text);
         } else {
-            questionData.options = [];
+            delete questionData.options;
+            delete questionData.correctAnswers;
         }
+
         await updateQuestion(questionId, questionData);
+        if (linkId) {
+            await updateQuestionOrderForPaper(linkId, order);
+        }
+
         toast({
             title: "Question Updated",
             description: "The question has been updated successfully.",

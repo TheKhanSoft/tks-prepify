@@ -9,8 +9,8 @@ import { ArrowLeft, ArrowRight, CheckCircle2, Lightbulb, Loader2 } from 'lucide-
 import { Separator } from '@/components/ui/separator';
 import { cn } from '@/lib/utils';
 import { getPaperBySlug } from '@/lib/paper-service';
-import { fetchQuestionsForPaper } from '@/lib/question-service';
-import type { Paper, Question } from '@/types';
+import { fetchQuestionsForPaper, PaperQuestion } from '@/lib/question-service';
+import type { Paper } from '@/types';
 
 export default function SolvedPaperPage() {
   const router = useRouter();
@@ -18,7 +18,7 @@ export default function SolvedPaperPage() {
   const slug = params.slug as string;
   
   const [paper, setPaper] = useState<Paper | null>(null);
-  const [questions, setQuestions] = useState<Question[]>([]);
+  const [questions, setQuestions] = useState<PaperQuestion[]>([]);
   const [loading, setLoading] = useState(true);
 
   const [currentPage, setCurrentPage] = useState(1);
@@ -33,8 +33,6 @@ export default function SolvedPaperPage() {
             if (fetchedPaper && fetchedPaper.published) {
                 setPaper(fetchedPaper);
                 const fetchedQuestions = await fetchQuestionsForPaper(fetchedPaper.id);
-                // Sort questions by order client-side
-                fetchedQuestions.sort((a, b) => a.order - b.order);
                 setQuestions(fetchedQuestions);
             } else {
                 setPaper(null);

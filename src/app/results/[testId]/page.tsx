@@ -4,10 +4,10 @@
 import { useEffect, useState, useMemo } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import { BarChart, Book, CheckCircle2, Lightbulb, Loader2, XCircle } from 'lucide-react';
-import { fetchQuestionsForPaper } from '@/lib/question-service';
+import { fetchQuestionsForPaper, PaperQuestion } from '@/lib/question-service';
 import { fetchPapers } from '@/lib/paper-service';
 import { fetchCategories, getCategoryPath } from '@/lib/category-service';
-import type { Paper, Question, UserAnswer, TestResult, Category } from '@/types';
+import type { UserAnswer, TestResult, Category } from '@/types';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
@@ -28,7 +28,7 @@ export default function ResultsPage() {
   const router = useRouter();
   const params = useParams();
   const [result, setResult] = useState<TestResult | null>(null);
-  const [questions, setQuestions] = useState<Question[]>([]);
+  const [questions, setQuestions] = useState<PaperQuestion[]>([]);
   const [feedback, setFeedback] = useState<FeedbackState>({});
   const [recommendations, setRecommendations] = useState({ loading: false, content: '' });
   const [allCategories, setAllCategories] = useState<Category[]>([]);
@@ -45,13 +45,17 @@ export default function ResultsPage() {
             if (storedResults) {
                 const { paperId, answers: userAnswersArray } = JSON.parse(storedResults);
                 const paper = papers.find(p => p.id === paperId);
+                if (!paper) {
+                    throw new Error("Paper not found");
+                }
+
                 const fetchedQuestions = await fetchQuestionsForPaper(paperId);
                 setQuestions(fetchedQuestions);
 
-                if (paper && fetchedQuestions.length > 0) {
+                if (fetchedQuestions.length > 0) {
                     let score = 0;
-                    const processedAnswers: UserAnswer[] = fetchedQuestions.map((q, index) => {
-                    const userAnswer = userAnswersArray[index];
+                    const processedAnswers: UserAnswer[] = fetchedQuestions.map((q) => {
+                    const userAnswer = userAnswersArray.find((a: any) => a.questionId === q.id)?.selectedOption;
                     const isCorrect = Array.isArray(q.correctAnswer) 
                         ? q.correctAnswer.includes(userAnswer)
                         : q.correctAnswer === userAnswer;
@@ -88,7 +92,7 @@ export default function ResultsPage() {
   }, [params.testId, router]);
 
 
-  const handleGetFeedback = async (question: Question, userAnswer: string) => {
+  const handleGetFeedback = async (question: PaperQuestion, userAnswer: string) => {
     if (!result || loading) return;
     setFeedback(prev => ({ ...prev, [question.id]: { loading: true } }));
 

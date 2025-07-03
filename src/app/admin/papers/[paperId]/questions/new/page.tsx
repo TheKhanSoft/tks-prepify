@@ -22,7 +22,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { useToast } from "@/hooks/use-toast";
 import { ArrowLeft, PlusCircle, Trash2, Loader2 } from "lucide-react";
 import { getPaperById } from "@/lib/paper-service";
-import { addQuestion, fetchQuestionsForPaper } from "@/lib/question-service";
+import { addQuestionToPaper, fetchQuestionsForPaper } from "@/lib/question-service";
 import type { Paper, Question } from "@/types";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
@@ -79,13 +79,13 @@ export default function NewQuestionPage() {
       const loadData = async () => {
           setLoading(true);
           try {
-            const fetchedPaper = await getPaperById(paperId);
+            const [fetchedPaper, fetchedQuestions] = await Promise.all([
+              getPaperById(paperId),
+              fetchQuestionsForPaper(paperId)
+            ]);
             setPaper(fetchedPaper);
 
             if(fetchedPaper) {
-                let fetchedQuestions = await fetchQuestionsForPaper(paperId);
-                // Sort client-side to get the correct max order number
-                fetchedQuestions.sort((a,b) => a.order - b.order);
                 const nextOrderNumber = fetchedQuestions.length > 0 ? Math.max(...fetchedQuestions.map(q => q.order)) + 1 : 1;
                 setNextOrder(nextOrderNumber);
                 form.reset({
@@ -119,17 +119,17 @@ export default function NewQuestionPage() {
   async function onSubmit(data: QuestionFormValues) {
     setIsSubmitting(true);
     try {
+        const { order, ...restOfData } = data;
+        
         const questionData: Omit<Question, 'id'> = {
-            paperId,
-            order: data.order,
-            type: data.type,
-            questionText: data.questionText,
-            explanation: data.explanation || "",
-            options: data.type === 'mcq' ? data.options.map(o => o.text) : [],
-            correctAnswer: data.type === 'mcq' ? data.correctAnswers : data.correctAnswer,
+            type: restOfData.type,
+            questionText: restOfData.questionText,
+            explanation: restOfData.explanation || "",
+            options: restOfData.type === 'mcq' ? restOfData.options.map(o => o.text) : [],
+            correctAnswer: restOfData.type === 'mcq' ? restOfData.correctAnswers : restOfData.correctAnswer,
         };
 
-        await addQuestion(questionData);
+        await addQuestionToPaper(paperId, questionData, order);
 
         toast({
             title: "Question Created",
