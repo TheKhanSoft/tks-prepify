@@ -33,6 +33,8 @@ export default function SolvedPaperPage() {
             if (fetchedPaper && fetchedPaper.published) {
                 setPaper(fetchedPaper);
                 const fetchedQuestions = await fetchQuestionsForPaper(fetchedPaper.id);
+                // Sort questions by order client-side
+                fetchedQuestions.sort((a, b) => a.order - b.order);
                 setQuestions(fetchedQuestions);
             } else {
                 setPaper(null);

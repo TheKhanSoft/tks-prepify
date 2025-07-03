@@ -35,7 +35,8 @@ function docToQuestion(doc: DocumentData): Question {
 
 export async function fetchQuestionsForPaper(paperId: string): Promise<Question[]> {
   if (!paperId) return [];
-  const q = query(collection(db, 'questions'), where('paperId', '==', paperId), orderBy('order'));
+  // Removed orderBy('order') to prevent needing a composite index. Sorting will be done client-side.
+  const q = query(collection(db, 'questions'), where('paperId', '==', paperId));
   const querySnapshot = await getDocs(q);
   return querySnapshot.docs.map(doc => docToQuestion(doc));
 }

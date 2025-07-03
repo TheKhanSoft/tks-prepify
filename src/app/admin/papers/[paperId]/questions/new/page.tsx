@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useForm, useFieldArray } from "react-hook-form";
@@ -82,7 +83,9 @@ export default function NewQuestionPage() {
             setPaper(fetchedPaper);
 
             if(fetchedPaper) {
-                const fetchedQuestions = await fetchQuestionsForPaper(paperId);
+                let fetchedQuestions = await fetchQuestionsForPaper(paperId);
+                // Sort client-side to get the correct max order number
+                fetchedQuestions.sort((a,b) => a.order - b.order);
                 const nextOrderNumber = fetchedQuestions.length > 0 ? Math.max(...fetchedQuestions.map(q => q.order)) + 1 : 1;
                 setNextOrder(nextOrderNumber);
                 form.reset({
@@ -98,7 +101,7 @@ export default function NewQuestionPage() {
             }
           } catch(e) {
             console.error(e);
-            toast({ title: "Error", description: "Could not load question data. A database index might be missing. Check browser console.", variant: "destructive" });
+            toast({ title: "Error", description: "Could not load initial question data. Please try again.", variant: "destructive" });
           } finally {
             setLoading(false);
           }

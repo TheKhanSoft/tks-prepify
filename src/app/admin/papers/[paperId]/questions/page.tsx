@@ -1,3 +1,4 @@
+
 "use client";
 
 import React, { useState, useEffect, useCallback } from "react";
@@ -67,23 +68,22 @@ export default function AdminPaperQuestionsPage() {
     const [isImportDialogOpen, setIsImportDialogOpen] = useState(false);
 
     const loadData = useCallback(async () => {
-        if (!paperId) {
-            setLoading(false);
-            return;
-        }
+        setLoading(true);
         try {
             const fetchedPaper = await getPaperById(paperId);
             setPaper(fetchedPaper);
 
             if (fetchedPaper) {
                 const fetchedQuestions = await fetchQuestionsForPaper(paperId);
+                // Sort questions client-side to avoid needing a composite index
+                fetchedQuestions.sort((a, b) => a.order - b.order);
                 setQuestions(fetchedQuestions);
             }
         } catch(e) {
             console.error(e);
             toast({ 
-                title: "Error loading questions", 
-                description: "A database index might be missing. Please check your browser's developer console for a link to create it.",
+                title: "Error loading data", 
+                description: "Could not load the questions for this paper. Please try again later.",
                 variant: "destructive",
             });
         } finally {
@@ -92,7 +92,6 @@ export default function AdminPaperQuestionsPage() {
     }, [paperId, toast]);
 
     useEffect(() => {
-        setLoading(true);
         loadData();
     }, [loadData]);
 
@@ -156,7 +155,8 @@ export default function AdminPaperQuestionsPage() {
                 }
 
                 try {
-                    const existingQuestions = await fetchQuestionsForPaper(paperId);
+                    let existingQuestions = await fetchQuestionsForPaper(paperId);
+                    existingQuestions.sort((a, b) => a.order - b.order);
                     let nextOrder = existingQuestions.length > 0 ? Math.max(...existingQuestions.map(q => q.order)) + 1 : 1;
 
                     const newQuestions = results.data.map((row: any) => {
