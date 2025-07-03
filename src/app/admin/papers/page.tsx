@@ -35,6 +35,7 @@ import { Card, CardHeader, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { PlusCircle, MoreHorizontal, Edit, Trash2, Plus, Search, Loader2, Copy } from "lucide-react";
 import { fetchPapers } from "@/lib/paper-service";
+import { fetchAllPaperQuestionLinks } from "@/lib/question-service";
 import { fetchCategories, getCategoryPath, getFlattenedCategories } from "@/lib/category-service";
 import type { Category, Paper } from "@/types";
 import { Input } from "@/components/ui/input";
@@ -43,6 +44,7 @@ import { useToast } from "@/hooks/use-toast";
 import { doc, deleteDoc, updateDoc } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { Switch } from "@/components/ui/switch";
+import { cn } from "@/lib/utils";
 
 
 export default function AdminPapersPage() {
@@ -51,6 +53,7 @@ export default function AdminPapersPage() {
   
   const [allPapers, setAllPapers] = useState<Paper[]>([]);
   const [allCategories, setAllCategories] = useState<Category[]>([]);
+  const [questionCounts, setQuestionCounts] = useState<Record<string, number>>({});
   const [loading, setLoading] = useState(true);
   const [isDeleting, setIsDeleting] = useState(false);
   const [isUpdating, setIsUpdating] = useState<{ [key: string]: boolean }>({});
@@ -63,9 +66,22 @@ export default function AdminPapersPage() {
   const loadData = useCallback(async () => {
     setLoading(true);
     try {
-        const [papers, cats] = await Promise.all([fetchPapers(), fetchCategories()]);
+        const [papers, cats, links] = await Promise.all([
+          fetchPapers(), 
+          fetchCategories(),
+          fetchAllPaperQuestionLinks()
+        ]);
         setAllPapers(papers);
         setAllCategories(cats);
+
+        const counts = links.reduce((acc, link) => {
+            if (link.paperId) {
+                acc[link.paperId] = (acc[link.paperId] || 0) + 1;
+            }
+            return acc;
+        }, {} as Record<string, number>);
+        setQuestionCounts(counts);
+
     } catch (error) {
         console.error("Failed to load data:", error);
         toast({ title: "Error", description: "Could not load papers or categories.", variant: "destructive" });
@@ -216,6 +232,8 @@ export default function AdminPapersPage() {
                     const categoryPath = getCategoryPath(paper.categoryId, allCategories);
                     const categoryName = categoryPath?.map(c => c.name).join(' / ') || 'N/A';
                     const isPaperUpdating = isUpdating[paper.id] || isDeleting;
+                    const addedQuestions = questionCounts[paper.id] || 0;
+                    const isComplete = addedQuestions >= paper.questionCount;
                     return (
                     <TableRow key={paper.id}>
                         <TableCell>
@@ -226,7 +244,11 @@ export default function AdminPapersPage() {
                           <Badge variant="outline">{categoryName}</Badge>
                         </TableCell>
                          <TableCell className="text-muted-foreground text-sm">
-                            <div>{paper.questionCount} questions</div>
+                            <div>
+                                <span className={cn("font-semibold", isComplete ? "text-green-600" : "text-destructive")}>
+                                    {addedQuestions}
+                                </span> / {paper.questionCount} questions
+                            </div>
                             <div>{paper.duration} min</div>
                         </TableCell>
                         <TableCell className="text-muted-foreground text-sm">

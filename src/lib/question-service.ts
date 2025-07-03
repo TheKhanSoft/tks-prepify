@@ -40,6 +40,18 @@ export async function fetchAllQuestions(): Promise<Question[]> {
     return snapshot.docs.map(doc => docToQuestion(doc));
 }
 
+// Fetches all question link documents from the 'paper_questions' collection to count them
+export async function fetchAllPaperQuestionLinks(): Promise<{ paperId: string }[]> {
+  const paperQuestionsCol = collection(db, 'paper_questions');
+  const snapshot = await getDocs(paperQuestionsCol);
+  return snapshot.docs.map(doc => {
+    const data = doc.data();
+    return {
+      paperId: data.paperId,
+    };
+  });
+}
+
 
 // Fetches questions for a specific paper, including their order and link ID
 export async function fetchQuestionsForPaper(paperId: string): Promise<PaperQuestion[]> {
