@@ -17,7 +17,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
-import { Facebook, Github, Instagram, Linkedin, Loader2, PlusCircle, Trash2, Twitter, Youtube, Link as LinkIcon } from "lucide-react";
+import { Facebook, Github, Instagram, Linkedin, Loader2, PlusCircle, Trash2, Twitter, Youtube, Link as LinkIcon, Telegram, MessageSquare, Tumblr, MessageCircle, HelpCircle, Twitch, Ghost } from "lucide-react";
 import React, { useState, useEffect } from "react";
 import { fetchSettings, updateSettings } from "@/lib/settings-service";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -50,10 +50,22 @@ type SettingsFormValues = z.infer<typeof settingsFormSchema>;
 const socialPlatforms = [
   { value: 'twitter', label: 'Twitter / X', icon: Twitter },
   { value: 'facebook', label: 'Facebook', icon: Facebook },
+  { value: 'instagram', label: 'Instagram', icon: Instagram },
+  { value: 'youtube', label: 'YouTube', icon: Youtube },
   { value: 'linkedin', label: 'LinkedIn', icon: Linkedin },
   { value: 'github', label: 'GitHub', icon: Github },
-  { value: 'youtube', label: 'YouTube', icon: Youtube },
-  { value: 'instagram', label: 'Instagram', icon: Instagram },
+  { value: 'discord', label: 'Discord', icon: MessageSquare },
+  { value: 'twitch', label: 'Twitch', icon: Twitch },
+  { value: 'reddit', label: 'Reddit', icon: LinkIcon },
+  { value: 'pinterest', label: 'Pinterest', icon: LinkIcon },
+  { value: 'telegram', label: 'Telegram', icon: Telegram },
+  { value: 'whatsapp', label: 'WhatsApp', icon: MessageSquare },
+  { value: 'messenger', label: 'Messenger', icon: MessageCircle },
+  { value: 'tumblr', label: 'Tumblr', icon: Tumblr },
+  { value: 'snapchat', label: 'Snapchat', icon: Ghost },
+  { value: 'wechat', label: 'WeChat', icon: MessageSquare },
+  { value: 'quora', label: 'Quora', icon: HelpCircle },
+  { value: 'threads', label: 'Threads', icon: LinkIcon },
   { value: 'other', label: 'Other', icon: LinkIcon },
 ];
 
@@ -352,7 +364,7 @@ export default function AdminSettingsPage() {
                                         <FormControl>
                                             <div className="relative">
                                                 <Icon className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                                                <Input {...field} placeholder="https://..." className="pl-9" />
+                                                <Input {...field} value={field.value || ''} placeholder="https://..." className="pl-9" />
                                             </div>
                                         </FormControl>
                                         <FormMessage />

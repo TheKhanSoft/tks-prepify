@@ -1,17 +1,29 @@
 
 import Link from 'next/link';
-import { BookOpen, Facebook, Github, Linkedin, Twitter, Youtube, Instagram, Link as LinkIcon } from 'lucide-react';
+import { BookOpen, Facebook, Github, Linkedin, Twitter, Youtube, Instagram, Link as LinkIcon, Telegram, MessageSquare, Tumblr, MessageCircle, HelpCircle, Twitch, Ghost } from 'lucide-react';
 import { fetchSettings } from '@/lib/settings-service';
 import { Button } from '../ui/button';
 import type { SocialLink } from '@/types';
 
-const iconMap: { [key in SocialLink['platform']]: React.ComponentType<{ className?: string }> } = {
+const iconMap: { [key: string]: React.ComponentType<{ className?: string }> } = {
     facebook: Facebook,
     twitter: Twitter,
     linkedin: Linkedin,
     github: Github,
     youtube: Youtube,
     instagram: Instagram,
+    snapchat: Ghost,
+    pinterest: LinkIcon,
+    reddit: LinkIcon,
+    telegram: Telegram,
+    whatsapp: MessageSquare,
+    wechat: MessageSquare,
+    tumblr: Tumblr,
+    messenger: MessageCircle,
+    discord: MessageSquare,
+    quora: HelpCircle,
+    twitch: Twitch,
+    threads: LinkIcon,
     other: LinkIcon
 };
 
