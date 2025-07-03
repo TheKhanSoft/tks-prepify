@@ -33,6 +33,7 @@ export interface Paper {
 export interface Question {
   id: string;
   paperId: string;
+  order: number;
   questionText: string;
   type: 'mcq' | 'short_answer';
   options?: string[]; // Only for MCQ

@@ -22,25 +22,27 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { useToast } from "@/hooks/use-toast";
 import { ArrowLeft, PlusCircle, Trash2, Loader2 } from "lucide-react";
 import { getPaperById } from "@/lib/paper-service";
-import { addQuestion } from "@/lib/question-service";
+import { addQuestion, fetchQuestionsForPaper } from "@/lib/question-service";
 import type { Paper, Question } from "@/types";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 import React, { useState, useEffect } from "react";
 
-const mcqSchema = z.object({
-    type: z.literal('mcq'),
-    questionText: z.string().min(10, { message: "Question text must be at least 10 characters." }),
-    options: z.array(z.object({ text: z.string().min(1, { message: "Option text cannot be empty." }) })).min(2, "MCQ questions must have at least 2 options."),
-    correctAnswers: z.array(z.string()).min(1, { message: "At least one correct answer must be selected." }),
-    explanation: z.string().optional(),
+const baseSchema = z.object({
+  order: z.coerce.number().int().min(1, { message: "Order must be a positive number." }),
+  questionText: z.string().min(10, { message: "Question text must be at least 10 characters." }),
+  explanation: z.string().optional(),
 });
 
-const shortAnswerSchema = z.object({
+const mcqSchema = baseSchema.extend({
+    type: z.literal('mcq'),
+    options: z.array(z.object({ text: z.string().min(1, { message: "Option text cannot be empty." }) })).min(2, "MCQ questions must have at least 2 options."),
+    correctAnswers: z.array(z.string()).min(1, { message: "At least one correct answer must be selected." }),
+});
+
+const shortAnswerSchema = baseSchema.extend({
     type: z.literal('short_answer'),
-    questionText: z.string().min(10, { message: "Question text must be at least 10 characters." }),
     correctAnswer: z.string().min(1, { message: "A correct answer must be provided." }),
-    explanation: z.string().optional(),
 });
 
 const questionFormSchema = z.discriminatedUnion("type", [mcqSchema, shortAnswerSchema])
@@ -57,14 +59,6 @@ const questionFormSchema = z.discriminatedUnion("type", [mcqSchema, shortAnswerS
 
 type QuestionFormValues = z.infer<typeof questionFormSchema>;
 
-const defaultValues: Partial<QuestionFormValues> = {
-  type: 'mcq',
-  questionText: '',
-  options: [{ text: "" }, { text: "" }],
-  correctAnswers: [],
-  explanation: '',
-};
-
 export default function NewQuestionPage() {
   const router = useRouter();
   const params = useParams();
@@ -74,27 +68,44 @@ export default function NewQuestionPage() {
   const [paper, setPaper] = useState<Paper | null>(null);
   const [loading, setLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
-
-  useEffect(() => {
-      if (!paperId) return;
-      const loadPaper = async () => {
-          setLoading(true);
-          const fetchedPaper = await getPaperById(paperId);
-          setPaper(fetchedPaper);
-          setLoading(false);
-      };
-      loadPaper();
-  }, [paperId]);
+  const [nextOrder, setNextOrder] = useState(1);
 
   const form = useForm<QuestionFormValues>({
     resolver: zodResolver(questionFormSchema),
-    defaultValues,
   });
+
+  useEffect(() => {
+      if (!paperId) return;
+      const loadData = async () => {
+          setLoading(true);
+          try {
+            const [fetchedPaper, fetchedQuestions] = await Promise.all([
+                getPaperById(paperId),
+                fetchQuestionsForPaper(paperId),
+            ]);
+            setPaper(fetchedPaper);
+            const nextOrderNumber = fetchedQuestions.length > 0 ? Math.max(...fetchedQuestions.map(q => q.order)) + 1 : 1;
+            setNextOrder(nextOrderNumber);
+            form.reset({
+                type: 'mcq',
+                order: nextOrderNumber,
+                questionText: '',
+                options: [{ text: "" }, { text: "" }],
+                correctAnswers: [],
+                explanation: '',
+            });
+          } catch(e) {
+            toast({ title: "Error", description: "Could not load paper data.", variant: "destructive" });
+          } finally {
+            setLoading(false);
+          }
+      };
+      loadData();
+  }, [paperId, toast, form]);
 
   const { fields, append, remove } = useFieldArray({
     control: form.control,
-    // @ts-ignore
-    name: "options"
+    name: "options" as 'options',
   });
 
   const questionType = form.watch("type");
@@ -104,12 +115,11 @@ export default function NewQuestionPage() {
     try {
         const questionData: Omit<Question, 'id'> = {
             paperId,
+            order: data.order,
             type: data.type,
             questionText: data.questionText,
             explanation: data.explanation || "",
-            // @ts-ignore
             options: data.type === 'mcq' ? data.options.map(o => o.text) : [],
-            // @ts-ignore
             correctAnswer: data.type === 'mcq' ? data.correctAnswers : data.correctAnswer,
         };
 
@@ -163,40 +173,55 @@ export default function NewQuestionPage() {
         <CardContent>
           <Form {...form}>
             <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
-              <FormField
-                control={form.control}
-                name="type"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Question Type</FormLabel>
-                    <Select onValueChange={(value) => {
-                      // @ts-ignore
-                      field.onChange(value);
-                      if (value === 'mcq' && fields.length === 0) {
-                        append({ text: '' });
-                        append({ text: '' });
-                      } else if (value === 'short_answer') {
-                        // @ts-ignore
-                        form.setValue('options', undefined);
-                        // @ts-ignore
-                        form.setValue('correctAnswers', undefined);
-                      }
-                    }} defaultValue={field.value}
-                    disabled={isSubmitting}>
-                        <FormControl>
-                            <SelectTrigger>
-                                <SelectValue placeholder="Select a question type" />
-                            </SelectTrigger>
-                        </FormControl>
-                        <SelectContent>
-                            <SelectItem value="mcq">Multiple Choice (MCQ)</SelectItem>
-                            <SelectItem value="short_answer">Short Answer</SelectItem>
-                        </SelectContent>
-                    </Select>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
+              <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
+                <FormField
+                  control={form.control}
+                  name="order"
+                  render={({ field }) => (
+                    <FormItem className="md:col-span-1">
+                      <FormLabel>Question Order</FormLabel>
+                      <FormControl>
+                        <Input type="number" {...field} disabled={isSubmitting} />
+                      </FormControl>
+                      <FormDescription>
+                        The position of this question.
+                      </FormDescription>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                    control={form.control}
+                    name="type"
+                    render={({ field }) => (
+                    <FormItem className="md:col-span-3">
+                        <FormLabel>Question Type</FormLabel>
+                        <Select onValueChange={(value) => {
+                          field.onChange(value);
+                          if (value === 'mcq' && fields.length === 0) {
+                            append({ text: '' });
+                            append({ text: '' });
+                          } else if (value === 'short_answer') {
+                            form.setValue('options', undefined as any);
+                            form.setValue('correctAnswers', undefined as any);
+                          }
+                        }} defaultValue={field.value}
+                        disabled={isSubmitting}>
+                            <FormControl>
+                                <SelectTrigger>
+                                    <SelectValue placeholder="Select a question type" />
+                                </SelectTrigger>
+                            </FormControl>
+                            <SelectContent>
+                                <SelectItem value="mcq">Multiple Choice (MCQ)</SelectItem>
+                                <SelectItem value="short_answer">Short Answer</SelectItem>
+                            </SelectContent>
+                        </Select>
+                        <FormMessage />
+                    </FormItem>
+                    )}
+                />
+              </div>
 
               <FormField
                 control={form.control}
@@ -230,16 +255,13 @@ export default function NewQuestionPage() {
                       <React.Fragment key={item.id}>
                         <FormField
                             control={form.control}
-                            // @ts-ignore
                             name="correctAnswers"
                             render={({ field }) => (
                                 <div className="flex justify-center">
                                 <Checkbox
                                     disabled={isSubmitting}
-                                    // @ts-ignore
                                     checked={field.value?.includes(form.getValues(`options.${index}.text`))}
                                     onCheckedChange={(checked) => {
-                                        // @ts-ignore
                                         const optionText = form.getValues(`options.${index}.text`);
                                         if (!optionText) return;
                                         const currentAnswers = field.value || [];
@@ -255,8 +277,7 @@ export default function NewQuestionPage() {
                         />
                         <FormField
                             control={form.control}
-                            // @ts-ignore
-                            name={`options.${index}.text`}
+                            name={`options.${index}.text` as any}
                             render={({ field }) => (
                                 <Input
                                     {...field}
@@ -266,10 +287,8 @@ export default function NewQuestionPage() {
                                         const oldValue = field.value;
                                         const newValue = e.target.value;
                                         field.onChange(newValue);
-                                        // @ts-ignore
                                         const correctAnswers = form.getValues("correctAnswers") || [];
                                         if (correctAnswers.includes(oldValue)) {
-                                            // @ts-ignore
                                             form.setValue("correctAnswers", correctAnswers.map((ans: string) => ans === oldValue ? newValue : ans), { shouldValidate: true });
                                         }
                                     }}
@@ -294,15 +313,13 @@ export default function NewQuestionPage() {
                       <PlusCircle className="mr-2 h-4 w-4" />
                       Add Option
                   </Button>
-                   {/* @ts-ignore */}
-                  <FormMessage>{form.formState.errors.correctAnswers?.message || form.formState.errors.options?.message}</FormMessage>
+                  <FormMessage>{form.formState.errors.correctAnswers?.message || (form.formState.errors.options as any)?.message}</FormMessage>
                 </div>
               )}
 
               {questionType === 'short_answer' && (
                 <FormField
                   control={form.control}
-                  // @ts-ignore
                   name="correctAnswer"
                   render={({ field }) => (
                     <FormItem>

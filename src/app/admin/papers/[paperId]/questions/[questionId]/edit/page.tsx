@@ -28,20 +28,23 @@ import React, { useEffect, useState } from "react";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 
-const mcqSchema = z.object({
-    type: z.literal('mcq'),
-    questionText: z.string().min(10, { message: "Question text must be at least 10 characters." }),
-    options: z.array(z.object({ text: z.string().min(1, { message: "Option text cannot be empty." }) })).min(2, "MCQ questions must have at least 2 options."),
-    correctAnswers: z.array(z.string()).min(1, { message: "At least one correct answer must be selected." }),
-    explanation: z.string().optional(),
+const baseSchema = z.object({
+  order: z.coerce.number().int().min(1, { message: "Order must be a positive number." }),
+  questionText: z.string().min(10, { message: "Question text must be at least 10 characters." }),
+  explanation: z.string().optional(),
 });
 
-const shortAnswerSchema = z.object({
-    type: z.literal('short_answer'),
-    questionText: z.string().min(10, { message: "Question text must be at least 10 characters." }),
-    correctAnswer: z.string().min(1, { message: "A correct answer must be provided." }),
-    explanation: z.string().optional(),
+const mcqSchema = baseSchema.extend({
+    type: z.literal('mcq'),
+    options: z.array(z.object({ text: z.string().min(1, { message: "Option text cannot be empty." }) })).min(2, "MCQ questions must have at least 2 options."),
+    correctAnswers: z.array(z.string()).min(1, { message: "At least one correct answer must be selected." }),
 });
+
+const shortAnswerSchema = baseSchema.extend({
+    type: z.literal('short_answer'),
+    correctAnswer: z.string().min(1, { message: "A correct answer must be provided." }),
+});
+
 
 const questionFormSchema = z.discriminatedUnion("type", [mcqSchema, shortAnswerSchema])
   .refine(data => {
@@ -67,9 +70,12 @@ export default function EditQuestionPage() {
   const questionId = params.questionId as string;
   
   const [paper, setPaper] = useState<Paper | null>(null);
-  const [question, setQuestion] = useState<Question | null>(null);
   const [loading, setLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const form = useForm<QuestionFormValues>({
+    resolver: zodResolver(questionFormSchema),
+  });
 
   useEffect(() => {
     if (!paperId || !questionId) return;
@@ -81,12 +87,12 @@ export default function EditQuestionPage() {
                 getQuestionById(questionId),
             ]);
             setPaper(fetchedPaper);
-            setQuestion(fetchedQuestion);
 
             if (fetchedQuestion) {
                 if (fetchedQuestion.type === 'mcq') {
                     form.reset({
                         type: 'mcq',
+                        order: fetchedQuestion.order,
                         questionText: fetchedQuestion.questionText,
                         options: fetchedQuestion.options?.map(opt => ({ text: opt })) || [],
                         correctAnswers: Array.isArray(fetchedQuestion.correctAnswer) ? fetchedQuestion.correctAnswer : [fetchedQuestion.correctAnswer],
@@ -95,6 +101,7 @@ export default function EditQuestionPage() {
                 } else {
                      form.reset({
                         type: 'short_answer',
+                        order: fetchedQuestion.order,
                         questionText: fetchedQuestion.questionText,
                         correctAnswer: fetchedQuestion.correctAnswer as string,
                         explanation: fetchedQuestion.explanation || '',
@@ -110,16 +117,11 @@ export default function EditQuestionPage() {
         }
     };
     loadData();
-  }, [paperId, questionId]);
-
-  const form = useForm<QuestionFormValues>({
-    resolver: zodResolver(questionFormSchema),
-  });
+  }, [paperId, questionId, toast, form]);
 
   const { fields, append, remove } = useFieldArray({
     control: form.control,
-    // @ts-ignore
-    name: "options"
+    name: "options" as 'options',
   });
 
   const questionType = form.watch("type");
@@ -129,8 +131,7 @@ export default function EditQuestionPage() {
     try {
         let questionData: Partial<Question> = { ...data };
         if (questionData.type === 'mcq') {
-            // @ts-ignore
-            questionData.options = data.options.map(o => o.text);
+            questionData.options = (data as any).options.map((o: any) => o.text);
         } else {
             questionData.options = [];
         }
@@ -157,7 +158,7 @@ export default function EditQuestionPage() {
     );
   }
 
-  if (!paper || !question) {
+  if (!paper) {
     return (
         <div className="container mx-auto text-center py-20">
             <h1 className="text-2xl font-bold">Paper or Question Not Found</h1>
@@ -183,34 +184,48 @@ export default function EditQuestionPage() {
         <CardContent>
           <Form {...form}>
             <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
-              <FormField
-                control={form.control}
-                name="type"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Question Type</FormLabel>
-                    <Select onValueChange={(value) => {
-                      // @ts-ignore
-                      field.onChange(value);
-                      if (value === 'mcq' && fields.length === 0) {
-                        append({ text: '' });
-                        append({ text: '' });
-                      }
-                    }} defaultValue={field.value}>
-                        <FormControl>
-                            <SelectTrigger disabled={isSubmitting}>
-                                <SelectValue placeholder="Select a question type" />
-                            </SelectTrigger>
-                        </FormControl>
-                        <SelectContent>
-                            <SelectItem value="mcq">Multiple Choice (MCQ)</SelectItem>
-                            <SelectItem value="short_answer">Short Answer</SelectItem>
-                        </SelectContent>
-                    </Select>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
+              <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
+                <FormField
+                  control={form.control}
+                  name="order"
+                  render={({ field }) => (
+                    <FormItem className="md:col-span-1">
+                      <FormLabel>Question Order</FormLabel>
+                      <FormControl>
+                        <Input type="number" {...field} disabled={isSubmitting} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                    control={form.control}
+                    name="type"
+                    render={({ field }) => (
+                    <FormItem className="md:col-span-3">
+                        <FormLabel>Question Type</FormLabel>
+                        <Select onValueChange={(value) => {
+                          field.onChange(value);
+                          if (value === 'mcq' && fields.length === 0) {
+                            append({ text: '' });
+                            append({ text: '' });
+                          }
+                        }} defaultValue={field.value}>
+                            <FormControl>
+                                <SelectTrigger disabled={isSubmitting}>
+                                    <SelectValue placeholder="Select a question type" />
+                                </SelectTrigger>
+                            </FormControl>
+                            <SelectContent>
+                                <SelectItem value="mcq">Multiple Choice (MCQ)</SelectItem>
+                                <SelectItem value="short_answer">Short Answer</SelectItem>
+                            </SelectContent>
+                        </Select>
+                        <FormMessage />
+                    </FormItem>
+                    )}
+                />
+              </div>
 
               <FormField
                 control={form.control}
@@ -242,16 +257,13 @@ export default function EditQuestionPage() {
                       <React.Fragment key={item.id}>
                         <FormField
                             control={form.control}
-                            // @ts-ignore
                             name="correctAnswers"
                             render={({ field }) => (
                                 <div className="flex justify-center">
                                 <Checkbox
                                     disabled={isSubmitting}
-                                    // @ts-ignore
                                     checked={field.value?.includes(form.getValues(`options.${index}.text`))}
                                     onCheckedChange={(checked) => {
-                                        // @ts-ignore
                                         const optionText = form.getValues(`options.${index}.text`);
                                         if (!optionText) return;
                                         const currentAnswers = field.value || [];
@@ -267,8 +279,7 @@ export default function EditQuestionPage() {
                         />
                         <FormField
                             control={form.control}
-                            // @ts-ignore
-                            name={`options.${index}.text`}
+                            name={`options.${index}.text` as any}
                             render={({ field }) => (
                                 <Input
                                     {...field}
@@ -278,10 +289,8 @@ export default function EditQuestionPage() {
                                         const oldValue = field.value;
                                         const newValue = e.target.value;
                                         field.onChange(newValue);
-                                        // @ts-ignore
                                         const correctAnswers = form.getValues("correctAnswers") || [];
                                         if (correctAnswers.includes(oldValue)) {
-                                            // @ts-ignore
                                             form.setValue("correctAnswers", correctAnswers.map((ans: string) => ans === oldValue ? newValue : ans), { shouldValidate: true });
                                         }
                                     }}
@@ -306,15 +315,13 @@ export default function EditQuestionPage() {
                     <PlusCircle className="mr-2 h-4 w-4" />
                     Add Option
                   </Button>
-                  {/* @ts-ignore */}
-                  <FormMessage>{form.formState.errors.correctAnswers?.message || form.formState.errors.options?.message}</FormMessage>
+                  <FormMessage>{form.formState.errors.correctAnswers?.message || (form.formState.errors.options as any)?.message}</FormMessage>
                 </div>
               )}
 
               {questionType === 'short_answer' && (
                 <FormField
                   control={form.control}
-                  // @ts-ignore
                   name="correctAnswer"
                   render={({ field }) => (
                     <FormItem>

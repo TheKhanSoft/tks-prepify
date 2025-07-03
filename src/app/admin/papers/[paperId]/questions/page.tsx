@@ -117,10 +117,10 @@ export default function AdminPaperQuestionsPage() {
     
     const handleDownloadSample = () => {
         const csvContent = "data:text/csv;charset=utf-8," +
-            "type,questionText,options,correctAnswer,explanation\n" +
-            'mcq,"What is 2+2?","1|2|3|4","4","Basic addition."\n' +
-            'mcq,"Which of these are prime numbers?","2|4|7|9","2|7","A prime number is only divisible by 1 and itself."\n' +
-            'short_answer,"What is the capital of France?","","Paris","Paris is the capital and most populous city of France."';
+            "order,type,questionText,options,correctAnswer,explanation\n" +
+            '1,mcq,"What is 2+2?","1|2|3|4","4","Basic addition."\n' +
+            '2,mcq,"Which of these are prime numbers?","2|4|7|9","2|7","A prime number is only divisible by 1 and itself."\n' +
+            '3,short_answer,"What is the capital of France?","","Paris","Paris is the capital and most populous city of France."';
 
         const encodedUri = encodeURI(csvContent);
         const link = document.createElement("a");
@@ -153,12 +153,18 @@ export default function AdminPaperQuestionsPage() {
                 }
 
                 try {
+                    const existingQuestions = await fetchQuestionsForPaper(paperId);
+                    let nextOrder = existingQuestions.length > 0 ? Math.max(...existingQuestions.map(q => q.order)) + 1 : 1;
+
                     const newQuestions = results.data.map((row: any) => {
                         if (!row.type || !row.questionText || !row.correctAnswer) {
                             throw new Error("Each row must have type, questionText, and correctAnswer.");
                         }
+                        const order = row.order && !isNaN(parseInt(row.order, 10)) ? parseInt(row.order, 10) : nextOrder++;
+
                         const question: Omit<Question, 'id'> = {
                             paperId: paperId,
+                            order: order,
                             type: row.type.trim() as 'mcq' | 'short_answer',
                             questionText: row.questionText.trim(),
                             options: row.options ? row.options.split('|').map((s: string) => s.trim()) : [],
@@ -260,6 +266,7 @@ export default function AdminPaperQuestionsPage() {
                 <Table>
                     <TableHeader>
                     <TableRow>
+                        <TableHead>Order</TableHead>
                         <TableHead className="w-[50%]">Question</TableHead>
                         <TableHead>Type</TableHead>
                         <TableHead>Answer</TableHead>
@@ -269,6 +276,7 @@ export default function AdminPaperQuestionsPage() {
                     <TableBody>
                     {questions.length > 0 ? questions.map((question) => (
                         <TableRow key={question.id}>
+                            <TableCell>{question.order}</TableCell>
                             <TableCell className="font-medium">{question.questionText}</TableCell>
                             <TableCell><Badge variant="secondary">{question.type.toUpperCase()}</Badge></TableCell>
                             <TableCell className="truncate max-w-xs">{Array.isArray(question.correctAnswer) ? question.correctAnswer.join(', ') : question.correctAnswer}</TableCell>
@@ -285,7 +293,7 @@ export default function AdminPaperQuestionsPage() {
                             </TableCell>
                         </TableRow>
                     )) : (
-                        <TableRow><TableCell colSpan={4} className="h-24 text-center">No questions found for this paper yet.</TableCell></TableRow>
+                        <TableRow><TableCell colSpan={5} className="h-24 text-center">No questions found for this paper yet.</TableCell></TableRow>
                     )}
                     </TableBody>
                 </Table>

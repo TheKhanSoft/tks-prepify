@@ -2,20 +2,15 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import type { Metadata } from 'next';
 import { useRouter, useParams } from 'next/navigation';
-import { questions as allQuestions } from '@/lib/data';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
 import { ArrowLeft, ArrowRight, CheckCircle2, Lightbulb, Loader2 } from 'lucide-react';
 import { Separator } from '@/components/ui/separator';
 import { cn } from '@/lib/utils';
 import { getPaperBySlug } from '@/lib/paper-service';
-import type { Paper } from '@/types';
-
-// NOTE: generateMetadata can't be used in a client component.
-// The metadata will be handled at the page level if needed, or this can be refactored.
-// For now, we focus on the client-side logic.
+import { fetchQuestionsForPaper } from '@/lib/question-service';
+import type { Paper, Question } from '@/types';
 
 export default function SolvedPaperPage() {
   const router = useRouter();
@@ -23,21 +18,24 @@ export default function SolvedPaperPage() {
   const slug = params.slug as string;
   
   const [paper, setPaper] = useState<Paper | null>(null);
+  const [questions, setQuestions] = useState<Question[]>([]);
   const [loading, setLoading] = useState(true);
 
   const [currentPage, setCurrentPage] = useState(1);
   const questionsPerPage = 2;
 
   useEffect(() => {
-    const loadPaper = async () => {
+    const loadData = async () => {
         if (!slug) return;
         setLoading(true);
         try {
             const fetchedPaper = await getPaperBySlug(slug);
             if (fetchedPaper && fetchedPaper.published) {
                 setPaper(fetchedPaper);
+                const fetchedQuestions = await fetchQuestionsForPaper(fetchedPaper.id);
+                setQuestions(fetchedQuestions);
             } else {
-                setPaper(null); // Paper is not published or not found
+                setPaper(null);
             }
         } catch (error) {
             console.error("Failed to fetch paper:", error);
@@ -46,12 +44,12 @@ export default function SolvedPaperPage() {
             setLoading(false);
         }
     };
-    loadPaper();
+    loadData();
   }, [slug]);
 
   if (loading) {
     return (
-        <div className="container mx-auto text-center py-20">
+        <div className="container mx-auto text-center py-20 flex justify-center items-center h-screen">
             <Loader2 className="h-8 w-8 animate-spin mx-auto" />
         </div>
     );
@@ -67,8 +65,6 @@ export default function SolvedPaperPage() {
     );
   }
   
-  const questions = allQuestions.filter(q => q.paperId === paper.id);
-
   if (questions.length === 0) {
      return (
       <div className="container mx-auto text-center py-20">
@@ -88,7 +84,7 @@ export default function SolvedPaperPage() {
   const goToPreviousPage = () => setCurrentPage((prev) => Math.max(prev - 1, 1));
 
   return (
-    <div className="container mx-auto px-16 py-8 md:py-12">
+    <div className="container mx-auto px-6 sm:px-10 lg:px-16 py-8 md:py-12">
       <div className="mb-8">
         <Button variant="outline" onClick={() => router.back()} className="mb-4">
           <ArrowLeft className="mr-2 h-4 w-4" />
@@ -104,11 +100,11 @@ export default function SolvedPaperPage() {
           <CardDescription>Review the questions and their correct answers below.</CardDescription>
         </CardHeader>
         <CardContent className="space-y-8">
-          {currentQuestions.map((question, index) => (
+          {currentQuestions.map((question) => (
             <div key={question.id}>
               <div className="flex flex-col sm:flex-row items-start gap-4">
                 <div className="flex-shrink-0 flex-grow-0 w-8 h-8 bg-primary text-primary-foreground rounded-full flex items-center justify-center font-bold text-lg">
-                  {startIndex + index + 1}
+                  {question.order}
                 </div>
                 <div className="flex-grow w-full">
                   <p className="font-semibold text-lg mb-4">{question.questionText}</p>
@@ -126,12 +122,12 @@ export default function SolvedPaperPage() {
                             className={cn(
                               'flex items-center gap-3 p-3 rounded-md border',
                               isCorrect
-                                ? 'bg-chart-2/20 border-chart-2'
+                                ? 'bg-green-600/10 border-green-600/50'
                                 : 'bg-card'
                             )}
                           >
                             {isCorrect ? (
-                              <CheckCircle2 className="h-5 w-5 text-chart-2 flex-shrink-0" />
+                              <CheckCircle2 className="h-5 w-5 text-green-600 flex-shrink-0" />
                             ) : (
                               <div className="h-5 w-5 flex-shrink-0" />
                             )}
@@ -143,9 +139,12 @@ export default function SolvedPaperPage() {
                   )}
 
                   {question.type === 'short_answer' && (
-                    <div className="mb-4 p-4 rounded-md border bg-green-600/10 border-green-600">
-                        <p className="font-semibold text-green-700">Correct Answer</p>
-                        <p className="text-card-foreground mt-1">{question.correctAnswer}</p>
+                    <div className="mb-4 p-4 rounded-md border bg-green-600/10 border-green-600/50">
+                        <div className="flex items-center gap-2">
+                           <CheckCircle2 className="h-5 w-5 text-green-600 flex-shrink-0" />
+                          <p className="font-semibold text-green-700">Correct Answer</p>
+                        </div>
+                        <p className="text-card-foreground mt-2 pl-7">{question.correctAnswer}</p>
                     </div>
                   )}
                   
@@ -160,7 +159,7 @@ export default function SolvedPaperPage() {
                   )}
                 </div>
               </div>
-              {index < currentQuestions.length - 1 && <Separator className="mt-8" />}
+              {question.order < currentQuestions[currentQuestions.length - 1].order && <Separator className="mt-8" />}
             </div>
           ))}
         </CardContent>

@@ -4,7 +4,7 @@
 import { useEffect, useState, useMemo } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import { BarChart, Book, CheckCircle2, Lightbulb, Loader2, XCircle } from 'lucide-react';
-import { questions as allQuestions } from '@/lib/data';
+import { fetchQuestionsForPaper } from '@/lib/question-service';
 import { fetchPapers } from '@/lib/paper-service';
 import { fetchCategories, getCategoryPath } from '@/lib/category-service';
 import type { Paper, Question, UserAnswer, TestResult, Category } from '@/types';
@@ -28,10 +28,10 @@ export default function ResultsPage() {
   const router = useRouter();
   const params = useParams();
   const [result, setResult] = useState<TestResult | null>(null);
+  const [questions, setQuestions] = useState<Question[]>([]);
   const [feedback, setFeedback] = useState<FeedbackState>({});
   const [recommendations, setRecommendations] = useState({ loading: false, content: '' });
   const [allCategories, setAllCategories] = useState<Category[]>([]);
-  const [allPapers, setAllPapers] = useState<Paper[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -40,17 +40,17 @@ export default function ResultsPage() {
         try {
             const [cats, papers] = await Promise.all([fetchCategories(), fetchPapers()]);
             setAllCategories(cats);
-            setAllPapers(papers);
 
             const storedResults = localStorage.getItem('latestTestResults');
             if (storedResults) {
                 const { paperId, answers: userAnswersArray } = JSON.parse(storedResults);
                 const paper = papers.find(p => p.id === paperId);
-                const questions = allQuestions.filter(q => q.paperId === paperId);
+                const fetchedQuestions = await fetchQuestionsForPaper(paperId);
+                setQuestions(fetchedQuestions);
 
-                if (paper && questions.length > 0) {
+                if (paper && fetchedQuestions.length > 0) {
                     let score = 0;
-                    const processedAnswers: UserAnswer[] = questions.map((q, index) => {
+                    const processedAnswers: UserAnswer[] = fetchedQuestions.map((q, index) => {
                     const userAnswer = userAnswersArray[index];
                     const isCorrect = Array.isArray(q.correctAnswer) 
                         ? q.correctAnswer.includes(userAnswer)
@@ -117,7 +117,7 @@ export default function ResultsPage() {
     setRecommendations({ loading: true, content: '' });
     const weakAreas = result.answers
       .filter(a => !a.isCorrect)
-      .map(a => allQuestions.find(q => q.id === a.questionId)?.questionText)
+      .map(a => questions.find(q => q.id === a.questionId)?.questionText)
       .join(', ');
 
     try {
@@ -188,18 +188,18 @@ export default function ResultsPage() {
               <CardHeader><CardTitle>Detailed Review</CardTitle></CardHeader>
               <CardContent>
                 <Accordion type="single" collapsible className="w-full">
-                  {result.answers.map((answer, index) => {
-                    const question = allQuestions.find(q => q.id === answer.questionId);
+                  {result.answers.map((answer) => {
+                    const question = questions.find(q => q.id === answer.questionId);
                     if (!question) return null;
                     const questionFeedback = feedback[question.id];
                     const correctAnswerText = Array.isArray(question.correctAnswer) ? question.correctAnswer.join(', ') : question.correctAnswer;
 
                     return (
-                      <AccordionItem key={question.id} value={`item-${index}`}>
+                      <AccordionItem key={question.id} value={`item-${question.id}`}>
                         <AccordionTrigger className="text-left">
                           <div className="flex items-center gap-4">
                             {answer.isCorrect ? <CheckCircle2 className="h-5 w-5 text-green-500" /> : <XCircle className="h-5 w-5 text-destructive" />}
-                            <span>Question {index + 1}: {question.questionText}</span>
+                            <span>Question {question.order}: {question.questionText}</span>
                           </div>
                         </AccordionTrigger>
                         <AccordionContent className="space-y-4">

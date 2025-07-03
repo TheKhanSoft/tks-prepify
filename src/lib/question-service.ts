@@ -14,6 +14,7 @@ import {
   writeBatch,
   DocumentData,
   increment,
+  orderBy,
 } from 'firebase/firestore';
 import { db } from './firebase';
 import type { Question } from '@/types';
@@ -23,8 +24,9 @@ function docToQuestion(doc: DocumentData): Question {
   return {
     id: doc.id,
     paperId: data.paperId,
-    type: data.type,
+    order: data.order || 0,
     questionText: data.questionText,
+    type: data.type,
     options: data.options,
     correctAnswer: data.correctAnswer,
     explanation: data.explanation,
@@ -33,7 +35,7 @@ function docToQuestion(doc: DocumentData): Question {
 
 export async function fetchQuestionsForPaper(paperId: string): Promise<Question[]> {
   if (!paperId) return [];
-  const q = query(collection(db, 'questions'), where('paperId', '==', paperId));
+  const q = query(collection(db, 'questions'), where('paperId', '==', paperId), orderBy('order'));
   const querySnapshot = await getDocs(q);
   return querySnapshot.docs.map(doc => docToQuestion(doc));
 }
