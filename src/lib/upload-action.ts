@@ -1,41 +1,33 @@
 
 'use server';
 
-import { writeFile, mkdir } from 'fs/promises';
-import { join } from 'path';
-
 export async function uploadHeroImage(formData: FormData) {
   const file = formData.get('heroImage') as File | null;
   if (!file) {
     return { success: false, error: 'No file provided.' };
   }
 
-  const bytes = await file.arrayBuffer();
-  const buffer = Buffer.from(bytes);
-
-  // Correctly define a relative path within the project
-  const relativeUploadDir = join('images', 'site');
-  const uploadDir = join(process.cwd(), 'public', relativeUploadDir);
-  
-  try {
-    await mkdir(uploadDir, { recursive: true });
-  } catch (error: any) {
-    if (error.code !== 'EEXIST') {
-      console.error("Failed to create directory:", error);
-      return { success: false, error: "Could not create upload directory." };
-    }
+  // Validate that the file is an image
+  if (!file.type.startsWith('image/')) {
+    return { success: false, error: 'Invalid file type. Please upload an image.' };
   }
 
-  const uniqueFilename = `${Date.now()}-${file.name.replace(/\s/g, '_')}`;
-  // Create the public-facing path for the `src` attribute
-  const publicPath = join('/', relativeUploadDir, uniqueFilename);
-  const absolutePath = join(uploadDir, uniqueFilename);
+  // Validate file size. Firestore documents have a 1 MiB limit.
+  // Base64 encoding adds ~33% overhead, so we'll set a raw limit of 750KB.
+  const MAX_SIZE_IN_BYTES = 750 * 1024;
+  if (file.size > MAX_SIZE_IN_BYTES) {
+    return { success: false, error: `Image is too large. Please upload an image under 750KB.` };
+  }
 
   try {
-    await writeFile(absolutePath, buffer);
-    return { success: true, path: publicPath };
+    const bytes = await file.arrayBuffer();
+    const buffer = Buffer.from(bytes);
+    const base64 = buffer.toString('base64');
+    const dataUri = `data:${file.type};base64,${base64}`;
+
+    return { success: true, path: dataUri };
   } catch (error) {
-    console.error("File upload to file system failed:", error);
-    return { success: false, error: "File upload failed. Check server permissions." };
+    console.error("Error processing image to Base64:", error);
+    return { success: false, error: "Failed to process the uploaded image." };
   }
 }
