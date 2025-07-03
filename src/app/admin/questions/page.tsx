@@ -2,6 +2,7 @@
 "use client";
 
 import React, { useState, useEffect, useCallback, useMemo } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
   Table,
@@ -17,6 +18,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
   DropdownMenuLabel,
+  DropdownMenuSeparator,
 } from "@/components/ui/dropdown-menu";
 import {
   AlertDialog,
@@ -30,7 +32,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { MoreHorizontal, Trash2, Loader2 } from "lucide-react";
+import { MoreHorizontal, Trash2, Loader2, Edit } from "lucide-react";
 import { fetchAllQuestions, deleteQuestionFromBank } from "@/lib/question-service";
 import type { Question, QuestionCategory } from "@/types";
 import { Badge } from "@/components/ui/badge";
@@ -189,6 +191,13 @@ export default function AllQuestionsPage() {
                                 <DropdownMenuTrigger asChild><Button aria-haspopup="true" size="icon" variant="ghost"><MoreHorizontal className="h-4 w-4" /><span className="sr-only">Toggle menu</span></Button></DropdownMenuTrigger>
                                 <DropdownMenuContent align="end">
                                     <DropdownMenuLabel>Actions</DropdownMenuLabel>
+                                    <DropdownMenuItem asChild>
+                                        <Link href={`/admin/questions/${question.id}/edit`}>
+                                            <Edit className="mr-2 h-4 w-4" />
+                                            Edit
+                                        </Link>
+                                    </DropdownMenuItem>
+                                    <DropdownMenuSeparator />
                                     <DropdownMenuItem className="text-destructive" onSelect={() => openDeleteDialog(question)}><Trash2 className="mr-2 h-4 w-4" />Delete from Bank</DropdownMenuItem>
                                 </DropdownMenuContent>
                                 </DropdownMenu>
