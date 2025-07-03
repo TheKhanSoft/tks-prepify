@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { fetchPapers } from '@/lib/paper-service';
 import { fetchCategories } from '@/lib/category-service';
+import { fetchSettings } from '@/lib/settings-service';
 import { getDescendantCategoryIds, getCategoryById } from '@/lib/category-helpers';
 import { ArrowRight, Bookmark, FileText, Folder } from 'lucide-react';
 import Image from 'next/image';
@@ -25,9 +26,10 @@ function getAllFeaturedCategories(categories: Category[]): Category[] {
 
 
 export default async function Home() {
-  const [allCategories, allPapers] = await Promise.all([
+  const [allCategories, allPapers, settings] = await Promise.all([
     fetchCategories(),
-    fetchPapers()
+    fetchPapers(),
+    fetchSettings()
   ]);
 
   const featuredCategories = getAllFeaturedCategories(allCategories).slice(0, 4);
@@ -40,23 +42,23 @@ export default async function Home() {
         <div className="container mx-auto px-16 py-16 md:py-24 grid md:grid-cols-2 gap-8 items-center">
           <div className="space-y-6">
             <h1 className="text-4xl md:text-5xl font-bold font-headline leading-tight">
-              Excel in Your Tests with <span className="text-primary">Expertly Solved</span> Question Papers
+              {settings.heroTitlePrefix} <span className="text-primary">{settings.heroTitleHighlight}</span> {settings.heroTitleSuffix}
             </h1>
             <p className="text-lg text-muted-foreground">
-              Prepify offers a vast library of solved question papers, complete with detailed explanations and practice tools to help you excel in your exams.
+              {settings.heroSubtitle}
             </p>
             <div className="flex gap-4">
               <Button size="lg" asChild>
-                <Link href="/papers">Explore Papers</Link>
+                <Link href={settings.heroButton1Link || '#'}>{settings.heroButton1Text}</Link>
               </Button>
               <Button size="lg" variant="outline" asChild>
-                <Link href="/signup">Get Started</Link>
+                <Link href={settings.heroButton2Link || '#'}>{settings.heroButton2Text}</Link>
               </Button>
             </div>
           </div>
           <div>
             <Image
-              src="https://placehold.co/600x400.png"
+              src={settings.heroImage || "https://placehold.co/600x400.png"}
               alt="Student studying"
               data-ai-hint="student studying"
               width={600}

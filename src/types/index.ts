@@ -80,4 +80,14 @@ export interface Settings {
     defaultQuestionCount: number;
     defaultDuration: number;
     defaultQuestionsPerPage: number;
+    // Homepage Hero Section
+    heroTitlePrefix?: string;
+    heroTitleHighlight?: string;
+    heroTitleSuffix?: string;
+    heroSubtitle?: string;
+    heroButton1Text?: string;
+    heroButton1Link?: string;
+    heroButton2Text?: string;
+    heroButton2Link?: string;
+    heroImage?: string;
 }

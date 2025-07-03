@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useForm } from "react-hook-form";
@@ -28,6 +29,15 @@ const settingsFormSchema = z.object({
   defaultQuestionCount: z.coerce.number().int().min(1, "Must be at least 1."),
   defaultDuration: z.coerce.number().int().min(1, "Must be at least 1 minute."),
   defaultQuestionsPerPage: z.coerce.number().int().min(1, "Must be at least 1."),
+  heroTitlePrefix: z.string().optional(),
+  heroTitleHighlight: z.string().optional(),
+  heroTitleSuffix: z.string().optional(),
+  heroSubtitle: z.string().optional(),
+  heroButton1Text: z.string().optional(),
+  heroButton1Link: z.string().optional(),
+  heroButton2Text: z.string().optional(),
+  heroButton2Link: z.string().optional(),
+  heroImage: z.string().url({ message: "Please enter a valid URL." }).or(z.literal("")).optional(),
 });
 
 type SettingsFormValues = z.infer<typeof settingsFormSchema>;
@@ -99,6 +109,7 @@ export default function AdminSettingsPage() {
           <Tabs defaultValue="site" className="space-y-6">
             <TabsList>
               <TabsTrigger value="site">Site</TabsTrigger>
+              <TabsTrigger value="homepage">Homepage</TabsTrigger>
               <TabsTrigger value="defaults">Defaults</TabsTrigger>
             </TabsList>
             <TabsContent value="site">
@@ -134,6 +145,133 @@ export default function AdminSettingsPage() {
                           <Textarea {...field} value={field.value || ''} disabled={isSubmitting} />
                         </FormControl>
                         <FormDescription>A short description or tagline for your site.</FormDescription>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </CardContent>
+              </Card>
+            </TabsContent>
+             <TabsContent value="homepage">
+              <Card>
+                <CardHeader>
+                  <CardTitle>Homepage Hero Section</CardTitle>
+                  <CardDescription>
+                    Customize the content of the main hero section on your homepage.
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-6">
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <FormField
+                      control={form.control}
+                      name="heroTitlePrefix"
+                      render={({ field }) => (
+                        <FormItem className="md:col-span-1">
+                          <FormLabel>Title Prefix</FormLabel>
+                          <FormControl>
+                            <Input {...field} value={field.value || ''} disabled={isSubmitting} />
+                          </FormControl>
+                        </FormItem>
+                      )}
+                    />
+                    <FormField
+                      control={form.control}
+                      name="heroTitleHighlight"
+                      render={({ field }) => (
+                        <FormItem className="md:col-span-1">
+                          <FormLabel>Highlighted Title</FormLabel>
+                          <FormControl>
+                            <Input {...field} value={field.value || ''} disabled={isSubmitting} />
+                          </FormControl>
+                        </FormItem>
+                      )}
+                    />
+                    <FormField
+                      control={form.control}
+                      name="heroTitleSuffix"
+                      render={({ field }) => (
+                        <FormItem className="md:col-span-1">
+                          <FormLabel>Title Suffix</FormLabel>
+                          <FormControl>
+                            <Input {...field} value={field.value || ''} disabled={isSubmitting} />
+                          </FormControl>
+                        </FormItem>
+                      )}
+                    />
+                  </div>
+                  <FormField
+                    control={form.control}
+                    name="heroSubtitle"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Subtitle</FormLabel>
+                        <FormControl>
+                          <Textarea {...field} value={field.value || ''} disabled={isSubmitting} />
+                        </FormControl>
+                      </FormItem>
+                    )}
+                  />
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <FormField
+                      control={form.control}
+                      name="heroButton1Text"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Button 1 Text</FormLabel>
+                          <FormControl>
+                            <Input {...field} value={field.value || ''} disabled={isSubmitting} />
+                          </FormControl>
+                        </FormItem>
+                      )}
+                    />
+                    <FormField
+                      control={form.control}
+                      name="heroButton1Link"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Button 1 Link</FormLabel>
+                          <FormControl>
+                            <Input {...field} value={field.value || ''} placeholder="/papers" disabled={isSubmitting} />
+                          </FormControl>
+                        </FormItem>
+                      )}
+                    />
+                  </div>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <FormField
+                      control={form.control}
+                      name="heroButton2Text"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Button 2 Text</FormLabel>
+                          <FormControl>
+                            <Input {...field} value={field.value || ''} disabled={isSubmitting} />
+                          </FormControl>
+                        </FormItem>
+                      )}
+                    />
+                    <FormField
+                      control={form.control}
+                      name="heroButton2Link"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Button 2 Link</FormLabel>
+                          <FormControl>
+                            <Input {...field} value={field.value || ''} placeholder="/signup" disabled={isSubmitting} />
+                          </FormControl>
+                        </FormItem>
+                      )}
+                    />
+                  </div>
+                  <FormField
+                    control={form.control}
+                    name="heroImage"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Hero Image URL</FormLabel>
+                        <FormControl>
+                          <Input {...field} value={field.value || ''} placeholder="https://..." disabled={isSubmitting} />
+                        </FormControl>
                         <FormMessage />
                       </FormItem>
                     )}
