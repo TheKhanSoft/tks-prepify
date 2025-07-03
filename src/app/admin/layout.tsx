@@ -1,6 +1,6 @@
 
-import { SidebarProvider, Sidebar, SidebarHeader, SidebarTrigger, SidebarMenu, SidebarMenuItem, SidebarMenuButton, SidebarContent, SidebarInset, SidebarFooter } from '@/components/ui/sidebar';
-import { LayoutDashboard, FileText, Folder, Home, Users, Settings, Bell, Search, Library, Tags, Mail, FileSliders, ChevronRight } from 'lucide-react';
+import { SidebarProvider, Sidebar, SidebarHeader, SidebarTrigger, SidebarMenu, SidebarMenuItem, SidebarMenuButton, SidebarContent, SidebarInset, SidebarFooter, SidebarSeparator } from '@/components/ui/sidebar';
+import { LayoutDashboard, FileText, Folder, Home, Users, Settings, Bell, Search, Library, Tags, Mail, FileSliders, ChevronRight, Database } from 'lucide-react';
 import Link from 'next/link';
 import { BookOpen } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -36,19 +36,12 @@ export default async function AdminLayout({
                   </Link>
                 </SidebarMenuButton>
               </SidebarMenuItem>
-               <SidebarMenuItem>
-                <SidebarMenuButton asChild tooltip="Messages">
-                  <Link href="/admin/messages">
-                    <Mail />
-                    <span className="group-data-[collapsible=icon]:hidden">Messages</span>
-                  </Link>
-                </SidebarMenuButton>
-              </SidebarMenuItem>
+              <SidebarSeparator />
               <Collapsible asChild>
                 <SidebarMenuItem>
                   <div className="w-full">
                     <CollapsibleTrigger asChild>
-                      <SidebarMenuButton variant="ghost" className="w-full justify-between group-data-[collapsible=icon]:justify-center">
+                      <SidebarMenuButton variant="ghost" className="w-full justify-between group-data-[collapsible=icon]:justify-center" tooltip="Pages">
                         <div className="flex items-center gap-2">
                           <FileSliders />
                           <span className="group-data-[collapsible=icon]:hidden">Pages</span>
@@ -80,22 +73,6 @@ export default async function AdminLayout({
                   </Link>
                 </SidebarMenuButton>
               </SidebarMenuItem>
-               <SidebarMenuItem>
-                <SidebarMenuButton asChild tooltip="All Questions">
-                  <Link href="/admin/questions">
-                    <Library />
-                    <span className="group-data-[collapsible=icon]:hidden">All Questions</span>
-                  </Link>
-                </SidebarMenuButton>
-              </SidebarMenuItem>
-              <SidebarMenuItem>
-                <SidebarMenuButton asChild tooltip="Question Categories">
-                  <Link href="/admin/question-categories">
-                    <Tags />
-                    <span className="group-data-[collapsible=icon]:hidden">Question Categories</span>
-                  </Link>
-                </SidebarMenuButton>
-              </SidebarMenuItem>
               <SidebarMenuItem>
                 <SidebarMenuButton asChild tooltip="Categories">
                   <Link href="/admin/categories">
@@ -104,7 +81,33 @@ export default async function AdminLayout({
                   </Link>
                 </SidebarMenuButton>
               </SidebarMenuItem>
-              <SidebarMenuItem>
+              <Collapsible asChild>
+                <SidebarMenuItem>
+                  <div className="w-full">
+                    <CollapsibleTrigger asChild>
+                      <SidebarMenuButton variant="ghost" className="w-full justify-between group-data-[collapsible=icon]:justify-center" tooltip="Question Bank">
+                        <div className="flex items-center gap-2">
+                          <Database />
+                          <span className="group-data-[collapsible=icon]:hidden">Question Bank</span>
+                        </div>
+                        <ChevronRight className="h-4 w-4 group-data-[collapsible=icon]:hidden transition-transform [&[data-state=open]]:rotate-90" />
+                      </SidebarMenuButton>
+                    </CollapsibleTrigger>
+                    <CollapsibleContent className="group-data-[collapsible=icon]:hidden">
+                      <div className="pl-8 py-1 flex flex-col gap-1">
+                        <Button asChild variant="link" className="h-auto p-0 justify-start text-muted-foreground hover:text-foreground">
+                          <Link href="/admin/questions">All Questions</Link>
+                        </Button>
+                        <Button asChild variant="link" className="h-auto p-0 justify-start text-muted-foreground hover:text-foreground">
+                          <Link href="/admin/question-categories">Question Categories</Link>
+                        </Button>
+                      </div>
+                    </CollapsibleContent>
+                  </div>
+                </SidebarMenuItem>
+              </Collapsible>
+               <SidebarSeparator />
+               <SidebarMenuItem>
                 <SidebarMenuButton asChild tooltip="Users">
                   <Link href="/admin/users">
                     <Users />
@@ -112,9 +115,18 @@ export default async function AdminLayout({
                   </Link>
                 </SidebarMenuButton>
               </SidebarMenuItem>
+               <SidebarMenuItem>
+                <SidebarMenuButton asChild tooltip="Messages">
+                  <Link href="/admin/messages">
+                    <Mail />
+                    <span className="group-data-[collapsible=icon]:hidden">Messages</span>
+                  </Link>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
             </SidebarMenu>
           </SidebarContent>
           <SidebarFooter>
+             <SidebarSeparator />
             <SidebarMenu>
                 <SidebarMenuItem>
                     <SidebarMenuButton asChild tooltip="Settings">
