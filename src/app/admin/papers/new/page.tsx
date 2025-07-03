@@ -23,7 +23,7 @@ import { useToast } from "@/hooks/use-toast";
 import { ArrowLeft, Loader2, Sparkles } from "lucide-react";
 import { useState, useEffect, useMemo } from 'react';
 import { fetchCategories, getFlattenedCategories, getCategoryPath, getCategoryById } from '@/lib/category-service';
-import type { Category } from '@/types';
+import type { Category, Settings } from '@/types';
 import { addDoc, collection } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { slugify } from "@/lib/utils";
@@ -73,6 +73,7 @@ export default function NewPaperPage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isGeneratingDesc, setIsGeneratingDesc] = useState(false);
   const [isGeneratingSeo, setIsGeneratingSeo] = useState(false);
+  const [settings, setSettings] = useState<Settings | null>(null);
   
   const form = useForm<PaperFormValues>({
     resolver: zodResolver(paperFormSchema),
@@ -81,11 +82,12 @@ export default function NewPaperPage() {
   useEffect(() => {
     const loadData = async () => {
         setLoading(true);
-        const [cats, settings] = await Promise.all([
+        const [cats, settingsData] = await Promise.all([
           fetchCategories(),
           fetchSettings()
         ]);
         setAllCategories(cats);
+        setSettings(settingsData);
         form.reset({
           title: "",
           description: "",
@@ -93,8 +95,9 @@ export default function NewPaperPage() {
           featured: false,
           published: false,
           session: "",
-          questionCount: settings.defaultQuestionCount,
-          duration: settings.defaultDuration,
+          questionCount: settingsData.defaultQuestionCount,
+          duration: settingsData.defaultDuration,
+          questionsPerPage: settingsData.defaultQuestionsPerPage,
         });
         setLoading(false);
     };
@@ -349,7 +352,7 @@ export default function NewPaperPage() {
                             <FormItem>
                                 <FormLabel>Number of Questions</FormLabel>
                                 <FormControl>
-                                <Input type="number" placeholder="e.g., 50" {...field} disabled={isSubmitting} />
+                                <Input type="number" placeholder={`e.g., ${settings?.defaultQuestionCount ?? 100}`} {...field} disabled={isSubmitting} />
                                 </FormControl>
                                 <FormDescription>Note: This is a static count for display. You will add questions separately.</FormDescription>
                                 <FormMessage />
@@ -363,7 +366,7 @@ export default function NewPaperPage() {
                             <FormItem>
                                 <FormLabel>Duration (minutes)</FormLabel>
                                 <FormControl>
-                                <Input type="number" placeholder="e.g., 60" {...field} disabled={isSubmitting} />
+                                <Input type="number" placeholder={`e.g., ${settings?.defaultDuration ?? 120}`} {...field} disabled={isSubmitting} />
                                 </FormControl>
                                 <FormMessage />
                             </FormItem>
@@ -376,7 +379,7 @@ export default function NewPaperPage() {
                             <FormItem>
                                 <FormLabel>Questions Per Page (Optional)</FormLabel>
                                 <FormControl>
-                                <Input type="number" {...field} value={field.value ?? ''} placeholder="Default: 2" disabled={isSubmitting} />
+                                <Input type="number" {...field} value={field.value ?? ''} placeholder={`Default: ${settings?.defaultQuestionsPerPage ?? 2}`} disabled={isSubmitting} />
                                 </FormControl>
                                  <FormDescription>Leave blank to use the global default.</FormDescription>
                                 <FormMessage />

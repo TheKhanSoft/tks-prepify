@@ -24,13 +24,14 @@ import { ArrowLeft, Loader2, Sparkles } from "lucide-react";
 import { useEffect, useState, useMemo } from "react";
 import { fetchCategories, getFlattenedCategories, getCategoryPath, getCategoryById } from "@/lib/category-service";
 import { getPaperById } from "@/lib/paper-service";
-import type { Category, Paper } from "@/types";
+import type { Category, Paper, Settings } from "@/types";
 import { doc, updateDoc } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { slugify } from "@/lib/utils";
 import { generatePaperDescription } from "@/ai/flows/generate-paper-description-flow";
 import { generatePaperSeoDetails } from "@/ai/flows/generate-paper-seo-flow";
 import { Switch } from "@/components/ui/switch";
+import { fetchSettings } from "@/lib/settings-service";
 
 const paperFormSchema = z.object({
   title: z.string().min(3, {
@@ -75,6 +76,7 @@ export default function EditPaperPage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isGeneratingDesc, setIsGeneratingDesc] = useState(false);
   const [isGeneratingSeo, setIsGeneratingSeo] = useState(false);
+  const [settings, setSettings] = useState<Settings | null>(null);
 
   const form = useForm<PaperFormValues>({
     resolver: zodResolver(paperFormSchema),
@@ -85,12 +87,14 @@ export default function EditPaperPage() {
     const loadData = async () => {
         setLoading(true);
         try {
-            const [cats, paper] = await Promise.all([
+            const [cats, paper, settingsData] = await Promise.all([
                 fetchCategories(),
                 getPaperById(paperId),
+                fetchSettings(),
             ]);
             
             setAllCategories(cats);
+            setSettings(settingsData);
 
             if (paper) {
                 form.reset({
@@ -396,9 +400,9 @@ export default function EditPaperPage() {
                             <FormItem>
                                 <FormLabel>Questions Per Page (Optional)</FormLabel>
                                 <FormControl>
-                                <Input type="number" {...field} value={field.value ?? ''} placeholder="Default: 2" disabled={isSubmitting} />
+                                <Input type="number" {...field} value={field.value ?? ''} placeholder={`Default: ${settings?.defaultQuestionsPerPage ?? 2}`} disabled={isSubmitting} />
                                 </FormControl>
-                                 <FormDescription>Leave blank to use the global default (2).</FormDescription>
+                                 <FormDescription>Leave blank to use the global default.</FormDescription>
                                 <FormMessage />
                             </FormItem>
                             )}
