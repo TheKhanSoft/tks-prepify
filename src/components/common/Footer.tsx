@@ -2,11 +2,14 @@
 "use client";
 
 import Link from 'next/link';
-import { BookOpen } from 'lucide-react';
+import { BookOpen, Facebook, Github, Instagram, Linkedin, Twitter, Youtube, Link as LinkIcon, MessageSquare, MessageCircle, Twitch, Ghost, Send } from 'lucide-react';
 import { Button } from '../ui/button';
 import type { Settings } from '@/types';
 import { socialPlatforms } from '@/lib/social-platforms';
 
+const iconMap: { [key: string]: React.ComponentType<{ className?: string }> } = {
+    Facebook, Github, Instagram, Linkedin, Twitter, Youtube, MessageSquare, MessageCircle, Twitch, Ghost, Send, Link: LinkIcon
+};
 
 export function Footer({ settings }: { settings: Settings }) {
   return (
@@ -22,7 +25,8 @@ export function Footer({ settings }: { settings: Settings }) {
             <div className="flex gap-1">
                 {settings.socialLinks && settings.socialLinks.map((link) => {
                     const platformInfo = socialPlatforms.find(p => p.value === link.platform);
-                    const Icon = platformInfo?.icon;
+                    const Icon = platformInfo ? iconMap[platformInfo.iconName] : null;
+
                     if (!Icon || !link.url) return null;
                     return (
                         <Button asChild variant="ghost" size="icon" key={link.platform}>

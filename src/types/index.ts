@@ -1,3 +1,4 @@
+
 export interface Category {
   id: string;
   name: string;
@@ -116,4 +117,14 @@ export interface Settings {
     contactEmail?: string;
     contactPhone?: string;
     contactAddress?: string;
+}
+
+export interface ContactSubmission {
+  id: string;
+  name: string;
+  email: string;
+  subject: string;
+  message: string;
+  createdAt: Date;
+  isRead: boolean;
 }

@@ -18,7 +18,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2, PlusCircle, Trash2, UploadCloud, Link as LinkIcon } from "lucide-react";
+import { Loader2, PlusCircle, Trash2, UploadCloud, Link as LinkIcon, Facebook, Github, Instagram, Linkedin, Twitter, Youtube, MessageSquare, MessageCircle, Twitch, Ghost, Send } from "lucide-react";
 import React, { useState, useEffect } from "react";
 import { fetchSettings, updateSettings } from "@/lib/settings-service";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -68,6 +68,10 @@ const settingsFormSchema = z.object({
 });
 
 type SettingsFormValues = z.infer<typeof settingsFormSchema>;
+
+const iconMap: { [key: string]: React.ComponentType<{ className?: string }> } = {
+    Facebook, Github, Instagram, Linkedin, Twitter, Youtube, MessageSquare, MessageCircle, Twitch, Ghost, Send, Link: LinkIcon
+};
 
 export default function AdminSettingsPage() {
   const { toast } = useToast();
@@ -314,7 +318,7 @@ export default function AdminSettingsPage() {
                 <CardContent className="space-y-4">
                   {socialFields.map((item, index) => {
                     const selectedPlatform = socialPlatforms.find(p => p.value === form.watch(`socialLinks.${index}.platform`));
-                    const Icon = selectedPlatform?.icon || LinkIcon;
+                    const Icon = selectedPlatform ? (iconMap[selectedPlatform.iconName] || LinkIcon) : LinkIcon;
                     return (
                         <div key={item.id} className="flex items-end gap-4 p-4 border rounded-lg">
                             <FormField control={form.control} name={`socialLinks.${index}.platform`} render={({ field }) => (<FormItem className="w-48"><FormLabel>Platform</FormLabel><Select onValueChange={field.onChange} defaultValue={field.value}><FormControl><SelectTrigger><SelectValue placeholder="Select platform..." /></SelectTrigger></FormControl><SelectContent>{socialPlatforms.map(p => (<SelectItem key={p.value} value={p.value}>{p.label}</SelectItem>))}</SelectContent></Select><FormMessage /></FormItem>)} />

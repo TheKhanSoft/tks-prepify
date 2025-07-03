@@ -1,6 +1,6 @@
 
 import { SidebarProvider, Sidebar, SidebarHeader, SidebarTrigger, SidebarMenu, SidebarMenuItem, SidebarMenuButton, SidebarContent, SidebarInset, SidebarFooter } from '@/components/ui/sidebar';
-import { LayoutDashboard, FileText, Folder, Home, Users, Settings, Bell, Search, Library, Tags } from 'lucide-react';
+import { LayoutDashboard, FileText, Folder, Home, Users, Settings, Bell, Search, Library, Tags, Mail } from 'lucide-react';
 import Link from 'next/link';
 import { BookOpen } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -32,6 +32,14 @@ export default async function AdminLayout({
                   <Link href="/admin/dashboard">
                     <LayoutDashboard />
                     <span className="group-data-[collapsible=icon]:hidden">Dashboard</span>
+                  </Link>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+               <SidebarMenuItem>
+                <SidebarMenuButton asChild tooltip="Messages">
+                  <Link href="/admin/messages">
+                    <Mail />
+                    <span className="group-data-[collapsible=icon]:hidden">Messages</span>
                   </Link>
                 </SidebarMenuButton>
               </SidebarMenuItem>
