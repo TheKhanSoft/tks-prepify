@@ -21,9 +21,9 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
 import { ArrowLeft, Loader2, PlusCircle, Trash2 } from "lucide-react";
-import { getQuestionById } from "@/lib/data";
 import { getPaperById } from "@/lib/paper-service";
-import type { Paper } from "@/types";
+import { getQuestionById, updateQuestion } from "@/lib/question-service";
+import type { Paper, Question } from "@/types";
 import React, { useEffect, useState } from "react";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
@@ -67,21 +67,50 @@ export default function EditQuestionPage() {
   const questionId = params.questionId as string;
   
   const [paper, setPaper] = useState<Paper | null>(null);
+  const [question, setQuestion] = useState<Question | null>(null);
   const [loading, setLoading] = useState(true);
-
-  const question = getQuestionById(questionId);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   useEffect(() => {
-    if (!paperId) return;
-    const loadPaper = async () => {
+    if (!paperId || !questionId) return;
+    const loadData = async () => {
         setLoading(true);
-        const fetchedPaper = await getPaperById(paperId);
-        setPaper(fetchedPaper);
-        setLoading(false);
-    };
-    loadPaper();
-  }, [paperId]);
+        try {
+            const [fetchedPaper, fetchedQuestion] = await Promise.all([
+                getPaperById(paperId),
+                getQuestionById(questionId),
+            ]);
+            setPaper(fetchedPaper);
+            setQuestion(fetchedQuestion);
 
+            if (fetchedQuestion) {
+                if (fetchedQuestion.type === 'mcq') {
+                    form.reset({
+                        type: 'mcq',
+                        questionText: fetchedQuestion.questionText,
+                        options: fetchedQuestion.options?.map(opt => ({ text: opt })) || [],
+                        correctAnswers: Array.isArray(fetchedQuestion.correctAnswer) ? fetchedQuestion.correctAnswer : [fetchedQuestion.correctAnswer],
+                        explanation: fetchedQuestion.explanation || '',
+                    });
+                } else {
+                     form.reset({
+                        type: 'short_answer',
+                        questionText: fetchedQuestion.questionText,
+                        correctAnswer: fetchedQuestion.correctAnswer as string,
+                        explanation: fetchedQuestion.explanation || '',
+                    });
+                }
+            } else {
+                 toast({ title: "Error", description: "Question not found.", variant: "destructive" });
+            }
+        } catch (error) {
+            toast({ title: "Error", description: "Failed to load data.", variant: "destructive" });
+        } finally {
+            setLoading(false);
+        }
+    };
+    loadData();
+  }, [paperId, questionId]);
 
   const form = useForm<QuestionFormValues>({
     resolver: zodResolver(questionFormSchema),
@@ -93,39 +122,34 @@ export default function EditQuestionPage() {
     name: "options"
   });
 
-  useEffect(() => {
-    if (question) {
-        if (question.type === 'mcq') {
-            form.reset({
-                type: 'mcq',
-                questionText: question.questionText,
-                options: question.options?.map(opt => ({ text: opt })) || [],
-                correctAnswers: Array.isArray(question.correctAnswer) ? question.correctAnswer : [question.correctAnswer],
-                explanation: question.explanation || '',
-            })
-        } else {
-            form.reset({
-                type: 'short_answer',
-                questionText: question.questionText,
-                correctAnswer: question.correctAnswer as string,
-                explanation: question.explanation || '',
-            })
-        }
-    }
-  }, [question, form]);
-
   const questionType = form.watch("type");
 
-  function onSubmit(data: QuestionFormValues) {
-    console.log(data);
-    toast({
-      title: "Question Updated",
-      description: "The question has been updated (console only).",
-    });
-    router.push(`/admin/papers/${paperId}/questions`);
+  async function onSubmit(data: QuestionFormValues) {
+    setIsSubmitting(true);
+    try {
+        let questionData: Partial<Question> = { ...data };
+        if (questionData.type === 'mcq') {
+            // @ts-ignore
+            questionData.options = data.options.map(o => o.text);
+        } else {
+            questionData.options = [];
+        }
+        await updateQuestion(questionId, questionData);
+        toast({
+            title: "Question Updated",
+            description: "The question has been updated successfully.",
+        });
+        router.push(`/admin/papers/${paperId}/questions`);
+        router.refresh();
+    } catch (error) {
+        console.error("Error updating question:", error);
+        toast({ title: "Error", description: "Failed to update question.", variant: "destructive" });
+    } finally {
+        setIsSubmitting(false);
+    }
   }
   
-  if (loading || !question) {
+  if (loading) {
     return (
         <div className="flex justify-center items-center h-full min-h-[calc(100vh-20rem)]">
             <Loader2 className="h-8 w-8 animate-spin text-primary" />
@@ -133,11 +157,11 @@ export default function EditQuestionPage() {
     );
   }
 
-  if (!paper) {
+  if (!paper || !question) {
     return (
         <div className="container mx-auto text-center py-20">
-            <h1 className="text-2xl font-bold">Paper Not Found</h1>
-            <p>This question paper could not be found or is not available.</p>
+            <h1 className="text-2xl font-bold">Paper or Question Not Found</h1>
+            <p>The requested resource could not be found.</p>
             <Button onClick={() => router.push('/admin/papers')} className="mt-4">Go to Papers</Button>
         </div>
     );
@@ -146,7 +170,7 @@ export default function EditQuestionPage() {
   return (
     <div className="space-y-6">
        <div>
-        <Button variant="outline" onClick={() => router.back()}>
+        <Button variant="outline" onClick={() => router.back()} disabled={isSubmitting}>
           <ArrowLeft className="mr-2 h-4 w-4" />
           Back to Questions
         </Button>
@@ -174,7 +198,7 @@ export default function EditQuestionPage() {
                       }
                     }} defaultValue={field.value}>
                         <FormControl>
-                            <SelectTrigger>
+                            <SelectTrigger disabled={isSubmitting}>
                                 <SelectValue placeholder="Select a question type" />
                             </SelectTrigger>
                         </FormControl>
@@ -195,7 +219,7 @@ export default function EditQuestionPage() {
                   <FormItem>
                     <FormLabel>Question Text</FormLabel>
                     <FormControl>
-                      <Textarea placeholder="What is the capital of France?" {...field} />
+                      <Textarea placeholder="What is the capital of France?" {...field} disabled={isSubmitting} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -210,12 +234,10 @@ export default function EditQuestionPage() {
                   </FormDescription>
 
                   <div className="grid grid-cols-[auto_1fr_auto] items-center gap-x-4 gap-y-2">
-                    {/* Grid Header */}
                     <Label className="text-sm font-medium text-muted-foreground justify-self-center">Correct Option(s)</Label>
                     <Label className="text-sm font-medium text-muted-foreground">Option Text</Label>
                     <span />
 
-                    {/* Grid Rows */}
                     {fields.map((item, index) => (
                       <React.Fragment key={item.id}>
                         <FormField
@@ -225,6 +247,7 @@ export default function EditQuestionPage() {
                             render={({ field }) => (
                                 <div className="flex justify-center">
                                 <Checkbox
+                                    disabled={isSubmitting}
                                     // @ts-ignore
                                     checked={field.value?.includes(form.getValues(`options.${index}.text`))}
                                     onCheckedChange={(checked) => {
@@ -249,6 +272,7 @@ export default function EditQuestionPage() {
                             render={({ field }) => (
                                 <Input
                                     {...field}
+                                    disabled={isSubmitting}
                                     placeholder={`Option ${index + 1}`}
                                     onChange={(e) => {
                                         const oldValue = field.value;
@@ -269,7 +293,7 @@ export default function EditQuestionPage() {
                             variant="ghost"
                             size="icon"
                             onClick={() => remove(index)}
-                            disabled={fields.length <= 2}
+                            disabled={fields.length <= 2 || isSubmitting}
                             >
                             <Trash2 className="h-4 w-4" />
                             <span className="sr-only">Remove option</span>
@@ -278,7 +302,7 @@ export default function EditQuestionPage() {
                     ))}
                   </div>
 
-                  <Button type="button" variant="outline" size="sm" onClick={() => append({ text: "" })}>
+                  <Button type="button" variant="outline" size="sm" onClick={() => append({ text: "" })} disabled={isSubmitting}>
                     <PlusCircle className="mr-2 h-4 w-4" />
                     Add Option
                   </Button>
@@ -296,7 +320,7 @@ export default function EditQuestionPage() {
                     <FormItem>
                       <FormLabel>Correct Answer</FormLabel>
                       <FormControl>
-                        <Input placeholder="Enter the exact correct answer..." {...field} />
+                        <Input placeholder="Enter the exact correct answer..." {...field} disabled={isSubmitting}/>
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -311,7 +335,7 @@ export default function EditQuestionPage() {
                   <FormItem>
                     <FormLabel>Explanation (Optional)</FormLabel>
                     <FormControl>
-                      <Textarea placeholder="Provide a detailed explanation for the correct answer..." {...field} value={field.value || ''}/>
+                      <Textarea placeholder="Provide a detailed explanation for the correct answer..." {...field} value={field.value || ''} disabled={isSubmitting}/>
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -319,10 +343,13 @@ export default function EditQuestionPage() {
               />
 
               <div className="flex justify-end gap-4">
-                 <Button type="button" variant="outline" onClick={() => router.push(`/admin/papers/${paperId}/questions`)}>
+                 <Button type="button" variant="outline" onClick={() => router.push(`/admin/papers/${paperId}/questions`)} disabled={isSubmitting}>
                     Cancel
                 </Button>
-                <Button type="submit">Save Changes</Button>
+                <Button type="submit" disabled={isSubmitting}>
+                    {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                    Save Changes
+                </Button>
               </div>
             </form>
           </Form>

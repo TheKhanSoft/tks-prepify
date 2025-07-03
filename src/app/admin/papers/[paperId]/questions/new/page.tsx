@@ -22,7 +22,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { useToast } from "@/hooks/use-toast";
 import { ArrowLeft, PlusCircle, Trash2, Loader2 } from "lucide-react";
 import { getPaperById } from "@/lib/paper-service";
-import type { Paper } from "@/types";
+import { addQuestion } from "@/lib/question-service";
+import type { Paper, Question } from "@/types";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 import React, { useState, useEffect } from "react";
@@ -72,6 +73,7 @@ export default function NewQuestionPage() {
 
   const [paper, setPaper] = useState<Paper | null>(null);
   const [loading, setLoading] = useState(true);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   useEffect(() => {
       if (!paperId) return;
@@ -97,13 +99,34 @@ export default function NewQuestionPage() {
 
   const questionType = form.watch("type");
 
-  function onSubmit(data: QuestionFormValues) {
-    console.log(data);
-    toast({
-      title: "Question Created",
-      description: "The new question has been saved (console only).",
-    });
-    router.push(`/admin/papers/${paperId}/questions`);
+  async function onSubmit(data: QuestionFormValues) {
+    setIsSubmitting(true);
+    try {
+        const questionData: Omit<Question, 'id'> = {
+            paperId,
+            type: data.type,
+            questionText: data.questionText,
+            explanation: data.explanation || "",
+            // @ts-ignore
+            options: data.type === 'mcq' ? data.options.map(o => o.text) : [],
+            // @ts-ignore
+            correctAnswer: data.type === 'mcq' ? data.correctAnswers : data.correctAnswer,
+        };
+
+        await addQuestion(questionData);
+
+        toast({
+            title: "Question Created",
+            description: "The new question has been saved successfully.",
+        });
+        router.push(`/admin/papers/${paperId}/questions`);
+        router.refresh();
+    } catch (error) {
+        console.error("Error creating question:", error);
+        toast({ title: "Error", description: "Failed to create question.", variant: "destructive" });
+    } finally {
+        setIsSubmitting(false);
+    }
   }
   
   if (loading) {
@@ -127,7 +150,7 @@ export default function NewQuestionPage() {
   return (
     <div className="space-y-6">
        <div>
-        <Button variant="outline" onClick={() => router.back()}>
+        <Button variant="outline" onClick={() => router.back()} disabled={isSubmitting}>
           <ArrowLeft className="mr-2 h-4 w-4" />
           Back to Questions
         </Button>
@@ -158,7 +181,8 @@ export default function NewQuestionPage() {
                         // @ts-ignore
                         form.setValue('correctAnswers', undefined);
                       }
-                    }} defaultValue={field.value}>
+                    }} defaultValue={field.value}
+                    disabled={isSubmitting}>
                         <FormControl>
                             <SelectTrigger>
                                 <SelectValue placeholder="Select a question type" />
@@ -181,7 +205,7 @@ export default function NewQuestionPage() {
                   <FormItem>
                     <FormLabel>Question Text</FormLabel>
                     <FormControl>
-                      <Textarea placeholder="What is the capital of France?" {...field} />
+                      <Textarea placeholder="What is the capital of France?" {...field} disabled={isSubmitting} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -211,6 +235,7 @@ export default function NewQuestionPage() {
                             render={({ field }) => (
                                 <div className="flex justify-center">
                                 <Checkbox
+                                    disabled={isSubmitting}
                                     // @ts-ignore
                                     checked={field.value?.includes(form.getValues(`options.${index}.text`))}
                                     onCheckedChange={(checked) => {
@@ -235,6 +260,7 @@ export default function NewQuestionPage() {
                             render={({ field }) => (
                                 <Input
                                     {...field}
+                                    disabled={isSubmitting}
                                     placeholder={`Option ${index + 1}`}
                                     onChange={(e) => {
                                         const oldValue = field.value;
@@ -255,7 +281,7 @@ export default function NewQuestionPage() {
                             variant="ghost"
                             size="icon"
                             onClick={() => remove(index)}
-                            disabled={fields.length <= 2}
+                            disabled={fields.length <= 2 || isSubmitting}
                             >
                             <Trash2 className="h-4 w-4" />
                             <span className="sr-only">Remove option</span>
@@ -264,7 +290,7 @@ export default function NewQuestionPage() {
                     ))}
                   </div>
                   
-                  <Button type="button" variant="outline" size="sm" onClick={() => append({ text: "" })}>
+                  <Button type="button" variant="outline" size="sm" onClick={() => append({ text: "" })} disabled={isSubmitting}>
                       <PlusCircle className="mr-2 h-4 w-4" />
                       Add Option
                   </Button>
@@ -282,7 +308,7 @@ export default function NewQuestionPage() {
                     <FormItem>
                       <FormLabel>Correct Answer</FormLabel>
                       <FormControl>
-                        <Input placeholder="Enter the exact correct answer..." {...field} />
+                        <Input placeholder="Enter the exact correct answer..." {...field} disabled={isSubmitting} />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -297,7 +323,7 @@ export default function NewQuestionPage() {
                   <FormItem>
                     <FormLabel>Explanation (Optional)</FormLabel>
                     <FormControl>
-                      <Textarea placeholder="Provide a detailed explanation for the correct answer..." {...field} value={field.value || ''}/>
+                      <Textarea placeholder="Provide a detailed explanation for the correct answer..." {...field} value={field.value || ''} disabled={isSubmitting}/>
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -305,10 +331,13 @@ export default function NewQuestionPage() {
               />
 
               <div className="flex justify-end gap-4">
-                 <Button type="button" variant="outline" onClick={() => router.push(`/admin/papers/${paperId}/questions`)}>
+                 <Button type="button" variant="outline" onClick={() => router.push(`/admin/papers/${paperId}/questions`)} disabled={isSubmitting}>
                     Cancel
                 </Button>
-                <Button type="submit">Save Question</Button>
+                <Button type="submit" disabled={isSubmitting}>
+                    {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                    Save Question
+                </Button>
               </div>
             </form>
           </Form>
