@@ -111,6 +111,8 @@ export default function CopyPaperPage() {
                     metaDescription: paper.metaDescription || '',
                     keywords: paper.keywords || '',
                 });
+                // Explicitly set the questionCount value to ensure it's correct
+                form.setValue('questionCount', paper.questionCount);
             } else {
                 toast({ title: "Error", description: "Source paper not found.", variant: "destructive" });
                 router.push('/admin/papers');

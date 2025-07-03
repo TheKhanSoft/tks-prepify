@@ -186,20 +186,29 @@ export async function copyPaperQuestions(sourcePaperId: string, newPaperId: stri
     return; // No questions to copy
   }
 
-  const batch = writeBatch(db);
   const paperQuestionsCollection = collection(db, 'paper_questions');
+  const CHUNK_SIZE = 499; // Firestore batch limit is 500
+  const docChunks = [];
 
-  linksSnapshot.forEach(doc => {
-    const linkData = doc.data();
-    const newLinkRef = doc(paperQuestionsCollection);
-    batch.set(newLinkRef, {
-      paperId: newPaperId,
-      questionId: linkData.questionId,
-      order: linkData.order,
+  // Slice the documents into chunks
+  for (let i = 0; i < linksSnapshot.docs.length; i += CHUNK_SIZE) {
+    docChunks.push(linksSnapshot.docs.slice(i, i + CHUNK_SIZE));
+  }
+
+  // Process each chunk in a separate batch
+  for (const chunk of docChunks) {
+    const batch = writeBatch(db);
+    chunk.forEach(docSnap => {
+        const linkData = docSnap.data();
+        const newLinkRef = doc(paperQuestionsCollection);
+        batch.set(newLinkRef, {
+            paperId: newPaperId,
+            questionId: linkData.questionId,
+            order: linkData.order,
+        });
     });
-  });
-
-  await batch.commit();
+    await batch.commit();
+  }
 }
 
 
