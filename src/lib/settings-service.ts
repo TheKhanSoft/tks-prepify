@@ -4,6 +4,7 @@
 import { doc, getDoc, setDoc } from 'firebase/firestore';
 import { db } from './firebase';
 import type { Settings } from '@/types';
+import { cache } from 'react';
 
 // Use a consistent document ID for global settings
 const settingsDocRef = doc(db, 'settings', 'global_app_settings');
@@ -46,8 +47,10 @@ const defaultSettings: Settings = {
 /**
  * Fetches the global application settings.
  * If no settings are found, returns a default set.
+ * This function is wrapped in React's `cache` to prevent duplicate database calls
+ * during a single request-response lifecycle (e.g., in layout and page).
  */
-export async function fetchSettings(): Promise<Settings> {
+export const fetchSettings = cache(async (): Promise<Settings> => {
     try {
         const docSnap = await getDoc(settingsDocRef);
         if (docSnap.exists()) {
@@ -65,7 +68,7 @@ export async function fetchSettings(): Promise<Settings> {
     }
     // Return default settings if document doesn't exist or on error
     return defaultSettings;
-}
+});
 
 /**
  * Updates the global application settings.
