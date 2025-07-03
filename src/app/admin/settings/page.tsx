@@ -15,6 +15,7 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
 import { Facebook, Github, Instagram, Linkedin, Loader2, PlusCircle, Trash2, Twitter, Youtube, Link as LinkIcon, MessageSquare, MessageCircle, HelpCircle, Twitch, Ghost, UploadCloud } from "lucide-react";
@@ -25,6 +26,11 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import Image from "next/image";
 import { cn } from "@/lib/utils";
+
+// A simple Send icon as a fallback if specific ones aren't available
+const Send = (props: any) => (
+  <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}><path d="m22 2-7 20-4-9-9-4Z"/><path d="M22 2 11 13"/></svg>
+);
 
 
 const settingsFormSchema = z.object({
@@ -49,11 +55,6 @@ const settingsFormSchema = z.object({
 });
 
 type SettingsFormValues = z.infer<typeof settingsFormSchema>;
-
-// A simple Send icon as a fallback if specific ones aren't available
-const Send = (props: any) => (
-  <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}><path d="m22 2-7 20-4-9-9-4Z"/><path d="M22 2 11 13"/></svg>
-);
 
 const socialPlatforms = [
   { value: 'facebook', label: 'Facebook', icon: Facebook },
