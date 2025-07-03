@@ -41,7 +41,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { ArrowLeft, PlusCircle, MoreHorizontal, Edit, Trash2, Loader2, FileUp, Save } from "lucide-react";
+import { ArrowLeft, PlusCircle, MoreHorizontal, Edit, Trash2, Loader2, FileUp, Save, FileDown } from "lucide-react";
 import { getPaperById } from "@/lib/paper-service";
 import { fetchQuestionsForPaper, removeQuestionFromPaper, addQuestionsBatch, PaperQuestion, batchUpdateQuestionOrder } from "@/lib/question-service";
 import type { Paper } from "@/types";
@@ -239,6 +239,43 @@ export default function AdminPaperQuestionsPage() {
         });
     };
 
+     const handleExportQuestions = () => {
+        if (!paper || questions.length === 0) {
+            toast({
+                title: "Nothing to Export",
+                description: "There are no questions in this paper to export.",
+                variant: "destructive"
+            });
+            return;
+        }
+
+        const dataToExport = questions.map(q => ({
+            order: q.order,
+            questionId: q.id,
+            type: q.type,
+            questionText: q.questionText,
+            options: q.options?.join('|') || '',
+            correctAnswer: Array.isArray(q.correctAnswer) ? q.correctAnswer.join('|') : q.correctAnswer,
+            explanation: q.explanation || ''
+        }));
+
+        const csv = Papa.unparse(dataToExport);
+        const blob = new Blob([`\uFEFF${csv}`], { type: 'text/csv;charset=utf-8;' });
+        const link = document.createElement("a");
+        const url = URL.createObjectURL(blob);
+        link.setAttribute("href", url);
+        link.setAttribute("download", `${paper.slug}-questions.csv`);
+        link.style.visibility = 'hidden';
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        
+        toast({
+            title: "Export Started",
+            description: "Your questions CSV file is downloading."
+        });
+    };
+
     if (loading) {
         return <div className="flex justify-center items-center h-full min-h-[calc(100vh-20rem)]"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>;
     }
@@ -275,6 +312,9 @@ export default function AdminPaperQuestionsPage() {
                             Save Order
                         </Button>
                     )}
+                    <Button variant="outline" onClick={handleExportQuestions}>
+                        <FileDown className="mr-2 h-4 w-4" /> Export Questions
+                    </Button>
                     <Dialog open={isImportDialogOpen} onOpenChange={setIsImportDialogOpen}>
                         <DialogTrigger asChild>
                             <Button variant="outline"><FileUp className="mr-2 h-4 w-4" /> Import Questions</Button>
