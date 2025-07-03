@@ -78,15 +78,21 @@ export async function fetchQuestionsForPaper(paperId: string): Promise<PaperQues
       return [];
   }
 
-  // Fetch all question documents in a single query
-  const questionsCol = collection(db, 'questions');
-  const questionsQuery = query(questionsCol, where('__name__', 'in', questionIds));
-  const questionsSnapshot = await getDocs(questionsQuery);
-
   const questionsMap = new Map<string, Question>();
-  questionsSnapshot.forEach(doc => {
-    questionsMap.set(doc.id, docToQuestion(doc));
-  });
+  const CHUNK_SIZE = 30; // Firestore 'in' query limit
+
+  // Chunk the questionIds and fetch questions in batches
+  for (let i = 0; i < questionIds.length; i += CHUNK_SIZE) {
+    const chunk = questionIds.slice(i, i + CHUNK_SIZE);
+    if (chunk.length > 0) {
+      const questionsCol = collection(db, 'questions');
+      const questionsQuery = query(questionsCol, where('__name__', 'in', chunk));
+      const questionsSnapshot = await getDocs(questionsQuery);
+      questionsSnapshot.forEach(doc => {
+        questionsMap.set(doc.id, docToQuestion(doc));
+      });
+    }
+  }
 
   const paperQuestions = links
     .map(link => {
@@ -114,7 +120,8 @@ export async function getQuestionLink(paperId: string, questionId: string) {
     const q = query(
         collection(db, "paper_questions"), 
         where("paperId", "==", paperId), 
-        where("questionId", "==", questionId)
+        where("questionId", "==", questionId),
+        limit(1)
     );
     const snapshot = await getDocs(q);
     if (!snapshot.empty) {
@@ -210,16 +217,23 @@ export async function getUsageCountForQuestions(questionIds: string[]): Promise<
 
   const usageCount: Record<string, number> = {};
   questionIds.forEach(id => usageCount[id] = 0);
-
-  const linksQuery = query(collection(db, 'paper_questions'), where('questionId', 'in', questionIds));
-  const linksSnapshot = await getDocs(linksQuery);
   
-  linksSnapshot.forEach(doc => {
-      const { questionId } = doc.data();
-      if (usageCount[questionId] !== undefined) {
-          usageCount[questionId]++;
-      }
-  });
+  const CHUNK_SIZE = 30; // Firestore 'in' query limit
+
+  for (let i = 0; i < questionIds.length; i += CHUNK_SIZE) {
+    const chunk = questionIds.slice(i, i + CHUNK_SIZE);
+    if (chunk.length > 0) {
+      const linksQuery = query(collection(db, 'paper_questions'), where('questionId', 'in', chunk));
+      const linksSnapshot = await getDocs(linksQuery);
+      
+      linksSnapshot.forEach(doc => {
+          const { questionId } = doc.data();
+          if (usageCount[questionId] !== undefined) {
+              usageCount[questionId]++;
+          }
+      });
+    }
+  }
 
   return usageCount;
 }
