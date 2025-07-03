@@ -162,15 +162,15 @@ export default function AdminPaperQuestionsPage() {
     
     const handleDownloadSample = () => {
         const csvContent = "data:text/csv;charset=utf-8," +
-            "order,type,questionText,options,correctAnswer,explanation\n" +
-            '1,mcq,"What is 2+2?","1|2|3|4","4","Basic addition."\n' +
-            '2,mcq,"Which of these are prime numbers?","2|4|7|9","2|7","A prime number is only divisible by 1 and itself."\n' +
-            '3,short_answer,"What is the capital of France?","","Paris","Paris is the capital and most populous city of France."';
+            'order,questionId,type,questionText,options,correctAnswer,explanation\n' +
+            '1,,mcq,"What is the chemical symbol for Helium?","He|H|Hl|Hm","He","Creates a new MCQ question. Leave questionId blank."\n' +
+            '2,,short_answer,"What planet is known as the Red Planet?","","Mars","Creates a new short answer question. Leave questionId blank."\n' +
+            '3,some_existing_question_id,,,,,"Links an existing question. Only questionId and order are needed."';
 
         const encodedUri = encodeURI(csvContent);
         const link = document.createElement("a");
         link.setAttribute("href", encodedUri);
-        link.setAttribute("download", "sample_questions.csv");
+        link.setAttribute("download", "sample_questions_import.csv");
         document.body.appendChild(link);
         link.click();
         document.body.removeChild(link);
@@ -187,39 +187,38 @@ export default function AdminPaperQuestionsPage() {
             header: true,
             skipEmptyLines: true,
             complete: async (results) => {
-                const requiredHeaders = ["type", "questionText", "correctAnswer", "order"];
-                const headers = results.meta.fields || [];
-                const missingHeaders = requiredHeaders.filter(h => !headers.includes(h));
-
-                if (missingHeaders.length > 0) {
-                    toast({ title: "Import Failed", description: `Missing required headers: ${missingHeaders.join(', ')}`, variant: "destructive" });
-                    setIsImporting(false);
-                    return;
-                }
-
                 try {
-                    const newQuestions = results.data.map((row: any, index: number) => {
-                        if (!row.type || !row.questionText || !row.correctAnswer || !row.order) {
-                            throw new Error(`Row ${index + 2} is missing a required field (type, questionText, correctAnswer, order).`);
-                        }
+                    const questionsToProcess = results.data.map((row: any, index: number) => {
                         const order = parseInt(row.order, 10);
                         if(isNaN(order)) {
-                            throw new Error(`Row ${index + 2} has an invalid 'order' value.`);
+                            throw new Error(`Row ${index + 2} has an invalid or missing 'order' value.`);
                         }
 
-                        return {
-                            order: order,
-                            type: row.type.trim() as 'mcq' | 'short_answer',
-                            questionText: row.questionText.trim(),
-                            options: row.options ? row.options.split('|').map((s: string) => s.trim()) : [],
-                            correctAnswer: row.type.trim() === 'mcq' && row.correctAnswer.includes('|') ? row.correctAnswer.split('|').map((s: string) => s.trim()) : row.correctAnswer.trim(),
-                            explanation: row.explanation ? row.explanation.trim() : "",
-                        };
+                        if (row.questionId && row.questionId.trim()) {
+                            // This is a row to link an existing question
+                            return {
+                                questionId: row.questionId.trim(),
+                                order: order,
+                            };
+                        } else {
+                            // This is a row to create a new question
+                            if (!row.type || !row.questionText || !row.correctAnswer) {
+                                throw new Error(`Row ${index + 2} is for a new question but is missing a required field (type, questionText, correctAnswer).`);
+                            }
+                            return {
+                                order: order,
+                                type: row.type.trim() as 'mcq' | 'short_answer',
+                                questionText: row.questionText.trim(),
+                                options: row.options ? row.options.split('|').map((s: string) => s.trim()) : [],
+                                correctAnswer: row.type.trim() === 'mcq' && row.correctAnswer.includes('|') ? row.correctAnswer.split('|').map((s: string) => s.trim()) : row.correctAnswer.trim(),
+                                explanation: row.explanation ? row.explanation.trim() : "",
+                            };
+                        }
                     });
                     
-                    if (newQuestions.length > 0) {
-                        await addQuestionsBatch(paperId, newQuestions);
-                        toast({ title: "Import Successful", description: `${newQuestions.length} questions have been added.` });
+                    if (questionsToProcess.length > 0) {
+                        await addQuestionsBatch(paperId, questionsToProcess);
+                        toast({ title: "Import Successful", description: `${questionsToProcess.length} questions have been processed.` });
                         await loadData();
                     } else {
                          toast({ title: "Nothing to import", description: "The selected file was empty or invalid.", variant: "destructive" });
@@ -284,7 +283,7 @@ export default function AdminPaperQuestionsPage() {
                             <DialogHeader>
                                 <DialogTitle>Import Questions from CSV</DialogTitle>
                                 <DialogDescription>
-                                    Select a CSV file with questions to import. Make sure the file follows the required format.
+                                    Select a CSV file to create new questions or link existing ones from the question bank.
                                 </DialogDescription>
                             </DialogHeader>
                             <div className="space-y-4 py-4">

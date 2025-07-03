@@ -123,23 +123,35 @@ export async function addQuestionToPaper(paperId: string, questionData: Omit<Que
     await batch.commit();
 }
 
-// Imports a batch of questions, adds them to the bank, and links them to the paper
-export async function addQuestionsBatch(paperId: string, questions: (Omit<Question, 'id'> & { order: number })[]) {
+// Imports a batch of questions, adding new ones or linking existing ones.
+export async function addQuestionsBatch(paperId: string, questions: any[]) {
     const batch = writeBatch(db);
     const questionsCollection = collection(db, 'questions');
     const paperQuestionsCollection = collection(db, 'paper_questions');
 
-    questions.forEach(q => {
-        const { order, ...questionData } = q;
-        
-        // Add question to the bank
-        const questionRef = doc(questionsCollection);
-        batch.set(questionRef, questionData);
-
-        // Add link to the paper
+    for (const q of questions) {
         const linkRef = doc(paperQuestionsCollection);
-        batch.set(linkRef, { paperId, questionId: questionRef.id, order });
-    });
+
+        if (q.questionId) {
+            // Link an existing question. For simplicity, we trust the ID is valid.
+            // A more robust implementation might pre-validate all IDs.
+            batch.set(linkRef, {
+                paperId,
+                questionId: q.questionId,
+                order: q.order,
+            });
+        } else {
+            // Create a new question and then link it
+            const { order, ...questionData } = q;
+            const questionRef = doc(questionsCollection);
+            batch.set(questionRef, questionData);
+            batch.set(linkRef, {
+                paperId,
+                questionId: questionRef.id,
+                order: q.order,
+            });
+        }
+    }
     
     // Update question count on paper
     const paperRef = doc(db, "papers", paperId);
