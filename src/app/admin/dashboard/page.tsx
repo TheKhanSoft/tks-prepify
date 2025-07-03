@@ -5,12 +5,13 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Badge } from "@/components/ui/badge"
-import { FileText, Users, Folder, PlusCircle, ArrowUpRight, HelpCircle, Loader2, Library } from 'lucide-react';
+import { FileText, Users, Folder, PlusCircle, ArrowUpRight, Loader2, Library, Tags } from 'lucide-react';
 import { users } from '@/lib/data';
 import { fetchCategories, getCategoryPath, getFlattenedCategories } from '@/lib/category-service';
 import { fetchPapers } from '@/lib/paper-service';
 import { fetchAllQuestions } from '@/lib/question-service';
-import type { Category, Paper, Question } from '@/types';
+import { fetchQuestionCategories, getDescendantQuestionCategoryIds } from '@/lib/question-category-service';
+import type { Category, Paper, Question, QuestionCategory } from '@/types';
 import Link from 'next/link';
 import { Bar, BarChart, ResponsiveContainer, XAxis, YAxis, Tooltip } from "recharts"
 import { useState, useEffect, useMemo, useCallback } from 'react';
@@ -18,6 +19,7 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 
 export default function AdminDashboardPage() {
   const [allCategories, setAllCategories] = useState<Category[]>([]);
+  const [allQuestionCategories, setAllQuestionCategories] = useState<QuestionCategory[]>([]);
   const [allPapers, setAllPapers] = useState<Paper[]>([]);
   const [allQuestions, setAllQuestions] = useState<Question[]>([]);
   const [loading, setLoading] = useState(true);
@@ -25,14 +27,16 @@ export default function AdminDashboardPage() {
   const loadData = useCallback(async () => {
     setLoading(true);
     try {
-        const [cats, papersData, questionsData] = await Promise.all([
+        const [cats, papersData, questionsData, questionCatsData] = await Promise.all([
             fetchCategories(),
             fetchPapers(),
-            fetchAllQuestions()
+            fetchAllQuestions(),
+            fetchQuestionCategories()
         ]);
         setAllCategories(cats);
         setAllPapers(papersData);
         setAllQuestions(questionsData);
+        setAllQuestionCategories(questionCatsData);
     } catch(error) {
         console.error("Failed to load dashboard data:", error);
     } finally {
@@ -45,16 +49,45 @@ export default function AdminDashboardPage() {
   }, [loadData]);
 
   const totalPapers = allPapers.length;
-  const totalCategories = useMemo(() => getFlattenedCategories(allCategories).length, [allCategories]);
+  const totalPaperCategories = useMemo(() => getFlattenedCategories(allCategories).length, [allCategories]);
   const totalQuestions = allQuestions.length;
+  const totalQuestionCategories = useMemo(() => {
+      let count = 0;
+      const countCategories = (categories: QuestionCategory[]) => {
+          for (const category of categories) {
+              count++;
+              if (category.subcategories) {
+                  countCategories(category.subcategories);
+              }
+          }
+      };
+      countCategories(allQuestionCategories);
+      return count;
+  }, [allQuestionCategories]);
+
   const totalUsers = users.length;
 
   const papersPerCategory = useMemo(() => allCategories
-    .filter(c => !c.parentId) // only top level
+    .filter(c => !c.parentId) 
     .map(category => ({
       name: category.name,
       total: allPapers.filter(paper => paper.categoryId.startsWith(category.id)).length,
-  })), [allCategories, allPapers]);
+  })).filter(c => c.total > 0), [allCategories, allPapers]);
+  
+  const questionsPerCategory = useMemo(() => {
+      if (allQuestions.length === 0 || allQuestionCategories.length === 0) return [];
+      
+      const topLevelCategories = allQuestionCategories.filter(c => !c.parentId);
+
+      return topLevelCategories.map(category => {
+          const descendantIds = getDescendantQuestionCategoryIds(category.id, allQuestionCategories);
+          const count = allQuestions.filter(q => q.questionCategoryId && descendantIds.includes(q.questionCategoryId)).length;
+          return {
+              name: category.name,
+              total: count
+          };
+      }).filter(c => c.total > 0);
+  }, [allQuestions, allQuestionCategories]);
 
   const recentPapers = useMemo(() => [...allPapers].sort((a, b) => b.id.localeCompare(a.id)).slice(0, 5), [allPapers]);
   const recentUsers = users.slice(-5).reverse();
@@ -68,7 +101,7 @@ export default function AdminDashboardPage() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-8">
       <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-4">
         <div>
             <h1 className="text-3xl font-bold">Dashboard</h1>
@@ -89,7 +122,8 @@ export default function AdminDashboardPage() {
             </Button>
         </div>
       </div>
-      <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
+      
+      <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-5">
         <Link href="/admin/papers">
           <Card className="hover:bg-muted/50 transition-colors">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
@@ -98,19 +132,19 @@ export default function AdminDashboardPage() {
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold">{totalPapers}</div>
-              <p className="text-xs text-muted-foreground">Published and unpublished papers</p>
+              <p className="text-xs text-muted-foreground">Published and unpublished</p>
             </CardContent>
           </Card>
         </Link>
         <Link href="/admin/categories">
           <Card className="hover:bg-muted/50 transition-colors">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Total Categories</CardTitle>
+              <CardTitle className="text-sm font-medium">Paper Categories</CardTitle>
               <Folder className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{totalCategories}</div>
-              <p className="text-xs text-muted-foreground">All paper categories</p>
+              <div className="text-2xl font-bold">{totalPaperCategories}</div>
+              <p className="text-xs text-muted-foreground">For organizing papers</p>
             </CardContent>
           </Card>
         </Link>
@@ -122,7 +156,19 @@ export default function AdminDashboardPage() {
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold">{totalQuestions}</div>
-              <p className="text-xs text-muted-foreground">Questions in the central bank</p>
+              <p className="text-xs text-muted-foreground">In the central question bank</p>
+            </CardContent>
+          </Card>
+        </Link>
+        <Link href="/admin/question-categories">
+          <Card className="hover:bg-muted/50 transition-colors">
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Question Categories</CardTitle>
+              <Tags className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">{totalQuestionCategories}</div>
+              <p className="text-xs text-muted-foreground">For organizing questions</p>
             </CardContent>
           </Card>
         </Link>
@@ -140,8 +186,8 @@ export default function AdminDashboardPage() {
         </Link>
       </div>
 
-       <div className="grid gap-6 md:grid-cols-2">
-            <Card className="md:col-span-1">
+       <div className="grid gap-6 lg:grid-cols-2">
+            <Card>
                 <CardHeader>
                     <CardTitle>Papers Overview</CardTitle>
                     <CardDescription>Number of papers per top-level category.</CardDescription>
@@ -162,80 +208,102 @@ export default function AdminDashboardPage() {
                     </ResponsiveContainer>
                 </CardContent>
             </Card>
-            <div className="space-y-6 md:col-span-1">
-              <Card>
-                  <CardHeader className="flex flex-row items-center">
-                    <div className="grid gap-2">
-                          <CardTitle>Recent Papers</CardTitle>
-                          <CardDescription>The last 5 papers added to the system.</CardDescription>
-                      </div>
-                      <Button asChild size="sm" className="ml-auto gap-1">
-                          <Link href="/admin/papers">View All <ArrowUpRight className="h-4 w-4" /></Link>
-                      </Button>
-                  </CardHeader>
-                  <CardContent>
-                      <Table>
-                          <TableHeader>
-                              <TableRow>
-                                  <TableHead>Title</TableHead>
-                                  <TableHead className="text-right">Category</TableHead>
-                              </TableRow>
-                          </TableHeader>
-                          <TableBody>
-                              {recentPapers.map((paper) => {
-                                  const categoryPath = getCategoryPath(paper.categoryId, allCategories);
-                                  const categoryName = categoryPath?.map(c => c.name).join(' / ') || 'N/A';
-                                  return (
-                                  <TableRow key={paper.id}>
-                                      <TableCell>
-                                          <div className="font-medium">{paper.title}</div>
-                                          <div className="hidden text-sm text-muted-foreground md:inline">
-                                              {paper.questionCount} questions
-                                          </div>
-                                      </TableCell>
-                                      <TableCell className="text-right">
-                                          <Badge variant="outline">{categoryName}</Badge>
-                                      </TableCell>
-                                  </TableRow>
-                              )})}
-                          </TableBody>
-                      </Table>
-                  </CardContent>
-              </Card>
-              <Card>
+            <Card>
+                <CardHeader>
+                    <CardTitle>Questions Overview</CardTitle>
+                    <CardDescription>Number of questions per top-level question category.</CardDescription>
+                </CardHeader>
+                <CardContent className="pl-2">
+                    <ResponsiveContainer width="100%" height={350}>
+                        <BarChart data={questionsPerCategory}>
+                            <XAxis dataKey="name" stroke="#888888" fontSize={12} tickLine={false} axisLine={false} />
+                            <YAxis stroke="#888888" fontSize={12} tickLine={false} axisLine={false} tickFormatter={(value) => `${value}`} />
+                            <Tooltip
+                                contentStyle={{
+                                    backgroundColor: "hsl(var(--background))",
+                                    borderColor: "hsl(var(--border))",
+                                }}
+                            />
+                            <Bar dataKey="total" fill="hsl(var(--accent))" radius={[4, 4, 0, 0]} />
+                        </BarChart>
+                    </ResponsiveContainer>
+                </CardContent>
+            </Card>
+        </div>
+
+       <div className="grid gap-6 md:grid-cols-2">
+            <Card>
                 <CardHeader className="flex flex-row items-center">
-                  <div className="grid gap-2">
-                    <CardTitle>Recent Users</CardTitle>
-                    <CardDescription>The newest users who have signed up.</CardDescription>
-                  </div>
-                  <Button asChild size="sm" className="ml-auto gap-1">
-                    <Link href="/admin/users">
-                      View All
-                      <ArrowUpRight className="h-4 w-4" />
-                    </Link>
-                  </Button>
+                <div className="grid gap-2">
+                        <CardTitle>Recent Papers</CardTitle>
+                        <CardDescription>The last 5 papers added to the system.</CardDescription>
+                    </div>
+                    <Button asChild size="sm" className="ml-auto gap-1">
+                        <Link href="/admin/papers">View All <ArrowUpRight className="h-4 w-4" /></Link>
+                    </Button>
                 </CardHeader>
                 <CardContent>
-                  <div className="space-y-4">
-                    {recentUsers.map((user) => (
-                      <div key={user.id} className="flex items-center gap-4">
-                        <Avatar className="hidden h-9 w-9 sm:flex">
-                          <AvatarImage src={`https://placehold.co/40x40.png?text=${user.name.charAt(0)}`} data-ai-hint="letter avatar" alt="Avatar" />
-                          <AvatarFallback>{user.name.charAt(0)}</AvatarFallback>
-                        </Avatar>
-                        <div className="grid gap-1">
-                          <p className="text-sm font-medium leading-none">{user.name}</p>
-                          <p className="text-sm text-muted-foreground">{user.email}</p>
-                        </div>
-                        <div className="ml-auto font-medium text-sm text-muted-foreground">
-                          {new Date(user.createdAt).toLocaleDateString()}
-                        </div>
-                      </div>
-                    ))}
-                  </div>
+                    <Table>
+                        <TableHeader>
+                            <TableRow>
+                                <TableHead>Title</TableHead>
+                                <TableHead className="text-right">Category</TableHead>
+                            </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                            {recentPapers.map((paper) => {
+                                const categoryPath = getCategoryPath(paper.categoryId, allCategories);
+                                const categoryName = categoryPath?.map(c => c.name).join(' / ') || 'N/A';
+                                return (
+                                <TableRow key={paper.id}>
+                                    <TableCell>
+                                        <div className="font-medium">{paper.title}</div>
+                                        <div className="hidden text-sm text-muted-foreground md:inline">
+                                            {paper.questionCount} questions
+                                        </div>
+                                    </TableCell>
+                                    <TableCell className="text-right">
+                                        <Badge variant="outline">{categoryName}</Badge>
+                                    </TableCell>
+                                </TableRow>
+                            )})}
+                        </TableBody>
+                    </Table>
                 </CardContent>
-              </Card>
-            </div>
+            </Card>
+            <Card>
+              <CardHeader className="flex flex-row items-center">
+                <div className="grid gap-2">
+                  <CardTitle>Recent Users</CardTitle>
+                  <CardDescription>The newest users who have signed up.</CardDescription>
+                </div>
+                <Button asChild size="sm" className="ml-auto gap-1">
+                  <Link href="/admin/users">
+                    View All
+                    <ArrowUpRight className="h-4 w-4" />
+                  </Link>
+                </Button>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-4">
+                  {recentUsers.map((user) => (
+                    <div key={user.id} className="flex items-center gap-4">
+                      <Avatar className="hidden h-9 w-9 sm:flex">
+                        <AvatarImage src={`https://placehold.co/40x40.png?text=${user.name.charAt(0)}`} data-ai-hint="letter avatar" alt="Avatar" />
+                        <AvatarFallback>{user.name.charAt(0)}</AvatarFallback>
+                      </Avatar>
+                      <div className="grid gap-1">
+                        <p className="text-sm font-medium leading-none">{user.name}</p>
+                        <p className="text-sm text-muted-foreground">{user.email}</p>
+                      </div>
+                      <div className="ml-auto font-medium text-sm text-muted-foreground">
+                        {new Date(user.createdAt).toLocaleDateString()}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
         </div>
     </div>
   );
