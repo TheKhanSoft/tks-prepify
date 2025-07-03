@@ -4,6 +4,8 @@ import { Card, CardContent } from "@/components/ui/card";
 import { fetchSettings } from "@/lib/settings-service";
 import type { Metadata } from 'next';
 
+export const revalidate = 3600; // Revalidate every hour
+
 export async function generateMetadata(): Promise<Metadata> {
   const settings = await fetchSettings();
   const title = settings.aboutTitle || `About Us | ${settings.siteName}`;
