@@ -146,12 +146,17 @@ export default function AdminSettingsPage() {
         description: "Your global settings have been updated.",
       });
       setFileToUpload(null);
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error saving settings:", error);
+      let errorMessage = "Failed to save settings. Please try again.";
+       if (error.message && (error.message.includes('exceeds the maximum size') || error.message.includes('is too large'))) {
+        errorMessage = "Save failed: The settings data, likely including the hero image, is too large for the database. Please use a smaller image file.";
+      }
       toast({
         title: "Error",
-        description: "Failed to save settings. Please try again.",
+        description: errorMessage,
         variant: "destructive",
+        duration: 8000,
       });
     } finally {
       setIsSubmitting(false);
