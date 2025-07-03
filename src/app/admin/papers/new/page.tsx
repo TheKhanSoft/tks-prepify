@@ -22,7 +22,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { useToast } from "@/hooks/use-toast";
 import { ArrowLeft, Loader2, Sparkles } from "lucide-react";
 import { useState, useEffect, useMemo } from 'react';
-import { fetchCategories, getFlattenedCategories, getCategoryPath, getCategoryById } from '@/lib/category-service';
+import { fetchCategories } from '@/lib/category-service';
+import { getFlattenedCategories, getCategoryPath, getCategoryById } from "@/lib/category-helpers";
 import type { Category, Settings } from '@/types';
 import { addDoc, collection } from "firebase/firestore";
 import { db } from "@/lib/firebase";

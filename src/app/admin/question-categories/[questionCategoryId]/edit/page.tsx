@@ -21,7 +21,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
 import { ArrowLeft, Loader2 } from "lucide-react";
-import { fetchQuestionCategories, getFlattenedQuestionCategories, getDescendantQuestionCategoryIds } from "@/lib/question-category-service";
+import { fetchQuestionCategories } from "@/lib/question-category-service";
+import { getFlattenedQuestionCategories, getDescendantQuestionCategoryIds } from "@/lib/question-category-helpers";
 import type { QuestionCategory } from "@/types";
 import { doc, getDoc, updateDoc } from "firebase/firestore";
 import { db } from "@/lib/firebase";

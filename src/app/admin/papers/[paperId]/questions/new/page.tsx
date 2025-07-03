@@ -27,7 +27,8 @@ import type { Paper, Question, QuestionCategory } from "@/types";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 import React, { useState, useEffect, useMemo } from "react";
-import { fetchQuestionCategories, getFlattenedQuestionCategories } from "@/lib/question-category-service";
+import { fetchQuestionCategories } from "@/lib/question-category-service";
+import { getFlattenedQuestionCategories } from "@/lib/question-category-helpers";
 
 const baseSchema = z.object({
   order: z.coerce.number().int().min(1, { message: "Order must be a positive number." }),

@@ -8,7 +8,8 @@ import { Badge } from '@/components/ui/badge';
 import { fetchPapers } from '@/lib/paper-service';
 import { Folder, FileText, ArrowRight, ChevronRight, CalendarDays, HelpCircle } from 'lucide-react';
 import type { Category } from '@/types';
-import { fetchCategories, getCategoryBySlug, getCategoryPath, getDescendantCategoryIds } from '@/lib/category-service';
+import { fetchCategories } from '@/lib/category-service';
+import { getCategoryBySlug, getCategoryPath, getDescendantCategoryIds } from '@/lib/category-helpers';
 
 export async function generateMetadata({ params }: { params: { slug: string[] } }): Promise<Metadata> {
   const fullSlug = params.slug.join('/');

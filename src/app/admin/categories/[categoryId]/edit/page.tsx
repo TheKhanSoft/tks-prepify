@@ -23,7 +23,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Switch } from "@/components/ui/switch";
 import { useToast } from "@/hooks/use-toast";
 import { ArrowLeft, Loader2, Sparkles } from "lucide-react";
-import { fetchCategories, getFlattenedCategories, clearCategoriesCache, getDescendantCategoryIds } from "@/lib/category-service";
+import { fetchCategories, clearCategoriesCache } from "@/lib/category-service";
+import { getFlattenedCategories, getDescendantCategoryIds } from "@/lib/category-helpers";
 import type { Category } from "@/types";
 import { doc, getDoc, updateDoc } from "firebase/firestore";
 import { db } from "@/lib/firebase";
@@ -135,7 +136,7 @@ export default function EditCategoryPage() {
       
       await updateDoc(categoryRef, updatedData);
 
-      clearCategoriesCache();
+      await clearCategoriesCache();
 
       toast({
         title: "Category Updated",

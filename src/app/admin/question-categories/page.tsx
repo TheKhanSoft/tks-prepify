@@ -33,7 +33,8 @@ import {
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { PlusCircle, MoreHorizontal, Edit, Trash2, Plus, Loader2 } from "lucide-react";
-import { fetchQuestionCategories, getFlattenedQuestionCategories, getQuestionCategoryById } from "@/lib/question-category-service";
+import { fetchQuestionCategories } from "@/lib/question-category-service";
+import { getFlattenedQuestionCategories, getQuestionCategoryById } from "@/lib/question-category-helpers";
 import type { QuestionCategory } from "@/types";
 import { useToast } from "@/hooks/use-toast";
 import { doc, deleteDoc, query, collection, where, getDocs, limit } from "firebase/firestore";

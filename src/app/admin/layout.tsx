@@ -1,4 +1,3 @@
-
 import { SidebarProvider, Sidebar, SidebarHeader, SidebarTrigger, SidebarMenu, SidebarMenuItem, SidebarMenuButton, SidebarContent, SidebarInset, SidebarFooter } from '@/components/ui/sidebar';
 import { LayoutDashboard, FileText, Folder, Home, Users, Settings, Bell, Search, Library, Tags } from 'lucide-react';
 import Link from 'next/link';
@@ -22,7 +21,7 @@ export default function AdminLayout({
               <span className="font-headline group-data-[collapsible=icon]:hidden">Prepify</span>
             </Link>
           </SidebarHeader>
-          <SidebarContent>
+          <SidebarContent className="pt-4">
             <SidebarMenu>
               <SidebarMenuItem>
                 <SidebarMenuButton asChild tooltip="Dashboard">

@@ -7,10 +7,12 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Badge } from "@/components/ui/badge"
 import { FileText, Users, Folder, PlusCircle, ArrowUpRight, Loader2, Library, Tags } from 'lucide-react';
 import { users } from '@/lib/data';
-import { fetchCategories, getCategoryPath, getFlattenedCategories, getDescendantCategoryIds } from '@/lib/category-service';
+import { fetchCategories } from '@/lib/category-service';
+import { getCategoryPath, getFlattenedCategories, getDescendantCategoryIds } from '@/lib/category-helpers';
 import { fetchPapers } from '@/lib/paper-service';
 import { fetchAllQuestions, fetchAllPaperQuestionLinks } from '@/lib/question-service';
-import { fetchQuestionCategories, getDescendantQuestionCategoryIds as getDescendantQCategoryIds } from '@/lib/question-category-service';
+import { fetchQuestionCategories } from '@/lib/question-category-service';
+import { getDescendantQuestionCategoryIds as getDescendantQCategoryIds } from '@/lib/question-category-helpers';
 import type { Category, Paper, Question, QuestionCategory } from '@/types';
 import Link from 'next/link';
 import { Bar, BarChart, ResponsiveContainer, XAxis, YAxis, Tooltip } from "recharts"

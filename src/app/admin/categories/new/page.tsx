@@ -22,7 +22,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { useToast } from "@/hooks/use-toast";
 import { ArrowLeft, Loader2, Sparkles } from "lucide-react";
 import React, { useState, useEffect, useMemo } from "react";
-import { fetchCategories, getFlattenedCategories, clearCategoriesCache } from "@/lib/category-service";
+import { fetchCategories, clearCategoriesCache } from "@/lib/category-service";
+import { getFlattenedCategories } from "@/lib/category-helpers";
 import type { Category } from "@/types";
 import { addDoc, collection } from "firebase/firestore";
 import { db } from "@/lib/firebase";
@@ -110,7 +111,7 @@ function NewCategoryPageComponent() {
 
       await addDoc(collection(db, "categories"), categoryData);
       
-      clearCategoriesCache();
+      await clearCategoriesCache();
 
       toast({
         title: "Category Created",

@@ -2,7 +2,8 @@
 import Link from 'next/link';
 import { Card, CardContent } from '@/components/ui/card';
 import { fetchPapers } from '@/lib/paper-service';
-import { fetchCategories, getDescendantCategoryIds } from '@/lib/category-service';
+import { fetchCategories } from '@/lib/category-service';
+import { getDescendantCategoryIds } from '@/lib/category-helpers';
 import { ArrowRight, Folder, FileText } from 'lucide-react';
 
 export default async function CategoriesPage() {

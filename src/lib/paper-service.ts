@@ -8,7 +8,7 @@ import { slugify } from './utils';
 
 // Using Next.js fetch with revalidation strategy instead of unstable_noStore
 // to allow for better caching control.
-const CACHE_REVALIDATION_TIME = 3600; // 1 hour in seconds
+const CACHE_REVALIDATION_TIME = 0; // Set to 0 to disable caching for this service.
 
 function docToPaper(doc: DocumentData): Paper {
     const data = doc.data();

@@ -34,7 +34,8 @@ import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/com
 import { Button } from "@/components/ui/button";
 import { PlusCircle, MoreHorizontal, Edit, Trash2, Plus, Loader2 } from "lucide-react";
 import { papers } from "@/lib/data";
-import { fetchCategories, getFlattenedCategories, getDescendantCategoryIds, clearCategoriesCache, getCategoryById } from "@/lib/category-service";
+import { fetchCategories, clearCategoriesCache } from "@/lib/category-service";
+import { getFlattenedCategories, getDescendantCategoryIds, getCategoryById } from "@/lib/category-helpers";
 import type { Category } from "@/types";
 import { useToast } from "@/hooks/use-toast";
 import { doc, deleteDoc, updateDoc } from "firebase/firestore";
@@ -142,7 +143,7 @@ export default function AdminCategoriesPage() {
         return updateInTree(prev, categoryId, featured);
       });
 
-      clearCategoriesCache();
+      await clearCategoriesCache();
       router.refresh();
 
     } catch (error) {
@@ -192,7 +193,7 @@ export default function AdminCategoriesPage() {
             description: `"${categoryToDelete.name}" has been successfully deleted.`
         });
         
-        clearCategoriesCache();
+        await clearCategoriesCache();
         await loadCategories(); // Refetch data
         router.refresh();
 

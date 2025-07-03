@@ -8,7 +8,8 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { fetchPapers } from '@/lib/paper-service';
-import { fetchCategories, getFlattenedCategories, getDescendantCategoryIds, getCategoryById } from '@/lib/category-service';
+import { fetchCategories } from '@/lib/category-service';
+import { getFlattenedCategories, getDescendantCategoryIds, getCategoryById } from '@/lib/category-helpers';
 import type { Category, Paper } from '@/types';
 import { Search, Bookmark, Clock, ListChecks, Loader2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
