@@ -1,6 +1,6 @@
 
 import { SidebarProvider, Sidebar, SidebarHeader, SidebarTrigger, SidebarMenu, SidebarMenuItem, SidebarMenuButton, SidebarContent, SidebarInset, SidebarFooter } from '@/components/ui/sidebar';
-import { LayoutDashboard, FileText, Folder, Home, Users, Settings, Bell, Search, Library } from 'lucide-react';
+import { LayoutDashboard, FileText, Folder, Home, Users, Settings, Bell, Search, Library, Tags } from 'lucide-react';
 import Link from 'next/link';
 import { BookOpen } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -45,6 +45,14 @@ export default function AdminLayout({
                   <Link href="/admin/questions">
                     <Library />
                     <span className="group-data-[collapsible=icon]:hidden">All Questions</span>
+                  </Link>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+              <SidebarMenuItem>
+                <SidebarMenuButton asChild tooltip="Question Categories">
+                  <Link href="/admin/question-categories">
+                    <Tags />
+                    <span className="group-data-[collapsible=icon]:hidden">Question Categories</span>
                   </Link>
                 </SidebarMenuButton>
               </SidebarMenuItem>

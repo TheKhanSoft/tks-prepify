@@ -23,15 +23,17 @@ import { useToast } from "@/hooks/use-toast";
 import { ArrowLeft, Loader2, PlusCircle, Trash2 } from "lucide-react";
 import { getPaperById } from "@/lib/paper-service";
 import { getQuestionById, updateQuestion, getQuestionLink, updateQuestionOrderForPaper } from "@/lib/question-service";
-import type { Paper } from "@/types";
-import React, { useEffect, useState } from "react";
+import type { Paper, QuestionCategory } from "@/types";
+import React, { useEffect, useState, useMemo } from "react";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
+import { fetchQuestionCategories, getFlattenedQuestionCategories } from "@/lib/question-category-service";
 
 const baseSchema = z.object({
   order: z.coerce.number().int().min(1, { message: "Order must be a positive number." }),
   questionText: z.string().min(10, { message: "Question text must be at least 10 characters." }),
   explanation: z.string().optional(),
+  questionCategoryId: z.string().optional(),
 });
 
 const mcqSchema = baseSchema.extend({
@@ -73,6 +75,7 @@ export default function EditQuestionPage() {
   const [loading, setLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [linkId, setLinkId] = useState<string | null>(null);
+  const [questionCategories, setQuestionCategories] = useState<QuestionCategory[]>([]);
 
   const form = useForm<QuestionFormValues>({
     resolver: zodResolver(questionFormSchema),
@@ -83,13 +86,15 @@ export default function EditQuestionPage() {
     const loadData = async () => {
         setLoading(true);
         try {
-            const [fetchedPaper, fetchedQuestion, fetchedLink] = await Promise.all([
+            const [fetchedPaper, fetchedQuestion, fetchedLink, fetchedQuestionCats] = await Promise.all([
                 getPaperById(paperId),
                 getQuestionById(questionId),
                 getQuestionLink(paperId, questionId),
+                fetchQuestionCategories()
             ]);
             setPaper(fetchedPaper);
             setLinkId(fetchedLink?.id || null);
+            setQuestionCategories(fetchedQuestionCats);
 
             if (fetchedQuestion && fetchedLink) {
                 if (fetchedQuestion.type === 'mcq') {
@@ -100,6 +105,7 @@ export default function EditQuestionPage() {
                         options: fetchedQuestion.options?.map(opt => ({ text: opt })) || [],
                         correctAnswers: Array.isArray(fetchedQuestion.correctAnswer) ? fetchedQuestion.correctAnswer : [fetchedQuestion.correctAnswer],
                         explanation: fetchedQuestion.explanation || '',
+                        questionCategoryId: fetchedQuestion.questionCategoryId || '',
                     });
                 } else {
                      form.reset({
@@ -108,6 +114,7 @@ export default function EditQuestionPage() {
                         questionText: fetchedQuestion.questionText,
                         correctAnswer: fetchedQuestion.correctAnswer as string,
                         explanation: fetchedQuestion.explanation || '',
+                        questionCategoryId: fetchedQuestion.questionCategoryId || '',
                     });
                 }
             } else {
@@ -128,6 +135,7 @@ export default function EditQuestionPage() {
   });
 
   const questionType = form.watch("type");
+  const flatQuestionCategories = useMemo(() => getFlattenedQuestionCategories(questionCategories), [questionCategories]);
 
   async function onSubmit(data: QuestionFormValues) {
     setIsSubmitting(true);
@@ -135,11 +143,16 @@ export default function EditQuestionPage() {
         const { order, ...questionFields } = data;
 
         let questionData: Partial<any> = { ...questionFields };
+        
         if (questionData.type === 'mcq') {
             questionData.options = (questionData as any).options.map((o: any) => o.text);
         } else {
             delete questionData.options;
             delete questionData.correctAnswers;
+        }
+
+        if (questionData.questionCategoryId === 'none') {
+            questionData.questionCategoryId = null;
         }
 
         await updateQuestion(questionId, questionData);
@@ -247,6 +260,33 @@ export default function EditQuestionPage() {
                     <FormControl>
                       <Textarea placeholder="What is the capital of France?" {...field} disabled={isSubmitting} />
                     </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="questionCategoryId"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Question Category (Optional)</FormLabel>
+                     <Select onValueChange={field.onChange} value={field.value || ''} disabled={isSubmitting}>
+                      <FormControl>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select a category for this question" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                         <SelectItem value="none">None</SelectItem>
+                        {flatQuestionCategories.map((cat) => (
+                          <SelectItem key={cat.id} value={cat.id} style={{ paddingLeft: `${1 + cat.level * 1.5}rem` }}>
+                            {cat.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <FormDescription>Organize questions by topic.</FormDescription>
                     <FormMessage />
                   </FormItem>
                 )}

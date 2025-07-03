@@ -23,15 +23,17 @@ import { useToast } from "@/hooks/use-toast";
 import { ArrowLeft, PlusCircle, Trash2, Loader2 } from "lucide-react";
 import { getPaperById } from "@/lib/paper-service";
 import { addQuestionToPaper, fetchQuestionsForPaper } from "@/lib/question-service";
-import type { Paper, Question } from "@/types";
+import type { Paper, Question, QuestionCategory } from "@/types";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
+import { fetchQuestionCategories, getFlattenedQuestionCategories } from "@/lib/question-category-service";
 
 const baseSchema = z.object({
   order: z.coerce.number().int().min(1, { message: "Order must be a positive number." }),
   questionText: z.string().min(10, { message: "Question text must be at least 10 characters." }),
   explanation: z.string().optional(),
+  questionCategoryId: z.string().optional(),
 });
 
 const mcqSchema = baseSchema.extend({
@@ -69,6 +71,7 @@ export default function NewQuestionPage() {
   const [loading, setLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [nextOrder, setNextOrder] = useState(1);
+  const [questionCategories, setQuestionCategories] = useState<QuestionCategory[]>([]);
 
   const form = useForm<QuestionFormValues>({
     resolver: zodResolver(questionFormSchema),
@@ -79,11 +82,13 @@ export default function NewQuestionPage() {
       const loadData = async () => {
           setLoading(true);
           try {
-            const [fetchedPaper, fetchedQuestions] = await Promise.all([
+            const [fetchedPaper, fetchedQuestions, fetchedQuestionCats] = await Promise.all([
               getPaperById(paperId),
-              fetchQuestionsForPaper(paperId)
+              fetchQuestionsForPaper(paperId),
+              fetchQuestionCategories()
             ]);
             setPaper(fetchedPaper);
+            setQuestionCategories(fetchedQuestionCats);
 
             if(fetchedPaper) {
                 const nextOrderNumber = fetchedQuestions.length > 0 ? Math.max(...fetchedQuestions.map(q => q.order)) + 1 : 1;
@@ -95,6 +100,7 @@ export default function NewQuestionPage() {
                     options: [{ text: "" }, { text: "" }],
                     correctAnswers: [],
                     explanation: '',
+                    questionCategoryId: '',
                 });
             } else {
                  toast({ title: "Error", description: "Could not load paper data.", variant: "destructive" });
@@ -115,6 +121,7 @@ export default function NewQuestionPage() {
   });
 
   const questionType = form.watch("type");
+  const flatQuestionCategories = useMemo(() => getFlattenedQuestionCategories(questionCategories), [questionCategories]);
 
   async function onSubmit(data: QuestionFormValues) {
     setIsSubmitting(true);
@@ -127,6 +134,7 @@ export default function NewQuestionPage() {
             explanation: restOfData.explanation || "",
             options: restOfData.type === 'mcq' ? restOfData.options.map(o => o.text) : [],
             correctAnswer: restOfData.type === 'mcq' ? restOfData.correctAnswers : restOfData.correctAnswer,
+            questionCategoryId: restOfData.questionCategoryId || undefined,
         };
 
         await addQuestionToPaper(paperId, questionData, order);
@@ -238,6 +246,33 @@ export default function NewQuestionPage() {
                     <FormControl>
                       <Textarea placeholder="What is the capital of France?" {...field} disabled={isSubmitting} />
                     </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="questionCategoryId"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Question Category (Optional)</FormLabel>
+                     <Select onValueChange={field.onChange} defaultValue={field.value} disabled={isSubmitting}>
+                      <FormControl>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select a category for this question" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                         <SelectItem value="none">None</SelectItem>
+                        {flatQuestionCategories.map((cat) => (
+                          <SelectItem key={cat.id} value={cat.id} style={{ paddingLeft: `${1 + cat.level * 1.5}rem` }}>
+                            {cat.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <FormDescription>Organize questions by topic.</FormDescription>
                     <FormMessage />
                   </FormItem>
                 )}

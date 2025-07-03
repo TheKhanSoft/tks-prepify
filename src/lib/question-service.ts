@@ -29,6 +29,7 @@ function docToQuestion(doc: DocumentData): Question {
     options: data.options,
     correctAnswer: data.correctAnswer,
     explanation: data.explanation,
+    questionCategoryId: data.questionCategoryId,
   };
 }
 

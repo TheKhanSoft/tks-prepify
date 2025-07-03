@@ -31,6 +31,15 @@ export interface Paper {
   metaDescription?: string;
 }
 
+export interface QuestionCategory {
+  id: string;
+  name: string;
+  parentId?: string | null;
+  // These are added during processing, not stored in Firestore
+  subcategories?: QuestionCategory[];
+}
+
+
 export interface Question {
   id: string;
   questionText: string;
@@ -38,6 +47,7 @@ export interface Question {
   options?: string[]; // Only for MCQ
   correctAnswer: string | string[];
   explanation?: string;
+  questionCategoryId?: string;
 }
 
 export interface UserAnswer {

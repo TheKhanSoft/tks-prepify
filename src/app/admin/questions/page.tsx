@@ -1,7 +1,7 @@
 
 "use client";
 
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import {
   Table,
@@ -17,7 +17,6 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
   DropdownMenuLabel,
-  DropdownMenuSeparator
 } from "@/components/ui/dropdown-menu";
 import {
   AlertDialog,
@@ -33,35 +32,41 @@ import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/com
 import { Button } from "@/components/ui/button";
 import { MoreHorizontal, Trash2, Loader2 } from "lucide-react";
 import { fetchAllQuestions, deleteQuestionFromBank } from "@/lib/question-service";
-import type { Question } from "@/types";
+import type { Question, QuestionCategory } from "@/types";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import { Input } from "@/components/ui/input";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { fetchQuestionCategories, getFlattenedQuestionCategories, getDescendantQuestionCategoryIds } from "@/lib/question-category-service";
 
 export default function AllQuestionsPage() {
     const router = useRouter();
     const { toast } = useToast();
     
     const [questions, setQuestions] = useState<Question[]>([]);
-    const [filteredQuestions, setFilteredQuestions] = useState<Question[]>([]);
+    const [questionCategories, setQuestionCategories] = useState<QuestionCategory[]>([]);
     const [loading, setLoading] = useState(true);
     const [isDeleting, setIsDeleting] = useState(false);
     
     const [searchTerm, setSearchTerm] = useState("");
+    const [selectedCategory, setSelectedCategory] = useState("all");
     const [deleteAlertOpen, setDeleteAlertOpen] = useState(false);
     const [questionToDelete, setQuestionToDelete] = useState<Question | null>(null);
 
     const loadData = useCallback(async () => {
         setLoading(true);
         try {
-            const fetchedQuestions = await fetchAllQuestions();
+            const [fetchedQuestions, fetchedCategories] = await Promise.all([
+                fetchAllQuestions(),
+                fetchQuestionCategories()
+            ]);
             setQuestions(fetchedQuestions);
-            setFilteredQuestions(fetchedQuestions);
+            setQuestionCategories(fetchedCategories);
         } catch(e) {
             console.error(e);
             toast({ 
-                title: "Error loading questions", 
-                description: "Could not load the question bank.",
+                title: "Error loading data", 
+                description: "Could not load the question bank or categories.",
                 variant: "destructive",
             });
         } finally {
@@ -73,13 +78,24 @@ export default function AllQuestionsPage() {
         loadData();
     }, [loadData]);
     
-    useEffect(() => {
-        const lowercasedFilter = searchTerm.toLowerCase();
-        const filtered = questions.filter(q => 
-            q.questionText.toLowerCase().includes(lowercasedFilter)
-        );
-        setFilteredQuestions(filtered);
-    }, [searchTerm, questions]);
+    const flatQuestionCategories = useMemo(() => getFlattenedQuestionCategories(questionCategories), [questionCategories]);
+
+    const filteredQuestions = useMemo(() => {
+        return questions.filter(q => {
+            const matchesSearch = q.questionText.toLowerCase().includes(searchTerm.toLowerCase());
+            
+            let matchesCategory = true;
+            if (selectedCategory !== 'all') {
+                if (!q.questionCategoryId) {
+                    matchesCategory = false;
+                } else {
+                    const descendantIds = getDescendantQuestionCategoryIds(selectedCategory, questionCategories);
+                    matchesCategory = descendantIds.includes(q.questionCategoryId);
+                }
+            }
+            return matchesSearch && matchesCategory;
+        });
+    }, [searchTerm, selectedCategory, questions, questionCategories]);
 
     const openDeleteDialog = (question: Question) => {
         setQuestionToDelete(question);
@@ -116,13 +132,30 @@ export default function AllQuestionsPage() {
                 <CardHeader>
                     <CardTitle>Question Bank</CardTitle>
                     <CardDescription>A list of all questions in the system. Total: {questions.length}</CardDescription>
-                    <div className="pt-4">
+                    <div className="pt-4 flex flex-col md:flex-row gap-4">
                         <Input 
                             placeholder="Filter by question text..."
                             value={searchTerm}
                             onChange={e => setSearchTerm(e.target.value)}
                             className="max-w-sm"
                         />
+                         <Select value={selectedCategory} onValueChange={setSelectedCategory} disabled={loading}>
+                            <SelectTrigger className="md:w-[280px]">
+                                <SelectValue placeholder="Filter by category" />
+                            </SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value="all">All Categories</SelectItem>
+                                {flatQuestionCategories.map(cat => (
+                                <SelectItem
+                                    key={cat.id}
+                                    value={cat.id}
+                                    style={{ paddingLeft: `${1 + cat.level * 1.5}rem` }}
+                                >
+                                    {cat.name}
+                                </SelectItem>
+                                ))}
+                            </SelectContent>
+                        </Select>
                     </div>
                 </CardHeader>
                 <CardContent>
@@ -134,16 +167,21 @@ export default function AllQuestionsPage() {
                 <Table>
                     <TableHeader>
                         <TableRow>
-                            <TableHead className="w-[50%]">Question</TableHead>
+                            <TableHead className="w-[45%]">Question</TableHead>
+                            <TableHead>Category</TableHead>
                             <TableHead>Type</TableHead>
                             <TableHead>Answer</TableHead>
                             <TableHead><span className="sr-only">Actions</span></TableHead>
                         </TableRow>
                     </TableHeader>
                     <TableBody>
-                    {filteredQuestions.length > 0 ? filteredQuestions.map((question) => (
+                    {filteredQuestions.length > 0 ? filteredQuestions.map((question) => {
+                        const category = question.questionCategoryId ? questionCategories.flatMap(c => getFlattenedQuestionCategories([c])).find(fc => fc.id === question.questionCategoryId) : null;
+
+                        return (
                         <TableRow key={question.id}>
                             <TableCell className="font-medium">{question.questionText}</TableCell>
+                            <TableCell>{category ? <Badge variant="outline">{category.name}</Badge> : <span className="text-muted-foreground">-</span>}</TableCell>
                             <TableCell><Badge variant="secondary">{question.type.toUpperCase()}</Badge></TableCell>
                             <TableCell className="truncate max-w-xs">{Array.isArray(question.correctAnswer) ? question.correctAnswer.join(', ') : question.correctAnswer}</TableCell>
                             <TableCell className="text-right">
@@ -156,8 +194,9 @@ export default function AllQuestionsPage() {
                                 </DropdownMenu>
                             </TableCell>
                         </TableRow>
-                    )) : (
-                        <TableRow><TableCell colSpan={4} className="h-24 text-center">No questions found.</TableCell></TableRow>
+                        );
+                    }) : (
+                        <TableRow><TableCell colSpan={5} className="h-24 text-center">No questions found.</TableCell></TableRow>
                     )}
                     </TableBody>
                 </Table>
