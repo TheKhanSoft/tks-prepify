@@ -18,7 +18,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
-import { Facebook, Github, Instagram, Linkedin, Loader2, PlusCircle, Trash2, Twitter, Youtube, Link as LinkIcon, MessageSquare, MessageCircle, HelpCircle, Twitch, Ghost, UploadCloud } from "lucide-react";
+import { Loader2, PlusCircle, Trash2, UploadCloud, Link as LinkIcon } from "lucide-react";
 import React, { useState, useEffect } from "react";
 import { fetchSettings, updateSettings } from "@/lib/settings-service";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -26,12 +26,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import Image from "next/image";
 import { cn } from "@/lib/utils";
-
-// A simple Send icon as a fallback if specific ones aren't available
-const Send = (props: any) => (
-  <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}><path d="m22 2-7 20-4-9-9-4Z"/><path d="M22 2 11 13"/></svg>
-);
-
+import { socialPlatforms } from "@/lib/social-platforms";
 
 const settingsFormSchema = z.object({
   siteName: z.string().min(1, "Site name is required."),
@@ -55,22 +50,6 @@ const settingsFormSchema = z.object({
 });
 
 type SettingsFormValues = z.infer<typeof settingsFormSchema>;
-
-const socialPlatforms = [
-  { value: 'facebook', label: 'Facebook', icon: Facebook },
-  { value: 'instagram', label: 'Instagram', icon: Instagram },
-  { value: 'twitter', label: 'Twitter / X', icon: Twitter },
-  { value: 'linkedin', label: 'LinkedIn', icon: Linkedin },
-  { value: 'youtube', label: 'YouTube', icon: Youtube },
-  { value: 'github', label: 'GitHub', icon: Github },
-  { value: 'discord', label: 'Discord', icon: MessageSquare },
-  { value: 'threads', label: 'Threads', icon: MessageCircle },
-  { value: 'twitch', label: 'Twitch', icon: Twitch },
-  { value: 'telegram', label: 'Telegram', icon: Send }, // Using a fallback
-  { value: 'whatsapp', label: 'WhatsApp', icon: MessageSquare },
-  { value: 'snapchat', label: 'Snapchat', icon: Ghost },
-  { value: 'other', label: 'Other', icon: LinkIcon },
-];
 
 export default function AdminSettingsPage() {
   const { toast } = useToast();
@@ -122,17 +101,6 @@ export default function AdminSettingsPage() {
       let finalData = { ...data };
 
       if (fileToUpload) {
-        if (fileToUpload.size > MAX_IMAGE_SIZE_BYTES) {
-            toast({
-                title: "Image Too Large",
-                description: `The selected image must be smaller than ${MAX_IMAGE_SIZE_KB}KB. Please upload a compressed image.`,
-                variant: "destructive",
-                duration: 8000
-            });
-            setIsSubmitting(false);
-            return;
-        }
-        
         const dataUrl = await new Promise<string>((resolve, reject) => {
             const reader = new FileReader();
             reader.onload = () => resolve(reader.result as string);

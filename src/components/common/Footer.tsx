@@ -1,30 +1,12 @@
+
 "use client";
 
 import Link from 'next/link';
-import { BookOpen, Facebook, Github, Linkedin, Twitter, Youtube, Instagram, Link as LinkIcon, MessageSquare, MessageCircle, HelpCircle, Twitch, Ghost } from 'lucide-react';
+import { BookOpen } from 'lucide-react';
 import { Button } from '../ui/button';
-import type { Settings, SocialLink } from '@/types';
+import type { Settings } from '@/types';
+import { socialPlatforms } from '@/lib/social-platforms';
 
-// A simple Send icon as a fallback if specific ones aren't available
-const Send = (props: any) => (
-  <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}><path d="m22 2-7 20-4-9-9-4Z"/><path d="M22 2 11 13"/></svg>
-);
-
-const iconMap: { [key: string]: React.ComponentType<{ className?: string }> } = {
-    facebook: Facebook,
-    instagram: Instagram,
-    twitter: Twitter,
-    linkedin: Linkedin,
-    youtube: Youtube,
-    github: Github,
-    twitch: Twitch,
-    discord: MessageSquare,
-    threads: MessageCircle,
-    telegram: Send,
-    whatsapp: MessageSquare,
-    snapchat: Ghost,
-    other: LinkIcon
-};
 
 export function Footer({ settings }: { settings: Settings }) {
   return (
@@ -39,7 +21,8 @@ export function Footer({ settings }: { settings: Settings }) {
             <p className="text-muted-foreground mb-4">{settings.siteDescription}</p>
             <div className="flex gap-1">
                 {settings.socialLinks && settings.socialLinks.map((link) => {
-                    const Icon = iconMap[link.platform] || LinkIcon;
+                    const platformInfo = socialPlatforms.find(p => p.value === link.platform);
+                    const Icon = platformInfo?.icon;
                     if (!Icon || !link.url) return null;
                     return (
                         <Button asChild variant="ghost" size="icon" key={link.platform}>
@@ -57,17 +40,17 @@ export function Footer({ settings }: { settings: Settings }) {
               <h3 className="font-semibold mb-2">Platform</h3>
               <ul className="space-y-2 text-muted-foreground">
                 <li><Link href="/papers" className="hover:text-primary">Papers</Link></li>
-                <li><Link href="/#categories" className="hover:text-primary">Categories</Link></li>
-                <li><Link href="#" className="hover:text-primary">Forum</Link></li>
+                <li><Link href="/categories" className="hover:text-primary">Categories</Link></li>
                 <li><Link href="/signup" className="hover:text-primary">Sign Up</Link></li>
               </ul>
             </div>
             <div>
               <h3 className="font-semibold mb-2">Resources</h3>
               <ul className="space-y-2 text-muted-foreground">
+                <li><Link href="/about" className="hover:text-primary">About Us</Link></li>
+                <li><Link href="/contact" className="hover:text-primary">Contact Us</Link></li>
                 <li><Link href="#" className="hover:text-primary">Help Center</Link></li>
                 <li><Link href="#" className="hover:text-primary">Blog</Link></li>
-                <li><Link href="#" className="hover:text-primary">Contact Us</Link></li>
               </ul>
             </div>
             <div>

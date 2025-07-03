@@ -25,7 +25,8 @@ export function Header({ settings }: { settings: Settings }) {
     { href: "/", label: "Home" },
     { href: "/papers", label: "Papers" },
     { href: "/categories", label: "Categories" },
-    { href: "#", label: "Forum" },
+    { href: "/about", label: "About" },
+    { href: "/contact", label: "Contact" },
   ];
 
   const NavLinks = ({ className }: { className?: string }) => (
