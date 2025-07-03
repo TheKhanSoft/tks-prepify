@@ -13,7 +13,6 @@ import {
   updateDoc,
   writeBatch,
   DocumentData,
-  increment,
 } from 'firebase/firestore';
 import { db } from './firebase';
 import type { Question } from '@/types';
@@ -32,6 +31,14 @@ function docToQuestion(doc: DocumentData): Question {
     explanation: data.explanation,
   };
 }
+
+// Fetches all questions from the central bank.
+export async function fetchAllQuestions(): Promise<Question[]> {
+    const questionsCol = collection(db, 'questions');
+    const snapshot = await getDocs(questionsCol);
+    return snapshot.docs.map(doc => docToQuestion(doc));
+}
+
 
 // Fetches questions for a specific paper, including their order and link ID
 export async function fetchQuestionsForPaper(paperId: string): Promise<PaperQuestion[]> {
@@ -181,6 +188,26 @@ export async function removeQuestionsFromPaper(paperId: string, linkIds: string[
     });
     await batch.commit();
   }
+}
+
+// Deletes a question from the bank and all its links from papers.
+export async function deleteQuestionFromBank(questionId: string) {
+    if (!questionId) return;
+
+    const batch = writeBatch(db);
+
+    // 1. Find all links to this question in 'paper_questions'
+    const linksQuery = query(collection(db, 'paper_questions'), where('questionId', '==', questionId));
+    const linksSnapshot = await getDocs(linksQuery);
+    linksSnapshot.forEach(doc => {
+        batch.delete(doc.ref);
+    });
+
+    // 2. Delete the question itself from the 'questions' collection
+    const questionRef = doc(db, 'questions', questionId);
+    batch.delete(questionRef);
+
+    await batch.commit();
 }
 
 

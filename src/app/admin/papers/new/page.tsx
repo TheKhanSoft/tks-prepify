@@ -30,6 +30,7 @@ import { slugify } from "@/lib/utils";
 import { generatePaperDescription } from "@/ai/flows/generate-paper-description-flow";
 import { generatePaperSeoDetails } from "@/ai/flows/generate-paper-seo-flow";
 import { Switch } from "@/components/ui/switch";
+import { fetchSettings } from "@/lib/settings-service";
 
 const paperFormSchema = z.object({
   title: z.string().min(3, {
@@ -72,32 +73,35 @@ export default function NewPaperPage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isGeneratingDesc, setIsGeneratingDesc] = useState(false);
   const [isGeneratingSeo, setIsGeneratingSeo] = useState(false);
+  
+  const form = useForm<PaperFormValues>({
+    resolver: zodResolver(paperFormSchema),
+  });
 
   useEffect(() => {
     const loadData = async () => {
         setLoading(true);
-        const cats = await fetchCategories();
+        const [cats, settings] = await Promise.all([
+          fetchCategories(),
+          fetchSettings()
+        ]);
         setAllCategories(cats);
+        form.reset({
+          title: "",
+          description: "",
+          slug: "",
+          featured: false,
+          published: false,
+          session: "",
+          questionCount: settings.defaultQuestionCount,
+          duration: settings.defaultDuration,
+        });
         setLoading(false);
     };
     loadData();
-  }, []);
+  }, [form]);
   
   const flatCategories = useMemo(() => getFlattenedCategories(allCategories), [allCategories]);
-
-  const form = useForm<PaperFormValues>({
-    resolver: zodResolver(paperFormSchema),
-    defaultValues: {
-      title: "",
-      description: "",
-      slug: "",
-      featured: false,
-      published: false,
-      session: "",
-      questionCount: 100,
-      duration: 120,
-    },
-  });
 
   async function handleGenerateDescription() {
     const title = form.getValues("title");
@@ -374,7 +378,7 @@ export default function NewPaperPage() {
                                 <FormControl>
                                 <Input type="number" {...field} value={field.value ?? ''} placeholder="Default: 2" disabled={isSubmitting} />
                                 </FormControl>
-                                 <FormDescription>Leave blank to use the global default (2).</FormDescription>
+                                 <FormDescription>Leave blank to use the global default.</FormDescription>
                                 <FormMessage />
                             </FormItem>
                             )}

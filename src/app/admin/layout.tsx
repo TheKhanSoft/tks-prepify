@@ -1,6 +1,6 @@
 
 import { SidebarProvider, Sidebar, SidebarHeader, SidebarTrigger, SidebarMenu, SidebarMenuItem, SidebarMenuButton, SidebarContent, SidebarInset, SidebarFooter } from '@/components/ui/sidebar';
-import { LayoutDashboard, FileText, Folder, Home, Users, Settings, Bell, Search } from 'lucide-react';
+import { LayoutDashboard, FileText, Folder, Home, Users, Settings, Bell, Search, Library } from 'lucide-react';
 import Link from 'next/link';
 import { BookOpen } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -40,6 +40,14 @@ export default function AdminLayout({
                   </Link>
                 </SidebarMenuButton>
               </SidebarMenuItem>
+               <SidebarMenuItem>
+                <SidebarMenuButton asChild tooltip="All Questions">
+                  <Link href="/admin/questions">
+                    <Library />
+                    <span className="group-data-[collapsible=icon]:hidden">All Questions</span>
+                  </Link>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
               <SidebarMenuItem>
                 <SidebarMenuButton asChild tooltip="Categories">
                   <Link href="/admin/categories">
@@ -61,8 +69,8 @@ export default function AdminLayout({
           <SidebarFooter>
             <SidebarMenu>
                 <SidebarMenuItem>
-                    <SidebarMenuButton asChild tooltip="Settings" disabled>
-                        <Link href="#">
+                    <SidebarMenuButton asChild tooltip="Settings">
+                        <Link href="/admin/settings">
                             <Settings />
                             <span className="group-data-[collapsible=icon]:hidden">Settings</span>
                         </Link>

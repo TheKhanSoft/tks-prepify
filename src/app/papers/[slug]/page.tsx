@@ -10,9 +10,8 @@ import { Separator } from '@/components/ui/separator';
 import { cn } from '@/lib/utils';
 import { getPaperBySlug } from '@/lib/paper-service';
 import { fetchQuestionsForPaper, PaperQuestion } from '@/lib/question-service';
-import type { Paper } from '@/types';
-
-const GLOBAL_QUESTIONS_PER_PAGE = 2;
+import type { Paper, Settings } from '@/types';
+import { fetchSettings } from '@/lib/settings-service';
 
 export default function SolvedPaperPage() {
   const router = useRouter();
@@ -21,17 +20,24 @@ export default function SolvedPaperPage() {
   
   const [paper, setPaper] = useState<Paper | null>(null);
   const [questions, setQuestions] = useState<PaperQuestion[]>([]);
+  const [settings, setSettings] = useState<Settings | null>(null);
   const [loading, setLoading] = useState(true);
 
   const [currentPage, setCurrentPage] = useState(1);
-  const questionsPerPage = paper?.questionsPerPage || GLOBAL_QUESTIONS_PER_PAGE;
+  const questionsPerPage = paper?.questionsPerPage || settings?.defaultQuestionsPerPage || 2;
 
   useEffect(() => {
     const loadData = async () => {
         if (!slug) return;
         setLoading(true);
         try {
-            const fetchedPaper = await getPaperBySlug(slug);
+            const [fetchedPaper, fetchedSettings] = await Promise.all([
+                getPaperBySlug(slug),
+                fetchSettings(),
+            ]);
+
+            setSettings(fetchedSettings);
+            
             if (fetchedPaper && fetchedPaper.published) {
                 setPaper(fetchedPaper);
                 const fetchedQuestions = await fetchQuestionsForPaper(fetchedPaper.id);

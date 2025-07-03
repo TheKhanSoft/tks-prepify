@@ -63,3 +63,9 @@ export interface User {
   role: 'Admin' | 'User';
   createdAt: string;
 }
+
+export interface Settings {
+    defaultQuestionCount: number;
+    defaultDuration: number;
+    defaultQuestionsPerPage: number;
+}
