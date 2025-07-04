@@ -6,16 +6,19 @@ import html2canvas from 'html2canvas';
 import type { Paper, PaperQuestion, Settings } from '@/types';
 
 export const generatePdf = async (paper: Paper, questions: PaperQuestion[], settings: Settings): Promise<void> => {
-    // Create an element to render the PDF content, but keep it off-screen
+    // 1. Create an off-screen element to render the HTML content
     const reportElement = document.createElement('div');
     reportElement.style.position = 'absolute';
     reportElement.style.left = '-9999px';
-    reportElement.style.width = '210mm'; // A4 width
-    reportElement.style.padding = '20mm';
+    // Use a fixed pixel width that corresponds to A4 content area for consistent rendering
+    reportElement.style.width = '800px'; 
+    reportElement.style.padding = '20px'; // Internal padding
+    reportElement.style.boxSizing = 'border-box';
     reportElement.style.fontFamily = 'Helvetica, Arial, sans-serif';
     reportElement.style.color = '#000';
     reportElement.style.backgroundColor = '#fff';
 
+    // 2. Build the HTML string with all the paper content
     let contentHtml = `
         <h1 style="font-size: 24pt; margin-bottom: 8px;">${paper.title}</h1>
         <p style="font-size: 12pt; color: #555; margin-bottom: 24px;">${paper.description}</p>
@@ -23,25 +26,29 @@ export const generatePdf = async (paper: Paper, questions: PaperQuestion[], sett
     `;
 
     questions.forEach(q => {
+        // Sanitize and format text to ensure it wraps correctly
+        const questionText = q.questionText.replace(/\n/g, '<br />');
+        const explanationText = q.explanation ? q.explanation.replace(/\n/g, '<br />') : '';
+        
         contentHtml += `
             <div style="margin-bottom: 20px; page-break-inside: avoid;">
                 <h2 style="font-size: 14pt; font-weight: bold; margin-bottom: 12px;">Question ${q.order}</h2>
-                <p style="font-size: 12pt; margin-bottom: 12px;">${q.questionText}</p>
+                <p style="font-size: 12pt; margin-bottom: 12px; word-wrap: break-word;">${questionText}</p>
         `;
         
         if (q.type === 'mcq' && q.options) {
             contentHtml += `<div style="margin-left: 20px;">`;
             q.options.forEach(opt => {
                 const isCorrect = Array.isArray(q.correctAnswer) ? q.correctAnswer.includes(opt) : q.correctAnswer === opt;
-                contentHtml += `<p style="font-size: 11pt; ${isCorrect ? 'font-weight: bold; color: #28a745;' : ''}">${isCorrect ? '✔' : '•'} ${opt}</p>`;
+                contentHtml += `<p style="font-size: 11pt; margin: 4px 0; ${isCorrect ? 'font-weight: bold; color: #28a745;' : ''}">${isCorrect ? '✔' : '•'} ${opt}</p>`;
             });
             contentHtml += `</div>`;
         } else if (q.type === 'short_answer') {
             contentHtml += `<p style="font-size: 11pt; color: #28a745; margin-left: 20px;"><strong>Correct Answer:</strong> ${q.correctAnswer}</p>`;
         }
         
-        if (q.explanation) {
-            contentHtml += `<p style="font-size: 11pt; color: #666; margin-left: 20px; margin-top: 8px; border-left: 2px solid #eee; padding-left: 8px;"><strong>Explanation:</strong> ${q.explanation}</p>`;
+        if (explanationText) {
+            contentHtml += `<p style="font-size: 11pt; color: #666; margin-left: 20px; margin-top: 8px; border-left: 2px solid #eee; padding-left: 8px; white-space: pre-wrap; word-wrap: break-word;"><strong>Explanation:</strong> ${explanationText}</p>`;
         }
         
         contentHtml += '</div>';
@@ -50,39 +57,50 @@ export const generatePdf = async (paper: Paper, questions: PaperQuestion[], sett
     reportElement.innerHTML = contentHtml;
     document.body.appendChild(reportElement);
 
+    // 3. Render the HTML to a canvas
     const canvas = await html2canvas(reportElement, {
         scale: 2, // Higher scale for better quality
         useCORS: true,
+        windowWidth: reportElement.scrollWidth,
+        windowHeight: reportElement.scrollHeight
     });
 
     document.body.removeChild(reportElement);
 
+    // 4. Create the PDF and add the rendered content as an image
     const imgData = canvas.toDataURL('image/png');
     const pdf = new jsPDF('p', 'mm', 'a4');
+    
+    const margin = 20; // 20mm margin on all sides
     const pdfWidth = pdf.internal.pageSize.getWidth();
     const pdfHeight = pdf.internal.pageSize.getHeight();
+    const contentWidth = pdfWidth - margin * 2;
+    const contentHeight = pdfHeight - margin * 2;
+
     const canvasWidth = canvas.width;
     const canvasHeight = canvas.height;
-    const ratio = canvasWidth / canvasHeight;
-    const imgWidth = pdfWidth;
-    const imgHeight = imgWidth / ratio;
-    
-    let heightLeft = imgHeight;
-    let position = 0;
-    
-    pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
-    heightLeft -= pdfHeight;
+    const ratio = canvasHeight / canvasWidth;
 
+    const totalImgHeight = contentWidth * ratio;
+
+    let heightLeft = totalImgHeight;
+    let position = 0;
+
+    // Add first page
+    pdf.addImage(imgData, 'PNG', margin, position + margin, contentWidth, totalImgHeight);
+    heightLeft -= contentHeight;
+
+    // Add subsequent pages if content overflows
     while (heightLeft > 0) {
-        position = heightLeft - imgHeight;
+        position -= contentHeight;
         pdf.addPage();
-        pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
-        heightLeft -= pdfHeight;
+        pdf.addImage(imgData, 'PNG', margin, position + margin, contentWidth, totalImgHeight);
+        heightLeft -= contentHeight;
     }
     
     const pageCount = pdf.internal.getNumberOfPages();
     
-    // Add watermark and footer to each page
+    // 5. Add watermark and footer to each page
     for (let i = 1; i <= pageCount; i++) {
         pdf.setPage(i);
 
@@ -94,10 +112,15 @@ export const generatePdf = async (paper: Paper, questions: PaperQuestion[], sett
             );
             pdf.setFontSize(50);
             pdf.setTextColor(230, 230, 230); // Very light gray
+            // Save current graphics state to apply transparency
+            pdf.saveGraphicsState();
+            pdf.setGState(new (pdf as any).GState({ opacity: 0.5 }));
             pdf.text(watermarkText, pdfWidth / 2, pdfHeight / 2, {
-                angle: 45,
+                angle: -45, // Set text at a 45-degree angle
                 align: 'center'
             });
+            // Restore graphics state
+            pdf.restoreGraphicsState();
         }
         
         // Footer with page number
@@ -105,10 +128,11 @@ export const generatePdf = async (paper: Paper, questions: PaperQuestion[], sett
         pdf.setTextColor(150);
         const footerText = `Page ${i} of ${pageCount}`;
         const textWidth = pdf.getStringUnitWidth(footerText) * pdf.getFontSize() / pdf.internal.scaleFactor;
-        const x = (pdf.internal.pageSize.getWidth() - textWidth) / 2;
-        const y = pdf.internal.pageSize.getHeight() - 10;
+        const x = (pdfWidth - textWidth) / 2;
+        const y = pdfHeight - (margin / 2);
         pdf.text(footerText, x, y);
     }
     
+    // 6. Save the PDF
     pdf.save(`${paper.slug}.pdf`);
 };
