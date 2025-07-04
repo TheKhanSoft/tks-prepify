@@ -25,7 +25,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { socialPlatforms } from "@/lib/social-platforms";
 import { fetchPlans } from "@/lib/plan-service";
-import type { Plan } from "@/types";
+import type { Plan, Settings } from "@/types";
 import { Switch } from "@/components/ui/switch";
 
 const settingsFormSchema = z.object({
@@ -53,6 +53,7 @@ export default function AdminSettingsPage() {
   const [loading, setLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [plans, setPlans] = useState<Plan[]>([]);
+  const [settings, setSettings] = useState<Settings | null>(null);
 
   const form = useForm<SettingsFormValues>({
     resolver: zodResolver(settingsFormSchema),
@@ -70,11 +71,12 @@ export default function AdminSettingsPage() {
     const loadData = async () => {
       setLoading(true);
       try {
-        const [settings, fetchedPlans] = await Promise.all([
+        const [fetchedSettings, fetchedPlans] = await Promise.all([
           fetchSettings(),
           fetchPlans(),
         ]);
-        form.reset(settings);
+        form.reset(fetchedSettings);
+        setSettings(fetchedSettings);
         setPlans(fetchedPlans);
       } catch (error) {
         toast({
@@ -226,7 +228,7 @@ export default function AdminSettingsPage() {
                         <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4">
                             <div className="space-y-0.5">
                                 <FormLabel className="text-base">Enable Watermark</FormLabel>
-                                <FormDescription>Add a "Downloaded From {settings.siteName}" watermark to each page.</FormDescription>
+                                <FormDescription>Add a "Downloaded From {settings?.siteName}" watermark to each page.</FormDescription>
                             </div>
                             <FormControl>
                                 <Switch checked={field.value} onCheckedChange={field.onChange} disabled={isSubmitting} />
