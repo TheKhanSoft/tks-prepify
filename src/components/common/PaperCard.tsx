@@ -1,8 +1,7 @@
-
 'use client';
 
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
+import { useRouter, usePathname } from 'next/navigation';
 import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
@@ -23,6 +22,7 @@ interface PaperCardProps {
 export function PaperCard({ paper, categoryName }: PaperCardProps) {
   const { user, loading: authLoading } = useAuth();
   const router = useRouter();
+  const pathname = usePathname();
   const { toast } = useToast();
   const [isToggling, setIsToggling] = useState(false);
   const [isBookmarked, setIsBookmarked] = useState(false);
@@ -78,6 +78,9 @@ export function PaperCard({ paper, categoryName }: PaperCardProps) {
         toast({
           title: result.message,
         });
+        if (pathname === '/account/saved-papers' && !result.bookmarked) {
+          router.refresh();
+        }
       } else {
         toast({
           title: 'Action Failed',
