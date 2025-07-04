@@ -12,35 +12,40 @@ import { fetchPapers } from '@/lib/paper-service';
 import { fetchAllQuestions, fetchAllPaperQuestionLinks } from '@/lib/question-service';
 import { fetchQuestionCategories } from '@/lib/question-category-service';
 import { getDescendantQuestionCategoryIds as getDescendantQCategoryIds } from '@/lib/question-category-helpers';
-import type { Category, Paper, Question, QuestionCategory } from '@/types';
+import { fetchUserProfiles } from '@/lib/user-service';
+import type { Category, Paper, Question, QuestionCategory, User } from '@/types';
 import Link from 'next/link';
 import { Bar, BarChart, ResponsiveContainer, XAxis, YAxis, Tooltip } from "recharts"
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { cn } from '@/lib/utils';
+import { format } from 'date-fns';
 
 export default function AdminDashboardPage() {
   const [allCategories, setAllCategories] = useState<Category[]>([]);
   const [allQuestionCategories, setAllQuestionCategories] = useState<QuestionCategory[]>([]);
   const [allPapers, setAllPapers] = useState<Paper[]>([]);
   const [allQuestions, setAllQuestions] = useState<Question[]>([]);
+  const [allUsers, setAllUsers] = useState<User[]>([]);
   const [questionCounts, setQuestionCounts] = useState<Record<string, number>>({});
   const [loading, setLoading] = useState(true);
 
   const loadData = useCallback(async () => {
     setLoading(true);
     try {
-        const [cats, papersData, questionsData, questionCatsData, linksData] = await Promise.all([
+        const [cats, papersData, questionsData, questionCatsData, linksData, usersData] = await Promise.all([
             fetchCategories(),
             fetchPapers(),
             fetchAllQuestions(),
             fetchQuestionCategories(),
-            fetchAllPaperQuestionLinks()
+            fetchAllPaperQuestionLinks(),
+            fetchUserProfiles(),
         ]);
         setAllCategories(cats);
         setAllPapers(papersData);
         setAllQuestions(questionsData);
         setAllQuestionCategories(questionCatsData);
+        setAllUsers(usersData);
 
         const counts = linksData.reduce((acc, link) => {
             if (link.paperId) {
@@ -78,8 +83,16 @@ export default function AdminDashboardPage() {
       return count;
   }, [allQuestionCategories]);
 
-  const totalUsers = 0; // Placeholder
-  const recentUsers: any[] = []; // Placeholder
+  const totalUsers = allUsers.length;
+  
+  const recentUsers = useMemo(() => {
+    return [...allUsers]
+      .sort((a, b) => {
+        if (!a.createdAt || !b.createdAt) return 0;
+        return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+      })
+      .slice(0, 5);
+  }, [allUsers]);
 
   const papersPerCategory = useMemo(() => {
     if (allPapers.length === 0 || allCategories.length === 0) return [];
@@ -201,7 +214,7 @@ export default function AdminDashboardPage() {
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold">{totalUsers}</div>
-              <p className="text-xs text-muted-foreground">User management coming soon</p>
+              <p className="text-xs text-muted-foreground">Total registered users</p>
             </CardContent>
           </Card>
         </Link>
@@ -322,22 +335,22 @@ export default function AdminDashboardPage() {
                         {recentUsers.map((user) => (
                             <div key={user.id} className="flex items-center gap-4">
                             <Avatar className="hidden h-9 w-9 sm:flex">
-                                <AvatarImage src={`https://placehold.co/40x40.png?text=${user.name.charAt(0)}`} data-ai-hint="letter avatar" alt="Avatar" />
-                                <AvatarFallback>{user.name.charAt(0)}</AvatarFallback>
+                                <AvatarImage src={user.photoURL || undefined} data-ai-hint="user avatar" alt="Avatar" />
+                                <AvatarFallback>{user.name?.charAt(0) || user.email?.charAt(0)}</AvatarFallback>
                             </Avatar>
                             <div className="grid gap-1">
-                                <p className="text-sm font-medium leading-none">{user.name}</p>
+                                <p className="text-sm font-medium leading-none">{user.name || 'N/A'}</p>
                                 <p className="text-sm text-muted-foreground">{user.email}</p>
                             </div>
                             <div className="ml-auto font-medium text-sm text-muted-foreground">
-                                {new Date(user.createdAt).toLocaleDateString()}
+                                {user.createdAt ? format(new Date(user.createdAt), "PPP") : 'N/A'}
                             </div>
                             </div>
                         ))}
                     </div>
                  ) : (
                     <div className="text-center text-muted-foreground py-10">
-                        <p>User list is not yet available.</p>
+                        <p>No users have signed up yet.</p>
                     </div>
                  )}
               </CardContent>

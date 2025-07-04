@@ -26,17 +26,22 @@ export async function createUserProfile(user: UserProfileData, planId?: string) 
   if (userDoc.exists()) return; // User already exists
 
   const allPlans = await fetchPlans();
-  const defaultPlan = planId ? allPlans.find(p => p.id === planId) : null;
+  
+  // Find plan by provided ID, or fall back to finding a "Free Explorer" plan
+  let assignedPlan: Plan | null = null;
+  if (planId) {
+    assignedPlan = allPlans.find(p => p.id === planId) || null;
+  }
+  if (!assignedPlan) {
+    assignedPlan = allPlans.find(p => p.name.toLowerCase() === 'free explorer') || null;
+  }
 
   let planExpiryDate: Date | null = null;
-  if (defaultPlan) {
-    // Only calculate expiry date for non-free plans
-    if (defaultPlan.name.toLowerCase() !== 'free explorer') {
-      const shortestDurationOption = defaultPlan.pricingOptions.sort((a, b) => a.months - b.months)[0];
-      if (shortestDurationOption) {
-        const now = new Date();
-        planExpiryDate = new Date(now.setMonth(now.getMonth() + shortestDurationOption.months));
-      }
+  if (assignedPlan && assignedPlan.name.toLowerCase() !== 'free explorer' && assignedPlan.pricingOptions.length > 0) {
+    const shortestDurationOption = [...assignedPlan.pricingOptions].sort((a, b) => a.months - b.months)[0];
+    if (shortestDurationOption) {
+      const now = new Date();
+      planExpiryDate = new Date(now.setMonth(now.getMonth() + shortestDurationOption.months));
     }
   }
   
@@ -44,7 +49,7 @@ export async function createUserProfile(user: UserProfileData, planId?: string) 
     name: user.displayName,
     email: user.email,
     photoURL: user.photoURL,
-    planId: defaultPlan?.id || '',
+    planId: assignedPlan?.id || '',
     planExpiryDate: planExpiryDate,
     createdAt: serverTimestamp(),
   };
@@ -52,13 +57,13 @@ export async function createUserProfile(user: UserProfileData, planId?: string) 
   const batch = writeBatch(db);
   batch.set(userDocRef, userData);
 
-  // Create the initial record in the user_plans history collection
-  if (defaultPlan) {
+  // Create the initial record in the user_plans history collection if a plan was assigned
+  if (assignedPlan) {
     const userPlanDocRef = doc(collection(db, 'user_plans'));
     batch.set(userPlanDocRef, {
       userId: user.uid,
-      planId: defaultPlan.id,
-      planName: defaultPlan.name, // Denormalized for easier display
+      planId: assignedPlan.id,
+      planName: assignedPlan.name,
       subscriptionDate: serverTimestamp(),
       endDate: planExpiryDate,
       status: 'current',
