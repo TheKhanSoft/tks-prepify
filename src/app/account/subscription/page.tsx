@@ -6,7 +6,7 @@ import { useAuth } from '@/hooks/use-auth';
 import { getUserProfile, fetchUserPlanHistory } from '@/lib/user-service';
 import { fetchPlans } from '@/lib/plan-service';
 import type { Plan, User as UserProfile, UserPlan } from '@/types';
-import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
+import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from "@/components/ui/card";
 import { Button } from '@/components/ui/button';
 import { Loader2, Check, ExternalLink } from 'lucide-react';
 import { format } from 'date-fns';
@@ -15,6 +15,7 @@ import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { cn } from '@/lib/utils';
 import { Progress } from '@/components/ui/progress';
+import { Separator } from '@/components/ui/separator';
 
 export default function SubscriptionPage() {
     const { user, loading: authLoading } = useAuth();
@@ -82,8 +83,8 @@ export default function SubscriptionPage() {
             <Card>
                 <CardHeader className="flex flex-row items-start md:items-center justify-between gap-4">
                     <div>
-                        <CardTitle>Current Plan</CardTitle>
-                        <CardDescription>Here are the details of your active subscription.</CardDescription>
+                        <CardTitle className="text-2xl">{plan.name}</CardTitle>
+                        <CardDescription>{plan.description}</CardDescription>
                     </div>
                     <Button asChild>
                         <Link href="/pricing">
@@ -91,27 +92,9 @@ export default function SubscriptionPage() {
                         </Link>
                     </Button>
                 </CardHeader>
-                <CardContent className="space-y-6">
-                    <div className="p-6 rounded-lg border bg-secondary/30 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-                        <div>
-                            <h3 className="text-2xl font-bold text-primary">{plan.name}</h3>
-                            <p className="text-muted-foreground mt-1">{plan.description}</p>
-                        </div>
-                        <div>
-                            {userProfile.planExpiryDate ? (
-                                <Badge variant="outline">
-                                    Renews on {format(new Date(userProfile.planExpiryDate), 'PPP')}
-                                </Badge>
-                            ) : (
-                                 <Badge variant="outline">
-                                    Lifetime Access
-                                </Badge>
-                            )}
-                        </div>
-                    </div>
-
-                    <div>
-                        <h4 className="font-semibold text-lg mb-4">Plan Features:</h4>
+                <CardContent className="grid gap-8 md:grid-cols-2">
+                   <div>
+                        <h4 className="font-semibold text-lg mb-4">Plan Features</h4>
                         <ul className="space-y-3">
                             {plan.features.map((feature, index) => (
                                 <li key={index} className="flex items-center gap-3">
@@ -121,39 +104,44 @@ export default function SubscriptionPage() {
                             ))}
                         </ul>
                     </div>
-                </CardContent>
-            </Card>
+                     <div className="space-y-6 rounded-lg border bg-muted/50 p-6">
+                        <h4 className="font-semibold text-lg">Current Usage</h4>
+                         {quotaFeatures.length > 0 ? (
+                            quotaFeatures.map((feature) => {
+                                const limit = feature.limit ?? 0;
+                                // NOTE: "used" is a mocked value. This should be replaced with real data from a usage tracking system.
+                                const used = 0; 
+                                const percentage = limit > 0 ? (used / limit) * 100 : (limit === -1 ? 100 : 0);
 
-            <Card>
-                <CardHeader>
-                    <CardTitle>Current Usage</CardTitle>
-                    <CardDescription>Your usage statistics for the current billing period.</CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-6">
-                    {quotaFeatures.length > 0 ? (
-                        quotaFeatures.map((feature) => {
-                            const limit = feature.limit ?? 0;
-                            // NOTE: "used" is a mocked value. This should be replaced with real data from a usage tracking system.
-                            const used = 0; 
-                            const percentage = limit > 0 ? (used / limit) * 100 : (limit === -1 ? 100 : 0);
-
-                            return (
-                                <div key={feature.key}>
-                                    <div className="flex justify-between items-center mb-1">
-                                        <p className="font-medium">{feature.text}</p>
-                                        <p className="text-sm text-muted-foreground">
-                                            <span className="font-semibold text-foreground">{used}</span> / {limit === -1 ? 'Unlimited' : limit}
-                                        </p>
+                                return (
+                                    <div key={feature.key}>
+                                        <div className="flex justify-between items-center mb-1">
+                                            <p className="font-medium text-sm">{feature.text}</p>
+                                            <p className="text-xs text-muted-foreground">
+                                                <span className="font-semibold text-foreground">{used}</span> / {limit === -1 ? 'Unlimited' : limit}
+                                            </p>
+                                        </div>
+                                        <Progress value={percentage} aria-label={`${feature.text} usage`} />
+                                        <p className="text-xs text-muted-foreground mt-1 capitalize">Resets {feature.period}</p>
                                     </div>
-                                    <Progress value={percentage} aria-label={`${feature.text} usage`} />
-                                    <p className="text-xs text-muted-foreground mt-1 capitalize">Resets {feature.period}</p>
-                                </div>
-                            )
-                        })
-                    ) : (
-                        <p className="text-muted-foreground text-sm">This plan does not have any usage quotas.</p>
-                    )}
+                                )
+                            })
+                        ) : (
+                            <p className="text-muted-foreground text-sm">This plan does not have any usage quotas.</p>
+                        )}
+                    </div>
                 </CardContent>
+                 <CardFooter className="border-t pt-4 mt-6">
+                    {userProfile.planExpiryDate ? (
+                        <p className="text-sm text-muted-foreground">
+                            Your plan will renew on <strong>{format(new Date(userProfile.planExpiryDate), 'PPP')}</strong>.
+                        </p>
+                    ) : (
+                        <p className="text-sm text-muted-foreground">
+                            You have <strong>Lifetime Access</strong> to this plan.
+                        </p>
+                    )}
+                 </CardFooter>
             </Card>
 
              <Card>
