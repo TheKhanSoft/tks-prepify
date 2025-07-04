@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useForm, useFieldArray } from "react-hook-form";
+import { useForm, useFieldArray, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import { useRouter, useParams } from "next/navigation";
@@ -16,6 +16,8 @@ import { useState, useEffect } from "react";
 import { Switch } from "@/components/ui/switch";
 import { getPlanById, addPlan } from "@/lib/plan-service";
 import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import type { QuotaPeriod } from "@/types";
 
 const pricingOptionSchema = z.object({
   label: z.string().min(1, "Label is required."),
@@ -25,19 +27,40 @@ const pricingOptionSchema = z.object({
   stripePriceId: z.string().optional(),
 });
 
+const featureSchema = z.object({
+  text: z.string().min(1, "Feature description cannot be empty."),
+  isQuota: z.boolean().default(false),
+  limit: z.coerce.number().optional(),
+  period: z.enum(['daily', 'weekly', 'monthly', 'yearly', 'lifetime']).optional(),
+}).refine(data => {
+    if (data.isQuota) {
+        return data.limit !== undefined && data.limit !== null && data.period !== undefined;
+    }
+    return true;
+}, {
+    message: "Limit and period are required for quota features.",
+    path: ["limit"],
+});
+
+
 const planFormSchema = z.object({
   name: z.string().min(3, "Name must be at least 3 characters."),
   description: z.string().min(10, "Description must be at least 10 characters."),
-  features: z.array(z.object({ value: z.string().min(1, "Feature cannot be empty.") })).min(1, "At least one feature is required."),
+  features: z.array(featureSchema).min(1, "At least one feature is required."),
   published: z.boolean().default(false),
   popular: z.boolean().default(false),
   pricingOptions: z.array(pricingOptionSchema).min(1, "At least one pricing option is required."),
-  maxBookmarks: z.coerce.number().int(),
-  papersPerMonth: z.coerce.number().int(),
-  aiInteractionsPerMonth: z.coerce.number().int(),
 });
 
 type PlanFormValues = z.infer<typeof planFormSchema>;
+
+const quotaPeriods: { value: QuotaPeriod, label: string }[] = [
+    { value: 'daily', label: 'Daily' },
+    { value: 'weekly', label: 'Weekly' },
+    { value: 'monthly', label: 'Monthly' },
+    { value: 'yearly', label: 'Yearly' },
+    { value: 'lifetime', label: 'Lifetime' },
+];
 
 export default function CopyPlanPage() {
   const router = useRouter();
@@ -50,6 +73,18 @@ export default function CopyPlanPage() {
 
   const form = useForm<PlanFormValues>({
     resolver: zodResolver(planFormSchema),
+  });
+  
+  const { fields: featureFields, append: appendFeature, remove: removeFeature } = useFieldArray({
+    control: form.control, name: "features",
+  });
+  const { fields: pricingFields, append: appendPricing, remove: removePricing } = useFieldArray({
+    control: form.control, name: "pricingOptions",
+  });
+  
+  const featuresWatch = useWatch({
+    control: form.control,
+    name: "features",
   });
 
   useEffect(() => {
@@ -65,7 +100,6 @@ export default function CopyPlanPage() {
             name: `Copy of ${plan.name}`,
             published: false,
             popular: false,
-            features: plan.features.map(f => ({ value: f })),
             pricingOptions: plan.pricingOptions.length > 0 ? plan.pricingOptions : [{ label: 'Monthly', price: 0, months: 1 }],
           });
         } else {
@@ -81,19 +115,16 @@ export default function CopyPlanPage() {
     loadPlan();
   }, [planId, form, router, toast]);
 
-  const { fields: featureFields, append: appendFeature, remove: removeFeature } = useFieldArray({
-    control: form.control, name: "features",
-  });
-  const { fields: pricingFields, append: appendPricing, remove: removePricing } = useFieldArray({
-    control: form.control, name: "pricingOptions",
-  });
-
   async function onSubmit(data: PlanFormValues) {
     setIsSubmitting(true);
     try {
       const planData = {
         ...data,
-        features: data.features.map(f => f.value),
+        features: data.features.map(f => ({
+            ...f,
+            limit: f.isQuota ? f.limit : undefined,
+            period: f.isQuota ? f.period : undefined,
+        }))
       };
       await addPlan(planData);
       toast({ title: "Plan Copied", description: "The new plan has been created successfully." });
@@ -129,14 +160,29 @@ export default function CopyPlanPage() {
                 <CardContent className="space-y-8">
                     <FormField control={form.control} name="name" render={({ field }) => (<FormItem><FormLabel>New Plan Name</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>)} />
                     <FormField control={form.control} name="description" render={({ field }) => (<FormItem><FormLabel>Description</FormLabel><FormControl><Textarea {...field} /></FormControl><FormMessage /></FormItem>)} />
-                    <div>
-                        <Label>Features</Label>
-                        <div className="space-y-4 pt-2">
+                </CardContent>
+            </Card>
+
+             <Card>
+                <CardHeader><CardTitle>Features & Quotas</CardTitle><CardDescription>Define the features included in this plan. You can optionally set usage quotas for specific features.</CardDescription></CardHeader>
+                <CardContent className="space-y-4">
+                    <div className="space-y-4">
                         {featureFields.map((field, index) => (
-                            <FormField key={field.id} control={form.control} name={`features.${index}.value`} render={({ field }) => (<FormItem><div className="flex items-center gap-2"><FormControl><Input {...field} placeholder={`Feature ${index + 1}`} /></FormControl><Button type="button" variant="ghost" size="icon" onClick={() => removeFeature(index)} disabled={featureFields.length <= 1}><Trash2 className="h-4 w-4" /></Button></div><FormMessage /></FormItem>)}/>
+                           <div key={field.id} className="p-4 border rounded-lg space-y-4">
+                                <div className="flex justify-between items-start gap-4">
+                                    <FormField control={form.control} name={`features.${index}.text`} render={({ field }) => (<FormItem className="flex-grow"><FormLabel>Feature Description</FormLabel><FormControl><Input {...field} placeholder="e.g., AI-powered feedback" /></FormControl><FormMessage /></FormItem>)} />
+                                    <Button type="button" variant="ghost" size="icon" onClick={() => removeFeature(index)} disabled={featureFields.length <= 1}><Trash2 className="h-4 w-4 text-destructive" /></Button>
+                                </div>
+                                 <FormField control={form.control} name={`features.${index}.isQuota`} render={({ field }) => (<FormItem className="flex flex-row items-center space-x-3 space-y-0 p-3 rounded-md border bg-muted/50"><FormControl><Switch checked={field.value} onCheckedChange={field.onChange} /></FormControl><FormLabel>Set usage quota for this feature</FormLabel></FormItem>)} />
+                                 {featuresWatch?.[index]?.isQuota && (
+                                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-2">
+                                         <FormField control={form.control} name={`features.${index}.limit`} render={({ field }) => (<FormItem><FormLabel>Max Limit</FormLabel><FormControl><Input type="number" {...field} placeholder="e.g., 50" /></FormControl><FormDescription>Enter -1 for unlimited.</FormDescription><FormMessage /></FormItem>)} />
+                                         <FormField control={form.control} name={`features.${index}.period`} render={({ field }) => (<FormItem><FormLabel>Reset Period</FormLabel><Select onValueChange={field.onChange} defaultValue={field.value}><FormControl><SelectTrigger><SelectValue placeholder="Select a period" /></SelectTrigger></FormControl><SelectContent>{quotaPeriods.map(p => <SelectItem key={p.value} value={p.value}>{p.label}</SelectItem>)}</SelectContent></Select><FormMessage /></FormItem>)} />
+                                     </div>
+                                 )}
+                           </div>
                         ))}
-                        <Button type="button" variant="outline" size="sm" onClick={() => appendFeature({ value: "" })}><PlusCircle className="mr-2 h-4 w-4" />Add Feature</Button>
-                        </div>
+                        <Button type="button" variant="outline" size="sm" onClick={() => appendFeature({ text: "", isQuota: false, limit: 10, period: 'monthly' })}><PlusCircle className="mr-2 h-4 w-4" />Add Feature</Button>
                     </div>
                 </CardContent>
             </Card>
@@ -163,15 +209,6 @@ export default function CopyPlanPage() {
                 </CardContent>
             </Card>
             
-            <Card>
-                <CardHeader><CardTitle>Plan Quotas</CardTitle><CardDescription>Define the usage limits for this plan. Enter -1 for unlimited.</CardDescription></CardHeader>
-                <CardContent className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                    <FormField control={form.control} name="maxBookmarks" render={({ field }) => (<FormItem><FormLabel>Max Bookmarks</FormLabel><FormControl><Input type="number" {...field} /></FormControl><FormMessage /></FormItem>)} />
-                    <FormField control={form.control} name="papersPerMonth" render={({ field }) => (<FormItem><FormLabel>Papers per Month</FormLabel><FormControl><Input type="number" {...field} /></FormControl><FormMessage /></FormItem>)} />
-                    <FormField control={form.control} name="aiInteractionsPerMonth" render={({ field }) => (<FormItem><FormLabel>AI Interactions per Month</FormLabel><FormControl><Input type="number" {...field} /></FormControl><FormMessage /></FormItem>)} />
-                </CardContent>
-            </Card>
-
             <Card>
                 <CardHeader><CardTitle>Visibility</CardTitle></CardHeader>
                 <CardContent className="flex flex-col gap-6">

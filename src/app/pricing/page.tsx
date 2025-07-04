@@ -101,9 +101,9 @@ export default function PricingPage() {
                 <CardContent className="p-8 pt-0 flex-1">
                     <ul role="list" className="space-y-4 text-sm leading-6">
                     {plan.features.map((feature) => (
-                        <li key={feature} className="flex gap-x-3">
+                        <li key={feature.text} className="flex gap-x-3">
                         <Check className="h-6 w-5 flex-none text-primary" aria-hidden="true" />
-                        {feature}
+                        {feature.text}
                         </li>
                     ))}
                     </ul>

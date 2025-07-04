@@ -1,4 +1,5 @@
 
+
 'use server';
 
 import { collection, getDocs, doc, getDoc, addDoc, updateDoc, deleteDoc, DocumentData, query, orderBy, where } from 'firebase/firestore';
@@ -15,9 +16,6 @@ function docToPlan(doc: DocumentData): Plan {
         published: data.published || false,
         popular: data.popular || false,
         pricingOptions: data.pricingOptions || [],
-        maxBookmarks: data.maxBookmarks ?? -1,
-        papersPerMonth: data.papersPerMonth ?? -1,
-        aiInteractionsPerMonth: data.aiInteractionsPerMonth ?? -1,
     };
 }
 

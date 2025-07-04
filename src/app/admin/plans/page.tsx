@@ -9,7 +9,7 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { PlusCircle, MoreHorizontal, Edit, Trash2, Loader2, Copy, Bookmark, FileText, Bot } from "lucide-react";
+import { PlusCircle, MoreHorizontal, Edit, Trash2, Loader2, Copy } from "lucide-react";
 import { fetchPlans, deletePlan, updatePlan } from "@/lib/plan-service";
 import type { Plan } from "@/types";
 import { useToast } from "@/hooks/use-toast";
@@ -96,9 +96,9 @@ export default function AdminPlansPage() {
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead className="w-[30%]">Plan Name</TableHead>
+                  <TableHead className="w-[25%]">Plan Name</TableHead>
+                  <TableHead className="w-[35%]">Features</TableHead>
                   <TableHead>Pricing</TableHead>
-                  <TableHead>Quotas</TableHead>
                   <TableHead className="text-center">Published</TableHead>
                   <TableHead className="text-center">Popular</TableHead>
                   <TableHead><span className="sr-only">Actions</span></TableHead>
@@ -113,6 +113,20 @@ export default function AdminPlansPage() {
                         <div className="font-medium">{plan.name}</div>
                         <div className="text-sm text-muted-foreground">{plan.description}</div>
                       </TableCell>
+                       <TableCell>
+                          <ul className="list-disc list-inside space-y-1 text-sm">
+                              {plan.features.map((feature, index) => (
+                                  <li key={index}>
+                                      {feature.text}
+                                      {feature.isQuota && (
+                                          <Badge variant="secondary" className="ml-2 capitalize">
+                                              {feature.limit === -1 ? 'Unlimited' : feature.limit} / {feature.period}
+                                          </Badge>
+                                      )}
+                                  </li>
+                              ))}
+                          </ul>
+                      </TableCell>
                       <TableCell>
                         <div className="flex flex-col gap-1">
                             {plan.pricingOptions.map((opt) => (
@@ -121,13 +135,6 @@ export default function AdminPlansPage() {
                                 </Badge>
                             ))}
                         </div>
-                      </TableCell>
-                      <TableCell>
-                          <div className="flex flex-col gap-1.5 text-xs text-muted-foreground">
-                            <div className="flex items-center gap-2"><Bookmark className="h-3.5 w-3.5" /><span>{plan.maxBookmarks === -1 ? 'Unlimited' : plan.maxBookmarks} Bookmarks</span></div>
-                            <div className="flex items-center gap-2"><FileText className="h-3.5 w-3.5" /><span>{plan.papersPerMonth === -1 ? 'Unlimited' : plan.papersPerMonth}/mo Papers</span></div>
-                            <div className="flex items-center gap-2"><Bot className="h-3.5 w-3.5" /><span>{plan.aiInteractionsPerMonth === -1 ? 'Unlimited' : plan.aiInteractionsPerMonth}/mo AI</span></div>
-                          </div>
                       </TableCell>
                        <TableCell className="text-center">
                             <Switch checked={plan.published} onCheckedChange={(status) => handleStatusToggle(plan.id, 'published', status)} disabled={isPlanUpdating} aria-label="Toggle published status" />
