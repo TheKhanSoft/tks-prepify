@@ -3,9 +3,9 @@
 
 import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas';
-import type { Paper, PaperQuestion } from '@/types';
+import type { Paper, PaperQuestion, Settings } from '@/types';
 
-export const generatePdf = async (paper: Paper, questions: PaperQuestion[]): Promise<void> => {
+export const generatePdf = async (paper: Paper, questions: PaperQuestion[], settings: Settings): Promise<void> => {
     // Create an element to render the PDF content, but keep it off-screen
     const reportElement = document.createElement('div');
     reportElement.style.position = 'absolute';
@@ -78,6 +78,18 @@ export const generatePdf = async (paper: Paper, questions: PaperQuestion[]): Pro
         pdf.addPage();
         pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
         heightLeft -= pdfHeight;
+    }
+    
+    const pageCount = pdf.internal.getNumberOfPages();
+    for (let i = 1; i <= pageCount; i++) {
+        pdf.setPage(i);
+        pdf.setFontSize(8);
+        pdf.setTextColor(150);
+        const footerText = `Downloaded From ${settings.siteName}`;
+        const textWidth = pdf.getStringUnitWidth(footerText) * pdf.getFontSize() / pdf.internal.scaleFactor;
+        const x = (pdf.internal.pageSize.getWidth() - textWidth) / 2;
+        const y = pdf.internal.pageSize.getHeight() - 10;
+        pdf.text(footerText, x, y);
     }
     
     pdf.save(`${paper.slug}.pdf`);

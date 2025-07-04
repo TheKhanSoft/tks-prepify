@@ -133,14 +133,14 @@ export default function SolvedPaperPage() {
   };
 
   const handleDownloadClick = async () => {
-    if (!paper || questions.length === 0) return;
+    if (!paper || questions.length === 0 || !settings) return;
     setIsDownloading(true);
     toast({
         title: 'Generating PDF...',
         description: 'This may take a moment. Your download will start shortly.',
     });
     try {
-        await generatePdf(paper, questions);
+        await generatePdf(paper, questions, settings);
     } catch (error) {
         console.error("PDF generation failed:", error);
         toast({
