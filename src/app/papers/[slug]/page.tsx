@@ -9,14 +9,15 @@ import { ArrowLeft, ArrowRight, CheckCircle2, Lightbulb, Loader2, Bookmark, Down
 import { Separator } from '@/components/ui/separator';
 import { cn } from '@/lib/utils';
 import { getPaperBySlug } from '@/lib/paper-service';
-import { fetchQuestionsForPaper, PaperQuestion } from '@/lib/question-service';
-import type { Paper, Settings, Plan } from '@/types';
+import { fetchQuestionsForPaper, type PaperQuestion } from '@/lib/question-service';
+import type { Paper, Settings } from '@/types';
 import { fetchSettings } from '@/lib/settings-service';
 import { useAuth } from '@/hooks/use-auth';
 import { useToast } from '@/hooks/use-toast';
 import { getBookmarkForPaper, toggleBookmark } from '@/lib/bookmark-service';
 import { getUserProfile } from '@/lib/user-service';
 import { getPlanById } from '@/lib/plan-service';
+import { generatePdf } from '@/lib/pdf-generator';
 
 export default function SolvedPaperPage() {
   const router = useRouter();
@@ -27,6 +28,7 @@ export default function SolvedPaperPage() {
   const [questions, setQuestions] = useState<PaperQuestion[]>([]);
   const [settings, setSettings] = useState<Settings | null>(null);
   const [loading, setLoading] = useState(true);
+  const [isDownloading, setIsDownloading] = useState(false);
 
   // New state for bookmarking
   const { user, loading: authLoading } = useAuth();
@@ -130,12 +132,27 @@ export default function SolvedPaperPage() {
     }
   };
 
-  const handleDownloadClick = () => {
+  const handleDownloadClick = async () => {
+    if (!paper || questions.length === 0) return;
+    setIsDownloading(true);
     toast({
-        title: 'Coming Soon!',
-        description: 'Download functionality is not yet available.',
+        title: 'Generating PDF...',
+        description: 'This may take a moment. Your download will start shortly.',
     });
+    try {
+        await generatePdf(paper, questions);
+    } catch (error) {
+        console.error("PDF generation failed:", error);
+        toast({
+            title: 'PDF Generation Failed',
+            description: 'Could not generate the PDF. Please try again.',
+            variant: 'destructive',
+        });
+    } finally {
+        setIsDownloading(false);
+    }
   };
+
 
   if (loading) {
     return (
@@ -192,8 +209,12 @@ export default function SolvedPaperPage() {
                 )}
                 {isBookmarked ? 'Saved' : 'Save Paper'}
             </Button>
-            <Button variant="outline" onClick={handleDownloadClick}>
-                <Download className="mr-2 h-4 w-4" />
+            <Button variant="outline" onClick={handleDownloadClick} disabled={isDownloading}>
+                {isDownloading ? (
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                ) : (
+                    <Download className="mr-2 h-4 w-4" />
+                )}
                 Download
             </Button>
         </div>
