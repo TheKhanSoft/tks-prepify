@@ -25,6 +25,10 @@ const signupFormSchema = z.object({
   name: z.string().min(2, { message: "Name must be at least 2 characters." }),
   email: z.string().email({ message: "Please enter a valid email address." }),
   password: z.string().min(6, { message: "Password must be at least 6 characters." }),
+  confirmPassword: z.string(),
+}).refine(data => data.password === data.confirmPassword, {
+    message: "Passwords do not match",
+    path: ["confirmPassword"],
 });
 
 type SignupFormValues = z.infer<typeof signupFormSchema>;
@@ -42,7 +46,7 @@ export default function SignupPage() {
 
   const form = useForm<SignupFormValues>({
     resolver: zodResolver(signupFormSchema),
-    defaultValues: { name: "", email: "", password: "" },
+    defaultValues: { name: "", email: "", password: "", confirmPassword: "" },
   });
 
   const handleSuccessfulSignup = async (user: FirebaseAuthUser) => {
@@ -82,12 +86,9 @@ export default function SignupPage() {
         displayName: data.name,
       });
       
-      if (auth.currentUser) {
-        await handleSuccessfulSignup(auth.currentUser);
-      } else {
-        // Fallback, though auth.currentUser should be available
-        await handleSuccessfulSignup(userCredential.user);
-      }
+      const user = auth.currentUser || userCredential.user;
+      await handleSuccessfulSignup(user);
+
     } catch (error: any) {
       console.error(error);
       let errorMessage = "An unknown error occurred.";
@@ -157,6 +158,19 @@ export default function SignupPage() {
                     </FormControl>
                     <FormMessage />
                   </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="confirmPassword"
+                render={({ field }) => (
+                    <FormItem>
+                        <Label>Confirm Password</Label>
+                        <FormControl>
+                            <Input type="password" {...field} />
+                        </FormControl>
+                        <FormMessage />
+                    </FormItem>
                 )}
               />
               <Button type="submit" className="w-full" disabled={loading}>

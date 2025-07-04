@@ -6,6 +6,7 @@ import { db } from './firebase';
 import type { User as FirebaseAuthUser } from 'firebase/auth';
 import type { User } from '@/types';
 import { cache } from 'react';
+import { fetchPlans } from './plan-service';
 
 /**
  * Creates or updates a user profile document in Firestore.
@@ -22,11 +23,27 @@ export async function createUserProfile(user: FirebaseAuthUser, planId: string) 
     return;
   }
 
+  const allPlans = await fetchPlans();
+  const assignedPlan = allPlans.find(p => p.id === planId);
+
+  let planExpiryDate: Date | null = null;
+  // Special case for a free plan that never expires.
+  if (assignedPlan && assignedPlan.name !== 'Free Explorer') {
+      // For paid plans, find the pricing option to determine duration.
+      // Defaulting to the shortest duration if multiple exist.
+      const shortestDurationOption = assignedPlan.pricingOptions.sort((a, b) => a.months - b.months)[0];
+      if (shortestDurationOption) {
+          const now = new Date();
+          planExpiryDate = new Date(now.setMonth(now.getMonth() + shortestDurationOption.months));
+      }
+  }
+
   const userData: Omit<User, 'id'> = {
     name: user.displayName,
     email: user.email,
     photoURL: user.photoURL,
     planId: planId,
+    planExpiryDate: planExpiryDate,
     createdAt: serverTimestamp(),
   };
 
@@ -47,6 +64,7 @@ const docToUser = (doc: DocumentData): User => {
         photoURL: data.photoURL,
         planId: data.planId,
         createdAt: data.createdAt,
+        planExpiryDate: data.planExpiryDate,
     };
 };
 

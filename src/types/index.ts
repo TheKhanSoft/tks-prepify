@@ -73,6 +73,7 @@ export interface User {
   email: string | null;
   photoURL?: string | null;
   planId: string;
+  planExpiryDate?: any; // Can be Firestore Timestamp or null
   createdAt: any; // Firestore Timestamp
 }
 
