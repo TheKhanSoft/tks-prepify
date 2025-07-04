@@ -59,8 +59,19 @@ export default function SignupPage() {
       await auth.signOut(); // Log out the user if setup is incomplete
       return;
     }
-    await createUserProfile(user, settings.defaultPlanId);
-    toast({ title: "Sign Up Successful", description: "Welcome to Prepify!" });
+    
+    // Pass a plain object to the server action instead of the complex Firebase User object
+    await createUserProfile(
+      {
+        uid: user.uid,
+        displayName: user.displayName,
+        email: user.email,
+        photoURL: user.photoURL,
+      },
+      settings.defaultPlanId
+    );
+
+    toast({ title: "Sign Up Successful", description: "Welcome!" });
     router.push('/account/dashboard');
   };
 
@@ -86,10 +97,10 @@ export default function SignupPage() {
         displayName: data.name,
       });
       
-      const user = auth.currentUser || userCredential.user;
-      await handleSuccessfulSignup(user);
+      // Use the user from the credential which is the most up-to-date
+      await handleSuccessfulSignup(userCredential.user);
 
-    } catch (error: any) {
+    } catch (error: any)
       console.error(error);
       let errorMessage = "An unknown error occurred.";
       if (error.code === 'auth/email-already-in-use') {

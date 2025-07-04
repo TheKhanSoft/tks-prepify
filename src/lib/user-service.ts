@@ -3,18 +3,25 @@
 
 import { doc, setDoc, serverTimestamp, getDoc, collection, getDocs, updateDoc, DocumentData } from 'firebase/firestore';
 import { db } from './firebase';
-import type { User as FirebaseAuthUser } from 'firebase/auth';
 import type { User } from '@/types';
 import { cache } from 'react';
 import { fetchPlans } from './plan-service';
 
+// Define a plain object type for user data to be passed from client to server
+type UserProfileData = {
+  uid: string;
+  displayName: string | null;
+  email: string | null;
+  photoURL: string | null;
+}
+
 /**
  * Creates or updates a user profile document in Firestore.
  * This is typically called after a user signs up or logs in for the first time.
- * @param user The Firebase Auth user object.
+ * @param user The plain user data object.
  * @param planId The ID of the plan to assign to the user.
  */
-export async function createUserProfile(user: FirebaseAuthUser, planId: string) {
+export async function createUserProfile(user: UserProfileData, planId: string) {
   const userDocRef = doc(db, 'users', user.uid);
 
   const userDoc = await getDoc(userDocRef);
