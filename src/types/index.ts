@@ -126,6 +126,10 @@ export interface Plan {
   published: boolean;
   popular?: boolean;
   pricingOptions: PricingOption[];
+  // Quota fields
+  maxBookmarks: number;
+  papersPerMonth: number;
+  aiInteractionsPerMonth: number;
 }
 
 export interface Settings {

@@ -32,6 +32,9 @@ const planFormSchema = z.object({
   published: z.boolean().default(false),
   popular: z.boolean().default(false),
   pricingOptions: z.array(pricingOptionSchema).min(1, "At least one pricing option is required."),
+  maxBookmarks: z.coerce.number().int(),
+  papersPerMonth: z.coerce.number().int(),
+  aiInteractionsPerMonth: z.coerce.number().int(),
 });
 
 type PlanFormValues = z.infer<typeof planFormSchema>;
@@ -154,6 +157,15 @@ export default function EditPlanPage() {
                     ))}
                     <Button type="button" variant="outline" size="sm" onClick={() => appendPricing({ label: 'Yearly', price: 100, months: 12, badge: "", stripePriceId: "" })}><PlusCircle className="mr-2 h-4 w-4" />Add Pricing Option</Button>
                     <FormMessage>{form.formState.errors.pricingOptions?.message}</FormMessage>
+                </CardContent>
+            </Card>
+            
+            <Card>
+                <CardHeader><CardTitle>Plan Quotas</CardTitle><CardDescription>Define the usage limits for this plan. Enter -1 for unlimited.</CardDescription></CardHeader>
+                <CardContent className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                    <FormField control={form.control} name="maxBookmarks" render={({ field }) => (<FormItem><FormLabel>Max Bookmarks</FormLabel><FormControl><Input type="number" {...field} /></FormControl><FormMessage /></FormItem>)} />
+                    <FormField control={form.control} name="papersPerMonth" render={({ field }) => (<FormItem><FormLabel>Papers per Month</FormLabel><FormControl><Input type="number" {...field} /></FormControl><FormMessage /></FormItem>)} />
+                    <FormField control={form.control} name="aiInteractionsPerMonth" render={({ field }) => (<FormItem><FormLabel>AI Interactions per Month</FormLabel><FormControl><Input type="number" {...field} /></FormControl><FormMessage /></FormItem>)} />
                 </CardContent>
             </Card>
 

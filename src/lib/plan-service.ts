@@ -15,6 +15,9 @@ function docToPlan(doc: DocumentData): Plan {
         published: data.published || false,
         popular: data.popular || false,
         pricingOptions: data.pricingOptions || [],
+        maxBookmarks: data.maxBookmarks ?? -1,
+        papersPerMonth: data.papersPerMonth ?? -1,
+        aiInteractionsPerMonth: data.aiInteractionsPerMonth ?? -1,
     };
 }
 
