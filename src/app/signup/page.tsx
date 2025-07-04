@@ -100,7 +100,7 @@ export default function SignupPage() {
       // Use the user from the credential which is the most up-to-date
       await handleSuccessfulSignup(userCredential.user);
 
-    } catch (error: any)
+    } catch (error: any) {
       console.error(error);
       let errorMessage = "An unknown error occurred.";
       if (error.code === 'auth/email-already-in-use') {

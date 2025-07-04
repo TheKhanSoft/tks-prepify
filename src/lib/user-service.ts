@@ -1,7 +1,7 @@
 
 'use server';
 
-import { doc, setDoc, serverTimestamp, getDoc, collection, getDocs, updateDoc, DocumentData } from 'firebase/firestore';
+import { doc, setDoc, serverTimestamp, getDoc, collection, getDocs, updateDoc, DocumentData, Timestamp } from 'firebase/firestore';
 import { db } from './firebase';
 import type { User } from '@/types';
 import { cache } from 'react';
@@ -75,19 +75,32 @@ const docToUser = (doc: DocumentData): User => {
     };
 };
 
-export const fetchUserProfiles = cache(async (): Promise<User[]> => {
+export const fetchUserProfiles = cache(async (): Promise<any[]> => {
     const usersCol = collection(db, 'users');
     const snapshot = await getDocs(usersCol);
-    return snapshot.docs.map(docToUser);
+    const users = snapshot.docs.map(docToUser);
+
+    // Convert Timestamps to serializable strings before returning
+    return users.map(user => ({
+        ...user,
+        createdAt: user.createdAt instanceof Timestamp ? user.createdAt.toDate().toISOString() : null,
+        planExpiryDate: user.planExpiryDate instanceof Timestamp ? user.planExpiryDate.toDate().toISOString() : null,
+    }));
 });
 
 
-export const getUserProfile = cache(async (userId: string): Promise<User | null> => {
+export const getUserProfile = cache(async (userId: string): Promise<any | null> => {
     if (!userId) return null;
     const userDocRef = doc(db, 'users', userId);
     const docSnap = await getDoc(userDocRef);
     if (docSnap.exists()) {
-        return docToUser(docSnap);
+        const user = docToUser(docSnap);
+        // Convert Timestamps to serializable strings
+        return {
+            ...user,
+            createdAt: user.createdAt instanceof Timestamp ? user.createdAt.toDate().toISOString() : null,
+            planExpiryDate: user.planExpiryDate instanceof Timestamp ? user.planExpiryDate.toDate().toISOString() : null,
+        }
     }
     return null;
 });

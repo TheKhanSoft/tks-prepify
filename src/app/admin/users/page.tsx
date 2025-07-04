@@ -1,3 +1,4 @@
+
 'use client';
 
 import React, { useState, useEffect, useCallback, useMemo } from "react";
@@ -31,7 +32,7 @@ export default function AdminUsersPage() {
         fetchUserProfiles(),
         fetchPlans(),
       ]);
-      setUsers(fetchedUsers);
+      setUsers(fetchedUsers as User[]);
       setPlans(fetchedPlans);
     } catch (error) {
       toast({
@@ -121,8 +122,8 @@ export default function AdminUsersPage() {
                       <Badge variant="outline">{plansMap.get(user.planId) || "No Plan"}</Badge>
                     </TableCell>
                     <TableCell>
-                      {user.createdAt && typeof user.createdAt.toDate === 'function' 
-                        ? format(user.createdAt.toDate(), "PPP") 
+                      {user.createdAt
+                        ? format(new Date(user.createdAt as unknown as string), "PPP")
                         : 'N/A'}
                     </TableCell>
                     <TableCell className="text-right">
