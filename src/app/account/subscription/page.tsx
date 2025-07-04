@@ -14,6 +14,7 @@ import Link from 'next/link';
 import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { cn } from '@/lib/utils';
+import { Progress } from '@/components/ui/progress';
 
 export default function SubscriptionPage() {
     const { user, loading: authLoading } = useAuth();
@@ -69,6 +70,8 @@ export default function SubscriptionPage() {
         );
     }
 
+    const quotaFeatures = plan.features.filter(f => f.isQuota);
+
     return (
         <div className="space-y-8">
             <div>
@@ -118,6 +121,38 @@ export default function SubscriptionPage() {
                             ))}
                         </ul>
                     </div>
+                </CardContent>
+            </Card>
+
+            <Card>
+                <CardHeader>
+                    <CardTitle>Current Usage</CardTitle>
+                    <CardDescription>Your usage statistics for the current billing period.</CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-6">
+                    {quotaFeatures.length > 0 ? (
+                        quotaFeatures.map((feature) => {
+                            const limit = feature.limit ?? 0;
+                            // NOTE: "used" is a mocked value. This should be replaced with real data from a usage tracking system.
+                            const used = 0; 
+                            const percentage = limit > 0 ? (used / limit) * 100 : (limit === -1 ? 100 : 0);
+
+                            return (
+                                <div key={feature.key}>
+                                    <div className="flex justify-between items-center mb-1">
+                                        <p className="font-medium">{feature.text}</p>
+                                        <p className="text-sm text-muted-foreground">
+                                            <span className="font-semibold text-foreground">{used}</span> / {limit === -1 ? 'Unlimited' : limit}
+                                        </p>
+                                    </div>
+                                    <Progress value={percentage} aria-label={`${feature.text} usage`} />
+                                    <p className="text-xs text-muted-foreground mt-1 capitalize">Resets {feature.period}</p>
+                                </div>
+                            )
+                        })
+                    ) : (
+                        <p className="text-muted-foreground text-sm">This plan does not have any usage quotas.</p>
+                    )}
                 </CardContent>
             </Card>
 
