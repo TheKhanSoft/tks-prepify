@@ -13,6 +13,8 @@ function docToPlan(doc: DocumentData): Plan {
         name: data.name,
         description: data.description,
         features: data.features || [],
+        quotas: data.quotas || [],
+        isAdSupported: data.isAdSupported || false,
         published: data.published || false,
         popular: data.popular || false,
         pricingOptions: data.pricingOptions || [],

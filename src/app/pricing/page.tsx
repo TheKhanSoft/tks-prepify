@@ -10,7 +10,34 @@ import { Check, Loader2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import type { Plan } from '@/types';
+import type { Plan, PlanQuota } from '@/types';
+import { QuotaKeys } from '@/lib/plan-data';
+
+function processAndDisplayQuotas(quotas: PlanQuota[]) {
+  const groupedQuotas = quotas.reduce((acc, quota) => {
+    if (!acc[quota.key]) {
+      acc[quota.key] = [];
+    }
+    acc[quota.key].push(quota);
+    return acc;
+  }, {} as Record<string, PlanQuota[]>);
+
+  return Object.entries(groupedQuotas).map(([key, rules]) => {
+    const featureLabel = QuotaKeys.find(k => k.key === key)?.label || key;
+    const descriptions = rules.map(rule => 
+        `${rule.limit === -1 ? 'Unlimited' : rule.limit} ${rule.period}`
+    ).join(', ');
+
+    return (
+        <li key={key} className="flex gap-x-3">
+            <Check className="h-6 w-5 flex-none text-primary" aria-hidden="true" />
+            <span>
+                {featureLabel}: <span className="text-foreground/80">{descriptions}</span>
+            </span>
+        </li>
+    );
+  });
+}
 
 export default function PricingPage() {
   const [plans, setPlans] = React.useState<Plan[]>([]);
@@ -66,7 +93,6 @@ export default function PricingPage() {
             
             const displayOption = interval === 'year' ? yearlyOption : monthlyOption;
 
-            // Don't render the card if there's no pricing option for the selected interval
             if (!displayOption) return null;
 
             let savings = 0;
@@ -100,12 +126,17 @@ export default function PricingPage() {
                 </CardHeader>
                 <CardContent className="p-8 pt-0 flex-1">
                     <ul role="list" className="space-y-4 text-sm leading-6">
-                    {plan.features.map((feature) => (
-                        <li key={feature.text} className="flex gap-x-3">
+                      <li className="flex gap-x-3">
                         <Check className="h-6 w-5 flex-none text-primary" aria-hidden="true" />
-                        {feature.text}
-                        </li>
-                    ))}
+                        {plan.isAdSupported ? 'Ad-supported experience' : 'Ad-free experience'}
+                      </li>
+                      {plan.features.map((feature) => (
+                          <li key={feature} className="flex gap-x-3">
+                          <Check className="h-6 w-5 flex-none text-primary" aria-hidden="true" />
+                          {feature}
+                          </li>
+                      ))}
+                      {processAndDisplayQuotas(plan.quotas)}
                     </ul>
                 </CardContent>
                 <CardFooter className="p-8 pt-0">

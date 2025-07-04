@@ -118,21 +118,21 @@ export interface PricingOption {
   stripePriceId?: string;
 }
 
-export type QuotaPeriod = 'daily' | 'weekly' | 'monthly' | 'yearly' | 'lifetime';
+export type QuotaPeriod = 'daily' | 'monthly' | 'yearly' | 'lifetime';
 
-export interface PlanFeature {
-  text: string;
-  isQuota: boolean;
-  limit?: number;
-  period?: QuotaPeriod;
+export interface PlanQuota {
+  key: string;
+  limit: number; // -1 for unlimited
+  period: QuotaPeriod;
 }
-
 
 export interface Plan {
   id: string;
   name: string;
   description: string;
-  features: PlanFeature[];
+  features: string[]; // simple text features like "Priority support"
+  quotas: PlanQuota[];
+  isAdSupported: boolean;
   published: boolean;
   popular?: boolean;
   pricingOptions: PricingOption[];

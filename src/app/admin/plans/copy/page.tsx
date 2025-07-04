@@ -4,7 +4,7 @@
 import { useForm, useFieldArray } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
-import { useRouter } from "next/navigation";
+import { useRouter, useParams } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
@@ -12,10 +12,11 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
 import { ArrowLeft, Loader2, PlusCircle, Trash2 } from "lucide-react";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Switch } from "@/components/ui/switch";
-import { addPlan } from "@/lib/plan-service";
+import { getPlanById, addPlan } from "@/lib/plan-service";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import type { Plan } from "@/types";
 import { QuotaKeys, QuotaPeriods } from "@/lib/plan-data";
 
 const pricingOptionSchema = z.object({
@@ -45,25 +46,19 @@ const planFormSchema = z.object({
 
 type PlanFormValues = z.infer<typeof planFormSchema>;
 
-export default function NewPlanPage() {
+export default function CopyPlanPage() {
   const router = useRouter();
+  const params = useParams();
+  const planId = params.planId as string;
   const { toast } = useToast();
+  const [loading, setLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [sourcePlanName, setSourcePlanName] = useState('');
 
   const form = useForm<PlanFormValues>({
     resolver: zodResolver(planFormSchema),
-    defaultValues: {
-      name: "",
-      description: "",
-      features: [{ text: "Early access to new papers" }, { text: "Priority customer support" }],
-      quotas: [],
-      isAdSupported: false,
-      published: false,
-      popular: false,
-      pricingOptions: [{ label: "Monthly", price: 10, months: 1, badge: "", stripePriceId: "" }],
-    },
   });
-
+  
   const { fields: featureFields, append: appendFeature, remove: removeFeature } = useFieldArray({
     control: form.control, name: "features",
   });
@@ -74,25 +69,60 @@ export default function NewPlanPage() {
     control: form.control, name: "pricingOptions",
   });
 
+  useEffect(() => {
+    if (!planId) return;
+    const loadPlan = async () => {
+      setLoading(true);
+      try {
+        const plan = await getPlanById(planId);
+        if (plan) {
+            setSourcePlanName(plan.name);
+            const formattedFeatures = plan.features?.map(f => ({ text: f })) || [];
+            
+            form.reset({
+                ...plan,
+                name: `Copy of ${plan.name}`,
+                features: formattedFeatures,
+                published: false,
+                popular: false,
+                pricingOptions: plan.pricingOptions.length > 0 ? plan.pricingOptions : [{ label: 'Monthly', price: 0, months: 1 }],
+            });
+        } else {
+          toast({ title: "Error", description: "Source plan not found.", variant: "destructive" });
+          router.push('/admin/plans');
+        }
+      } catch (error) {
+        toast({ title: "Error", description: "Failed to load plan data.", variant: "destructive" });
+      } finally {
+        setLoading(false);
+      }
+    };
+    loadPlan();
+  }, [planId, form, router, toast]);
+
   async function onSubmit(data: PlanFormValues) {
     setIsSubmitting(true);
     try {
       const planData = {
         ...data,
-        features: data.features.map(f => f.text) // Convert from object array to string array
+        features: data.features.map(f => f.text), // Convert back to simple string array
       };
       await addPlan(planData);
-      toast({ title: "Plan Created", description: "The new plan has been saved successfully." });
+      toast({ title: "Plan Copied", description: "The new plan has been created successfully." });
       router.push("/admin/plans");
       router.refresh();
     } catch (error) {
-      console.error("Error creating plan:", error);
-      toast({ title: "Error", description: "Failed to create the plan.", variant: "destructive" });
+      console.error("Error copying plan:", error);
+      toast({ title: "Error", description: "Failed to copy the plan.", variant: "destructive" });
     } finally {
       setIsSubmitting(false);
     }
   }
 
+  if (loading) {
+    return <div className="flex justify-center items-center h-full min-h-[calc(100vh-20rem)]"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>;
+  }
+  
   return (
     <div className="space-y-6">
       <div>
@@ -105,12 +135,12 @@ export default function NewPlanPage() {
         <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
             <Card>
                 <CardHeader>
-                    <CardTitle>Add New Plan</CardTitle>
-                    <CardDescription>Fill out the form below to create a new membership plan.</CardDescription>
+                    <CardTitle>Copy Plan: {sourcePlanName}</CardTitle>
+                    <CardDescription>Create a new plan based on an existing one.</CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-8">
-                    <FormField control={form.control} name="name" render={({ field }) => (<FormItem><FormLabel>Plan Name</FormLabel><FormControl><Input placeholder="e.g., Pro Plan" {...field} /></FormControl><FormMessage /></FormItem>)} />
-                    <FormField control={form.control} name="description" render={({ field }) => (<FormItem><FormLabel>Description</FormLabel><FormControl><Textarea placeholder="A short description of this plan..." {...field} /></FormControl><FormMessage /></FormItem>)} />
+                    <FormField control={form.control} name="name" render={({ field }) => (<FormItem><FormLabel>New Plan Name</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>)} />
+                    <FormField control={form.control} name="description" render={({ field }) => (<FormItem><FormLabel>Description</FormLabel><FormControl><Textarea {...field} /></FormControl><FormMessage /></FormItem>)} />
                 </CardContent>
             </Card>
 
@@ -157,8 +187,8 @@ export default function NewPlanPage() {
                                 <FormField control={form.control} name={`pricingOptions.${index}.months`} render={({ field }) => (<FormItem><FormLabel>Duration (Months)</FormLabel><FormControl><Input type="number" {...field} /></FormControl><FormMessage /></FormItem>)} />
                             </div>
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                <FormField control={form.control} name={`pricingOptions.${index}.badge`} render={({ field }) => (<FormItem><FormLabel>Badge (Optional)</FormLabel><FormControl><Input placeholder="e.g., Save 20%" {...field} /></FormControl><FormMessage /></FormItem>)} />
-                                <FormField control={form.control} name={`pricingOptions.${index}.stripePriceId`} render={({ field }) => (<FormItem><FormLabel>Stripe Price ID (Optional)</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>)} />
+                                <FormField control={form.control} name={`pricingOptions.${index}.badge`} render={({ field }) => (<FormItem><FormLabel>Badge (Optional)</FormLabel><FormControl><Input placeholder="e.g., Save 20%" {...field} value={field.value || ''} /></FormControl><FormMessage /></FormItem>)} />
+                                <FormField control={form.control} name={`pricingOptions.${index}.stripePriceId`} render={({ field }) => (<FormItem><FormLabel>Stripe Price ID (Optional)</FormLabel><FormControl><Input {...field} value={field.value || ''} /></FormControl><FormMessage /></FormItem>)} />
                             </div>
                         </div>
                     ))}
@@ -178,7 +208,7 @@ export default function NewPlanPage() {
 
             <div className="flex justify-end gap-4">
                 <Button type="button" variant="outline" onClick={() => router.push('/admin/plans')} disabled={isSubmitting}>Cancel</Button>
-                <Button type="submit" disabled={isSubmitting}>{isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}Save Plan</Button>
+                <Button type="submit" disabled={isSubmitting}>{isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}Save Copy</Button>
             </div>
         </form>
       </Form>

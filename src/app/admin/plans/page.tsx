@@ -97,7 +97,7 @@ export default function AdminPlansPage() {
               <TableHeader>
                 <TableRow>
                   <TableHead className="w-[25%]">Plan Name</TableHead>
-                  <TableHead className="w-[35%]">Features</TableHead>
+                  <TableHead className="w-[35%]">Features & Quotas</TableHead>
                   <TableHead>Pricing</TableHead>
                   <TableHead className="text-center">Published</TableHead>
                   <TableHead className="text-center">Popular</TableHead>
@@ -112,25 +112,26 @@ export default function AdminPlansPage() {
                       <TableCell>
                         <div className="font-medium">{plan.name}</div>
                         <div className="text-sm text-muted-foreground">{plan.description}</div>
+                         {plan.isAdSupported && <Badge variant="outline" className="mt-2">Ad-Supported</Badge>}
                       </TableCell>
                        <TableCell>
                           <ul className="list-disc list-inside space-y-1 text-sm">
                               {plan.features.map((feature, index) => (
-                                  <li key={index}>
-                                      {feature.text}
-                                      {feature.isQuota && (
-                                          <Badge variant="secondary" className="ml-2 capitalize">
-                                              {feature.limit === -1 ? 'Unlimited' : feature.limit} / {feature.period}
-                                          </Badge>
-                                      )}
-                                  </li>
+                                  <li key={index}>{feature}</li>
                               ))}
                           </ul>
+                          <div className="flex flex-wrap gap-1 mt-2">
+                             {plan.quotas?.map((quota, index) => (
+                                <Badge key={index} variant="secondary" className="capitalize">
+                                    {quota.key}: {quota.limit === -1 ? 'Unlimited' : quota.limit} / {quota.period}
+                                </Badge>
+                             ))}
+                          </div>
                       </TableCell>
                       <TableCell>
                         <div className="flex flex-col gap-1">
                             {plan.pricingOptions.map((opt) => (
-                                <Badge key={opt.label} variant="secondary">
+                                <Badge key={opt.label} variant="outline">
                                     PKR {opt.price} / {opt.label}
                                 </Badge>
                             ))}
