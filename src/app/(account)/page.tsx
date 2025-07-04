@@ -1,5 +1,4 @@
-import { redirect } from 'next/navigation';
-
-export default function AccountPage() {
-  redirect('/account/dashboard');
+// This file is intentionally left blank to resolve a build issue.
+export default function BlankPage() {
+  return null;
 }

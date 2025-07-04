@@ -74,3 +74,9 @@ export async function updateUserPlan(userId: string, planId: string) {
     const userDocRef = doc(db, 'users', userId);
     await updateDoc(userDocRef, { planId });
 }
+
+export async function updateUserProfileInFirestore(userId: string, data: { name?: string | null; photoURL?: string | null }) {
+    if (!userId) throw new Error("User ID is required.");
+    const userDocRef = doc(db, 'users', userId);
+    await updateDoc(userDocRef, data);
+}
