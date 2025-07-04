@@ -1,21 +1,76 @@
 
+'use client';
+
 import { SidebarProvider, Sidebar, SidebarHeader, SidebarTrigger, SidebarMenu, SidebarMenuItem, SidebarMenuButton, SidebarContent, SidebarInset, SidebarFooter, SidebarSeparator } from '@/components/ui/sidebar';
-import { LayoutDashboard, FileText, Folder, Home, Users, Settings, Bell, Search, Library, Tags, Mail, FileSliders, ChevronRight, Database, Coins } from 'lucide-react';
+import { LayoutDashboard, FileText, Folder, Home, Users, Settings, Bell, Search, Library, Tags, Mail, FileSliders, ChevronRight, Database, Coins, LogOut } from 'lucide-react';
 import Link from 'next/link';
 import { BookOpen } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator, DropdownMenuLabel } from "@/components/ui/dropdown-menu";
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Input } from '@/components/ui/input';
-import { fetchSettings } from '@/lib/settings-service';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
+import { useEffect, useState } from 'react';
+import type { Settings as AppSettings } from '@/types';
+import { fetchSettings } from '@/lib/settings-service';
+import { useAuth } from '@/hooks/use-auth';
+import { useToast } from '@/hooks/use-toast';
+import { useRouter } from 'next/navigation';
+import { signOut } from 'firebase/auth';
+import { auth } from '@/lib/firebase';
+import { Skeleton } from '@/components/ui/skeleton';
 
-export default async function AdminLayout({
+export default function AdminLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
-  const settings = await fetchSettings();
+  const [settings, setSettings] = useState<AppSettings | null>(null);
+  const { user } = useAuth();
+  const { toast } = useToast();
+  const router = useRouter();
+  
+  useEffect(() => {
+    fetchSettings().then(setSettings);
+  }, []);
+
+  const handleLogout = async () => {
+    try {
+      await signOut(auth);
+      toast({ title: "Logged Out", description: "You have been successfully logged out." });
+      router.push('/login');
+    } catch (error: any) {
+      toast({ title: "Logout Failed", description: error.message, variant: "destructive" });
+    }
+  };
+
+  if (!settings) {
+    return (
+       <div className="flex h-screen">
+            <div className="w-20 p-4 border-r">
+                <Skeleton className="h-8 w-8 rounded-full mb-8" />
+                <div className="space-y-4">
+                    <Skeleton className="h-8 w-8 rounded" />
+                    <Skeleton className="h-8 w-8 rounded" />
+                    <Skeleton className="h-8 w-8 rounded" />
+                    <Skeleton className="h-8 w-8 rounded" />
+                </div>
+            </div>
+            <div className="flex-1">
+                <header className="flex items-center justify-between px-8 h-16 border-b">
+                    <Skeleton className="h-8 w-8 rounded" />
+                    <div className="flex items-center gap-4">
+                        <Skeleton className="h-8 w-8 rounded-full" />
+                        <Skeleton className="h-8 w-8 rounded-full" />
+                    </div>
+                </header>
+                <div className="p-8">
+                    <Skeleton className="h-64 w-full" />
+                </div>
+            </div>
+       </div>
+    );
+  }
 
   return (
     <SidebarProvider>
@@ -182,19 +237,22 @@ export default async function AdminLayout({
                 <DropdownMenuTrigger asChild>
                     <Button variant="secondary" size="icon" className="rounded-full">
                         <Avatar className="h-8 w-8">
-                          <AvatarImage src="https://placehold.co/40x40.png" alt="Admin" data-ai-hint="male avatar"/>
-                          <AvatarFallback>A</AvatarFallback>
+                          <AvatarImage src={user?.photoURL || undefined} alt={user?.displayName || "Admin"} data-ai-hint="male avatar"/>
+                          <AvatarFallback>{user?.displayName?.charAt(0) || user?.email?.charAt(0)}</AvatarFallback>
                         </Avatar>
                         <span className="sr-only">Toggle user menu</span>
                     </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end">
-                  <DropdownMenuLabel>My Account</DropdownMenuLabel>
+                  <DropdownMenuLabel>{user?.displayName || 'My Account'}</DropdownMenuLabel>
                   <DropdownMenuSeparator />
                   <DropdownMenuItem disabled>Profile</DropdownMenuItem>
                    <DropdownMenuItem disabled>Settings</DropdownMenuItem>
                   <DropdownMenuSeparator />
-                  <DropdownMenuItem>Logout</DropdownMenuItem>
+                  <DropdownMenuItem onClick={handleLogout}>
+                    <LogOut className="mr-2 h-4 w-4" />
+                    Logout
+                  </DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>
             </div>

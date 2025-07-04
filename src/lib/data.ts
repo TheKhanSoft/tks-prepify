@@ -1,14 +1,8 @@
 
-import type { Paper, Question, User } from '@/types';
+import type { Paper, Question } from '@/types';
 
 // This mock data is being phased out. New data will come from Firestore.
 // It is kept here temporarily to support specific UI elements that have not yet been migrated.
-
-export const users: User[] = [
-  { id: 'user-1', name: 'Admin User', email: 'admin@example.com', role: 'Admin', createdAt: '2023-10-01' },
-  { id: 'user-2', name: 'John Doe', email: 'john.doe@example.com', role: 'User', createdAt: '2023-10-15' },
-  { id: 'user-3', name: 'Jane Smith', email: 'jane.smith@example.com', role: 'User', createdAt: '2023-11-05' },
-];
 
 // The 'papers' and 'questions' arrays are no longer the source of truth for the admin panel
 // but are kept for the public-facing pages until they are fully migrated to Firestore.

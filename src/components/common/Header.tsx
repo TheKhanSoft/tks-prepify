@@ -2,16 +2,26 @@
 "use client";
 
 import Link from "next/link";
-import { BookOpen, Globe, Search, User, Menu, Wrench } from "lucide-react";
+import { BookOpen, Globe, Search, User, Menu, Wrench, LogOut } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from "@/components/ui/dropdown-menu";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator, DropdownMenuLabel } from "@/components/ui/dropdown-menu";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import React from "react";
 import type { Settings } from "@/types";
+import { useAuth } from "@/hooks/use-auth";
+import { signOut } from "firebase/auth";
+import { auth } from "@/lib/firebase";
+import { useToast } from "@/hooks/use-toast";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { useRouter } from "next/navigation";
+
 
 export function Header({ settings }: { settings: Settings }) {
   const [isScrolled, setIsScrolled] = React.useState(false);
+  const { user } = useAuth();
+  const { toast } = useToast();
+  const router = useRouter();
 
   React.useEffect(() => {
     const handleScroll = () => {
@@ -20,6 +30,16 @@ export function Header({ settings }: { settings: Settings }) {
     window.addEventListener("scroll", handleScroll);
     return () => window.removeEventListener("scroll", handleScroll);
   }, []);
+
+  const handleLogout = async () => {
+    try {
+      await signOut(auth);
+      toast({ title: "Logged Out", description: "You have been successfully logged out." });
+      router.push('/');
+    } catch (error: any) {
+      toast({ title: "Logout Failed", description: error.message, variant: "destructive" });
+    }
+  };
 
   const navLinks = [
     { href: "/", label: "Home" },
@@ -33,7 +53,7 @@ export function Header({ settings }: { settings: Settings }) {
   const NavLinks = ({ className }: { className?: string }) => (
     <nav className={className}>
       {navLinks.map((link) => (
-        <Button key={link.label} variant="ghost" asChild>
+        <Button key={link.href} variant="ghost" asChild>
           <Link href={link.href}>{link.label}</Link>
         </Button>
       ))}
@@ -75,30 +95,48 @@ export function Header({ settings }: { settings: Settings }) {
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button variant="ghost" size="icon">
-                <User className="h-5 w-5" />
+                {user ? (
+                   <Avatar className="h-8 w-8">
+                      <AvatarImage src={user.photoURL || undefined} alt={user.displayName || 'User'} data-ai-hint="user avatar" />
+                      <AvatarFallback>{user.displayName?.charAt(0) || user.email?.charAt(0)}</AvatarFallback>
+                    </Avatar>
+                ) : (
+                  <User className="h-5 w-5" />
+                )}
                 <span className="sr-only">User menu</span>
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
-              <DropdownMenuItem asChild>
-                <Link href="/login">Login</Link>
-              </DropdownMenuItem>
-              <DropdownMenuItem asChild>
-                <Link href="/signup">Sign Up</Link>
-              </DropdownMenuItem>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem disabled>Profile</DropdownMenuItem>
-              <DropdownMenuItem disabled>My Results</DropdownMenuItem>
-              <DropdownMenuItem disabled>Saved Papers</DropdownMenuItem>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem asChild>
-                <Link href="/admin/dashboard">
-                  <Wrench className="mr-2 h-4 w-4" />
-                  Admin
-                </Link>
-              </DropdownMenuItem>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem disabled>Logout</DropdownMenuItem>
+              {user ? (
+                <>
+                  <DropdownMenuLabel>My Account</DropdownMenuLabel>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem disabled>Profile</DropdownMenuItem>
+                  <DropdownMenuItem disabled>My Results</DropdownMenuItem>
+                  <DropdownMenuItem disabled>Saved Papers</DropdownMenuItem>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem asChild>
+                    <Link href="/admin/dashboard">
+                      <Wrench className="mr-2 h-4 w-4" />
+                      Admin
+                    </Link>
+                  </DropdownMenuItem>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem onClick={handleLogout}>
+                    <LogOut className="mr-2 h-4 w-4" />
+                    <span>Logout</span>
+                  </DropdownMenuItem>
+                </>
+              ) : (
+                 <>
+                  <DropdownMenuItem asChild>
+                    <Link href="/login">Login</Link>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem asChild>
+                    <Link href="/signup">Sign Up</Link>
+                  </DropdownMenuItem>
+                 </>
+              )}
             </DropdownMenuContent>
           </DropdownMenu>
 

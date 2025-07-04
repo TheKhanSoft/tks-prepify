@@ -1,101 +1,62 @@
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table"
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-  DropdownMenuLabel,
-  DropdownMenuSeparator
-} from "@/components/ui/dropdown-menu"
-import { Badge } from "@/components/ui/badge"
+'use client';
+
+import { useAuth } from '@/hooks/use-auth';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { MoreHorizontal, PlusCircle, Edit, Trash2 } from "lucide-react";
-import { users } from "@/lib/data";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Button } from '@/components/ui/button';
+import { Loader2 } from 'lucide-react';
 
 export default function AdminUsersPage() {
+    const { user, loading } = useAuth();
+    
+    if (loading) {
+        return <div className="flex justify-center items-center h-full min-h-[calc(100vh-20rem)]"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>;
+    }
+
+    if (!user) {
+        return <p>You must be logged in to view this page.</p>;
+    }
+
   return (
     <div>
       <div className="flex items-center justify-between mb-6">
-        <h1 className="text-3xl font-bold">Manage Users</h1>
-        <Button disabled>
-          <PlusCircle className="mr-2 h-4 w-4" />
-          Add New User
-        </Button>
+        <h1 className="text-3xl font-bold">User Profile</h1>
       </div>
-      <Card>
+      <Card className="max-w-2xl">
         <CardHeader>
-          <CardTitle>Users</CardTitle>
-          <CardDescription>A list of all users in the system.</CardDescription>
+          <CardTitle>My Profile</CardTitle>
+          <CardDescription>This is your profile information.</CardDescription>
         </CardHeader>
-        <CardContent>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>User</TableHead>
-                <TableHead>Role</TableHead>
-                <TableHead>Created At</TableHead>
-                <TableHead>
-                  <span className="sr-only">Actions</span>
-                </TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {users.map((user) => (
-                <TableRow key={user.id}>
-                  <TableCell>
-                    <div className="flex items-center gap-3">
-                      <Avatar className="h-9 w-9">
-                        <AvatarImage src={`https://placehold.co/40x40.png?text=${user.name.charAt(0)}`} alt={user.name} data-ai-hint="letter avatar" />
-                        <AvatarFallback>{user.name.charAt(0)}</AvatarFallback>
-                      </Avatar>
-                      <div>
-                        <div className="font-medium">{user.name}</div>
-                        <div className="text-sm text-muted-foreground">{user.email}</div>
-                      </div>
-                    </div>
-                  </TableCell>
-                  <TableCell>
-                    <Badge variant={user.role === 'Admin' ? 'default' : 'secondary'}>
-                      {user.role}
-                    </Badge>
-                  </TableCell>
-                   <TableCell>
-                    {new Date(user.createdAt).toLocaleDateString()}
-                  </TableCell>
-                  <TableCell className="text-right">
-                     <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                          <Button aria-haspopup="true" size="icon" variant="ghost">
-                            <MoreHorizontal className="h-4 w-4" />
-                            <span className="sr-only">Toggle menu</span>
-                          </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end">
-                           <DropdownMenuLabel>Actions</DropdownMenuLabel>
-                          <DropdownMenuItem disabled>
-                            <Edit className="mr-2 h-4 w-4" />
-                            Edit
-                          </DropdownMenuItem>
-                          <DropdownMenuItem className="text-destructive" disabled>
-                            <Trash2 className="mr-2 h-4 w-4" />
-                            Delete
-                          </DropdownMenuItem>
-                        </DropdownMenuContent>
-                      </DropdownMenu>
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
+        <CardContent className="space-y-6">
+          <div className="flex items-center gap-4">
+             <Avatar className="h-20 w-20">
+                <AvatarImage src={user.photoURL || undefined} alt={user.displayName || 'User'} data-ai-hint="user avatar" />
+                <AvatarFallback>{user.displayName?.charAt(0) || user.email?.charAt(0)}</AvatarFallback>
+            </Avatar>
+            <div>
+                <Button variant="outline" disabled>Change Avatar</Button>
+                <p className="text-xs text-muted-foreground mt-2">JPG, GIF or PNG. 1MB max.</p>
+            </div>
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="displayName">Display Name</Label>
+            <Input id="displayName" value={user.displayName || ''} disabled />
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="email">Email Address</Label>
+            <Input id="email" value={user.email || ''} disabled />
+          </div>
+          <div className="space-y-2">
+            <Label>Email Verified</Label>
+            <p className={`text-sm font-medium ${user.emailVerified ? 'text-green-600' : 'text-destructive'}`}>
+                {user.emailVerified ? 'Yes' : 'No'}
+            </p>
+          </div>
+          <div className="flex justify-end">
+            <Button disabled>Update Profile</Button>
+          </div>
         </CardContent>
       </Card>
     </div>
