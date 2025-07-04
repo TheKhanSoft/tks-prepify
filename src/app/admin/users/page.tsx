@@ -1,64 +1,141 @@
+
 'use client';
 
-import { useAuth } from '@/hooks/use-auth';
+import React, { useState, useEffect, useCallback, useMemo } from "react";
+import { useRouter } from "next/navigation";
+import Link from 'next/link';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Button } from '@/components/ui/button';
-import { Loader2 } from 'lucide-react';
+import { Button } from "@/components/ui/button";
+import { Loader2, Edit, Search } from "lucide-react";
+import { fetchUserProfiles } from "@/lib/user-service";
+import { fetchPlans } from "@/lib/plan-service";
+import type { User, Plan } from "@/types";
+import { useToast } from "@/hooks/use-toast";
+import { format } from "date-fns";
+import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
+import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 
 export default function AdminUsersPage() {
-    const { user, loading } = useAuth();
-    
-    if (loading) {
-        return <div className="flex justify-center items-center h-full min-h-[calc(100vh-20rem)]"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>;
-    }
+  const router = useRouter();
+  const { toast } = useToast();
+  const [users, setUsers] = useState<User[]>([]);
+  const [plans, setPlans] = useState<Plan[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [searchTerm, setSearchTerm] = useState("");
 
-    if (!user) {
-        return <p>You must be logged in to view this page.</p>;
+  const loadData = useCallback(async () => {
+    setLoading(true);
+    try {
+      const [fetchedUsers, fetchedPlans] = await Promise.all([
+        fetchUserProfiles(),
+        fetchPlans(),
+      ]);
+      setUsers(fetchedUsers);
+      setPlans(fetchedPlans);
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Could not load user data.",
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
     }
+  }, [toast]);
+
+  useEffect(() => {
+    loadData();
+  }, [loadData]);
+
+  const plansMap = useMemo(() => new Map(plans.map(p => [p.id, p.name])), [plans]);
+  
+  const filteredUsers = useMemo(() => {
+      return users.filter(user => 
+        user.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        user.email?.toLowerCase().includes(searchTerm.toLowerCase())
+      );
+  }, [users, searchTerm]);
+
+  if (loading) {
+    return <div className="flex justify-center items-center h-full min-h-[calc(100vh-20rem)]"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>;
+  }
 
   return (
     <div>
       <div className="flex items-center justify-between mb-6">
-        <h1 className="text-3xl font-bold">User Profile</h1>
+        <div>
+            <h1 className="text-3xl font-bold">User Management</h1>
+            <p className="text-muted-foreground">View and manage all registered users.</p>
+        </div>
       </div>
-      <Card className="max-w-2xl">
+      <Card>
         <CardHeader>
-          <CardTitle>My Profile</CardTitle>
-          <CardDescription>This is your profile information.</CardDescription>
+          <CardTitle>All Users</CardTitle>
+          <CardDescription>Total users: {users.length}</CardDescription>
+          <div className="pt-4 relative">
+             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+             <Input 
+                placeholder="Search by name or email..."
+                value={searchTerm}
+                onChange={e => setSearchTerm(e.target.value)}
+                className="max-w-sm pl-9"
+              />
+          </div>
         </CardHeader>
-        <CardContent className="space-y-6">
-          <div className="flex items-center gap-4">
-             <Avatar className="h-20 w-20">
-                <AvatarImage src={user.photoURL || undefined} alt={user.displayName || 'User'} data-ai-hint="user avatar" />
-                <AvatarFallback>{user.displayName?.charAt(0) || user.email?.charAt(0)}</AvatarFallback>
-            </Avatar>
-            <div>
-                <Button variant="outline" disabled>Change Avatar</Button>
-                <p className="text-xs text-muted-foreground mt-2">JPG, GIF or PNG. 1MB max.</p>
-            </div>
-          </div>
-          <div className="space-y-2">
-            <Label htmlFor="displayName">Display Name</Label>
-            <Input id="displayName" value={user.displayName || ''} disabled />
-          </div>
-          <div className="space-y-2">
-            <Label htmlFor="email">Email Address</Label>
-            <Input id="email" value={user.email || ''} disabled />
-          </div>
-          <div className="space-y-2">
-            <Label>Email Verified</Label>
-            <p className={`text-sm font-medium ${user.emailVerified ? 'text-green-600' : 'text-destructive'}`}>
-                {user.emailVerified ? 'Yes' : 'No'}
-            </p>
-          </div>
-          <div className="flex justify-end">
-            <Button disabled>Update Profile</Button>
-          </div>
+        <CardContent>
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>User</TableHead>
+                <TableHead>Plan</TableHead>
+                <TableHead>Joined</TableHead>
+                <TableHead className="text-right">Actions</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {filteredUsers.length > 0 ? (
+                filteredUsers.map((user) => (
+                  <TableRow key={user.id}>
+                    <TableCell>
+                      <div className="flex items-center gap-3">
+                         <Avatar className="h-9 w-9">
+                            <AvatarImage src={user.photoURL || undefined} alt={user.name || "User"} data-ai-hint="user avatar" />
+                            <AvatarFallback>{user.name?.charAt(0) || user.email?.charAt(0)}</AvatarFallback>
+                        </Avatar>
+                        <div>
+                            <div className="font-medium">{user.name || "N/A"}</div>
+                            <div className="text-sm text-muted-foreground">{user.email}</div>
+                        </div>
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      <Badge variant="outline">{plansMap.get(user.planId) || "No Plan"}</Badge>
+                    </TableCell>
+                    <TableCell>
+                      {format(new Date(user.createdAt.toDate()), "PPP")}
+                    </TableCell>
+                    <TableCell className="text-right">
+                       <Button asChild variant="outline" size="sm">
+                          <Link href={`/admin/users/${user.id}/edit`}>
+                            <Edit className="mr-2 h-4 w-4" /> Edit
+                          </Link>
+                       </Button>
+                    </TableCell>
+                  </TableRow>
+                ))
+              ) : (
+                <TableRow>
+                  <TableCell colSpan={4} className="h-24 text-center">
+                    No users found.
+                  </TableCell>
+                </TableRow>
+              )}
+            </TableBody>
+          </Table>
         </CardContent>
       </Card>
     </div>
-  )
+  );
 }

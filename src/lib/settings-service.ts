@@ -15,6 +15,7 @@ const defaultSettings: Settings = {
     defaultQuestionCount: 100,
     defaultDuration: 120,
     defaultQuestionsPerPage: 2,
+    defaultPlanId: '',
     heroTitlePrefix: 'Excel in Your Tests with',
     heroTitleHighlight: 'Expertly Solved',
     heroTitleSuffix: 'Question Papers',

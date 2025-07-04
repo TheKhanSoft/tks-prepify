@@ -14,11 +14,12 @@ import { Label } from '@/components/ui/label';
 import { BookOpen, Loader2 } from 'lucide-react';
 import { Form, FormControl, FormField, FormItem, FormMessage } from '@/components/ui/form';
 import { useToast } from '@/hooks/use-toast';
-import { createUserWithEmailAndPassword, updateProfile, GoogleAuthProvider, signInWithPopup } from 'firebase/auth';
+import { createUserWithEmailAndPassword, updateProfile, GoogleAuthProvider, signInWithPopup, UserCredential } from 'firebase/auth';
 import { auth } from '@/lib/firebase';
 import { fetchSettings } from '@/lib/settings-service';
 import type { Settings } from '@/types';
 import { Skeleton } from '@/components/ui/skeleton';
+import { createUserProfile } from '@/lib/user-service';
 
 const signupFormSchema = z.object({
   name: z.string().min(2, { message: "Name must be at least 2 characters." }),
@@ -44,13 +45,27 @@ export default function SignupPage() {
     defaultValues: { name: "", email: "", password: "" },
   });
 
+  const handleSuccessfulSignup = async (userCredential: UserCredential) => {
+    if (!settings?.defaultPlanId) {
+      toast({
+        title: "Configuration Error",
+        description: "A default plan for new users has not been set by the administrator.",
+        variant: "destructive",
+      });
+      await auth.signOut(); // Log out the user if setup is incomplete
+      return;
+    }
+    await createUserProfile(userCredential.user, settings.defaultPlanId);
+    toast({ title: "Sign Up Successful", description: "Welcome to Prepify!" });
+    router.push('/account/dashboard');
+  };
+
   const handleGoogleSignIn = async () => {
     setGoogleLoading(true);
     const provider = new GoogleAuthProvider();
     try {
-      await signInWithPopup(auth, provider);
-      toast({ title: "Sign Up Successful", description: "Welcome to Prepify!" });
-      router.push('/admin/dashboard');
+      const userCredential = await signInWithPopup(auth, provider);
+      await handleSuccessfulSignup(userCredential);
     } catch (error: any) {
       console.error(error);
       toast({ title: "Sign Up Failed", description: error.message, variant: "destructive" });
@@ -66,8 +81,9 @@ export default function SignupPage() {
       await updateProfile(userCredential.user, {
         displayName: data.name,
       });
-      toast({ title: "Sign Up Successful", description: "Welcome to Prepify!" });
-      router.push('/admin/dashboard');
+      // We need to re-assign userCredential.user after updateProfile to get the latest data
+      const updatedUserCredential = { ...userCredential, user: auth.currentUser! };
+      await handleSuccessfulSignup(updatedUserCredential);
     } catch (error: any) {
       console.error(error);
       let errorMessage = "An unknown error occurred.";

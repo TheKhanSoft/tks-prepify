@@ -1,4 +1,5 @@
 
+
 export interface Category {
   id: string;
   name: string;
@@ -67,11 +68,12 @@ export interface TestResult {
 }
 
 export interface User {
-  id: string;
-  name: string;
-  email: string;
-  role: 'Admin' | 'User';
-  createdAt: string;
+  id: string; // Firebase UID
+  name: string | null;
+  email: string | null;
+  photoURL?: string | null;
+  planId: string;
+  createdAt: any; // Firestore Timestamp
 }
 
 export interface SocialLink {
@@ -118,6 +120,7 @@ export interface Settings {
     defaultQuestionCount: number;
     defaultDuration: number;
     defaultQuestionsPerPage: number;
+    defaultPlanId?: string;
     // Homepage Hero Section
     heroTitlePrefix?: string;
     heroTitleHighlight?: string;

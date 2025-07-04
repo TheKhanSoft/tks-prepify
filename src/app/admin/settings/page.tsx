@@ -24,10 +24,13 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { socialPlatforms } from "@/lib/social-platforms";
+import { fetchPlans } from "@/lib/plan-service";
+import type { Plan } from "@/types";
 
 const settingsFormSchema = z.object({
   siteName: z.string().min(1, "Site name is required."),
   siteDescription: z.string().optional(),
+  defaultPlanId: z.string().optional(),
   defaultQuestionCount: z.coerce.number().int().min(1, "Must be at least 1."),
   defaultDuration: z.coerce.number().int().min(1, "Must be at least 1 minute."),
   defaultQuestionsPerPage: z.coerce.number().int().min(1, "Must be at least 1."),
@@ -47,6 +50,7 @@ export default function AdminSettingsPage() {
   const { toast } = useToast();
   const [loading, setLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [plans, setPlans] = useState<Plan[]>([]);
 
   const form = useForm<SettingsFormValues>({
     resolver: zodResolver(settingsFormSchema),
@@ -61,11 +65,15 @@ export default function AdminSettingsPage() {
   });
 
   useEffect(() => {
-    const loadSettings = async () => {
+    const loadData = async () => {
       setLoading(true);
       try {
-        const settings = await fetchSettings();
+        const [settings, fetchedPlans] = await Promise.all([
+          fetchSettings(),
+          fetchPlans(),
+        ]);
         form.reset(settings);
+        setPlans(fetchedPlans);
       } catch (error) {
         toast({
           title: "Error",
@@ -76,7 +84,7 @@ export default function AdminSettingsPage() {
         setLoading(false);
       }
     };
-    loadSettings();
+    loadData();
   }, [form, toast]);
 
   async function onSubmit(data: SettingsFormValues) {
@@ -172,9 +180,32 @@ export default function AdminSettingsPage() {
                     <FormField control={form.control} name="defaultDuration" render={({ field }) => (<FormItem><FormLabel>Default Duration (in minutes)</FormLabel><FormControl><Input type="number" {...field} disabled={isSubmitting} /></FormControl><FormDescription>The default duration for a new paper.</FormDescription><FormMessage /></FormItem>)} />
                   </CardContent>
                 </Card>
-                <Card>
-                  <CardHeader><CardTitle>Test Taking Defaults</CardTitle><CardDescription>Settings that affect the public test-taking experience.</CardDescription></CardHeader>
-                  <CardContent>
+                 <Card>
+                  <CardHeader><CardTitle>User & Test Defaults</CardTitle><CardDescription>Settings that affect new users and the public test-taking experience.</CardDescription></CardHeader>
+                  <CardContent className="space-y-6">
+                     <FormField
+                        control={form.control}
+                        name="defaultPlanId"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Default Plan for New Users</FormLabel>
+                            <Select onValueChange={field.onChange} defaultValue={field.value}>
+                              <FormControl>
+                                <SelectTrigger>
+                                  <SelectValue placeholder="Select a default plan..." />
+                                </SelectTrigger>
+                              </FormControl>
+                              <SelectContent>
+                                {plans.map((plan) => (
+                                  <SelectItem key={plan.id} value={plan.id}>{plan.name}</SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                            <FormDescription>This plan will be automatically assigned to all new users upon registration.</FormDescription>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
                     <FormField control={form.control} name="defaultQuestionsPerPage" render={({ field }) => (<FormItem><FormLabel>Default Questions Per Page</FormLabel><FormControl><Input type="number" {...field} disabled={isSubmitting} /></FormControl><FormDescription>The global number of questions to show on a page if a paper doesn't have a specific value.</FormDescription><FormMessage /></FormItem>)} />
                   </CardContent>
                 </Card>

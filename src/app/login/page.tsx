@@ -49,7 +49,7 @@ export default function LoginPage() {
     try {
       await signInWithPopup(auth, provider);
       toast({ title: "Login Successful", description: "Welcome back!" });
-      router.push('/admin/dashboard');
+      router.push('/account/dashboard');
     } catch (error: any) {
       console.error(error);
       toast({ title: "Login Failed", description: error.message, variant: "destructive" });
@@ -63,7 +63,7 @@ export default function LoginPage() {
     try {
       await signInWithEmailAndPassword(auth, data.email, data.password);
       toast({ title: "Login Successful", description: "Welcome back!" });
-      router.push('/admin/dashboard');
+      router.push('/account/dashboard');
     } catch (error: any) {
       console.error(error);
       let errorMessage = "An unknown error occurred.";

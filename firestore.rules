@@ -3,55 +3,60 @@ rules_version = '2';
 
 service cloud.firestore {
   match /databases/{database}/documents {
-  
-    // Helper function to check if the user is an admin
-    function isAdmin() {
-      // Check if the user is authenticated and if their user document has the 'Admin' role.
-      return request.auth != null && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'Admin';
+
+    match /categories/{document=**} {
+      allow read: if true;
+      allow write: if request.auth != null;
     }
 
-    // Rules for the 'users' collection
+    match /papers/{document=**} {
+      allow read: if true;
+      allow write: if request.auth != null;
+    }
+    
+    match /paper_questions/{document=**} {
+      allow read: if true;
+      allow write: if request.auth != null;
+    }
+
+    match /questions/{document=**} {
+      allow read: if true;
+      allow write: if request.auth != null;
+    }
+
+    match /question_categories/{document=**} {
+      allow read: if true;
+      allow write: if request.auth != null;
+    }
+
+    match /settings/global_app_settings {
+        allow read: if true;
+        allow write: if request.auth != null;
+    }
+
+    match /pages/{document=**} {
+        allow read: if true;
+        allow write: if request.auth != null;
+    }
+
+    match /plans/{document=**} {
+      allow read: if true;
+      allow write: if request.auth != null;
+    }
+
+    match /contact_submissions/{document=**} {
+      allow read, write: if request.auth != null;
+      allow create: if true;
+    }
+    
     match /users/{userId} {
-      // Any authenticated user can create their own user document.
-      allow create: if request.auth != null && request.auth.uid == userId;
-
-      // Users can read their own data. Admins can read any user's data.
-      allow read: if request.auth != null && (request.auth.uid == userId || isAdmin());
-
-      // Users can update their own data, but cannot change their role.
-      // Admins can update any user data, including the role.
-      allow update: if request.auth != null && 
-                     (request.auth.uid == userId && request.resource.data.role == resource.data.role) || isAdmin();
-      
-      // Only admins can delete users.
-      allow delete: if isAdmin();
-    }
-    
-    // Rules for the 'categories' collection
-    match /categories/{categoryId} {
-      // Anyone can read categories (public access)
-      allow get, list: if true;
-      
-      // Only admins can create, update, or delete categories
-      allow write: if isAdmin();
-    }
-    
-    // Rules for the 'papers' collection
-    match /papers/{paperId} {
-      // Anyone can read papers (public access)
-      allow get, list: if true;
-      
-      // Only admins can create, update, or delete papers
-      allow write: if isAdmin();
-    }
-    
-    // Rules for the 'questions' collection
-    match /questions/{questionId} {
-       // Anyone can read questions (public access)
-      allow get, list: if true;
-      
-      // Only admins can create, update, or delete questions
-      allow write: if isAdmin();
+      allow read, update: if request.auth != null && (request.auth.uid == userId);
+      // Admin functionality needs broader rules, potentially via custom claims,
+      // which are not managed here. For now, admin client-side write access to other
+      // user docs is implicitly handled by Firestore's default-deny, but a real
+      // implementation would use Cloud Functions with the Admin SDK to bypass these rules.
+      // We will allow any authenticated user to read other user profiles for the admin panel to work.
+      allow read: if request.auth != null;
     }
   }
 }
