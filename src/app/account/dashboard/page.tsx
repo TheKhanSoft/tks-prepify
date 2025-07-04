@@ -2,13 +2,14 @@
 
 import { useAuth } from '@/hooks/use-auth';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
-import { ArrowRight, BookCheck, Star, Clock, Award, Loader2 } from 'lucide-react';
+import { ArrowRight, BookCheck, Star, Clock, Loader2, Check } from 'lucide-react';
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
 import type { Plan, User as UserProfile } from '@/types';
 import { getUserProfile } from '@/lib/user-service';
 import { fetchPlans } from '@/lib/plan-service';
 import { Button } from '@/components/ui/button';
+import { format } from 'date-fns';
 
 export default function AccountDashboardPage() {
     const { user, loading: authLoading } = useAuth();
@@ -57,23 +58,49 @@ export default function AccountDashboardPage() {
                 <p className="text-muted-foreground">Here's a summary of your activity.</p>
             </div>
 
-            <Card className="bg-primary/5 border-primary/20">
-                <CardHeader className="flex-row items-center justify-between">
-                    <div className='flex items-center gap-4'>
-                         <Award className="h-8 w-8 text-primary" />
-                        <div>
-                            <CardTitle className="text-xl">
-                                {plan?.name ? `You are on the ${plan.name} plan` : 'Your Subscription'}
-                            </CardTitle>
-                            <CardDescription className="text-primary/80">
-                                {plan?.description || "Manage your subscription and explore other options."}
-                            </CardDescription>
-                        </div>
+            <Card>
+                <CardHeader className="flex-row items-start justify-between">
+                    <div>
+                        <CardTitle className="text-xl">
+                            {plan?.name ? `${plan.name} Plan` : 'Your Subscription'}
+                        </CardTitle>
+                        <CardDescription>
+                            {plan?.description || "Manage your subscription and explore other options."}
+                        </CardDescription>
                     </div>
-                     <Button asChild size="sm">
+                    <Button asChild size="sm">
                         <Link href="/pricing">View & Upgrade Plans <ArrowRight className="ml-2 h-4 w-4" /></Link>
                     </Button>
                 </CardHeader>
+                {plan && (
+                    <CardContent className="pt-4">
+                        <div className="space-y-4">
+                            <div>
+                                <h4 className="font-semibold mb-2 text-sm">Plan Features:</h4>
+                                <ul className="space-y-2 text-sm text-muted-foreground">
+                                    {plan.features.map((feature, index) => (
+                                        <li key={index} className="flex items-start gap-2">
+                                            <Check className="h-4 w-4 text-green-500 mt-0.5 shrink-0" />
+                                            <span>{feature}</span>
+                                        </li>
+                                    ))}
+                                </ul>
+                            </div>
+                            {userProfile && (
+                                <div>
+                                    <h4 className="font-semibold mb-1 text-sm">Plan Status:</h4>
+                                    <div className="text-sm text-muted-foreground">
+                                        {userProfile.planExpiryDate ? (
+                                            <p>Your plan is valid until {format(new Date(userProfile.planExpiryDate), 'PPP')}.</p>
+                                        ) : (
+                                            <p>This plan does not expire.</p>
+                                        )}
+                                    </div>
+                                </div>
+                            )}
+                        </div>
+                    </CardContent>
+                )}
             </Card>
 
             <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">

@@ -45,7 +45,7 @@ export async function createUserProfile(user: UserProfileData, planId: string) {
       }
   }
 
-  const userData: Omit<User, 'id'> = {
+  const userData: Omit<User, 'id' | 'createdAt' | 'planExpiryDate'> & { createdAt: any; planExpiryDate: any } = {
     name: user.displayName,
     email: user.email,
     photoURL: user.photoURL,
@@ -66,16 +66,16 @@ const docToUser = (doc: DocumentData): User => {
     const data = doc.data();
     return {
         id: doc.id,
-        name: data.name,
-        email: data.email,
-        photoURL: data.photoURL,
-        planId: data.planId,
-        createdAt: data.createdAt,
-        planExpiryDate: data.planExpiryDate,
+        name: data.name || null,
+        email: data.email || null,
+        photoURL: data.photoURL || null,
+        planId: data.planId || '',
+        createdAt: data.createdAt, // This will be a Firestore Timestamp
+        planExpiryDate: data.planExpiryDate, // This will be a Firestore Timestamp or null
     };
 };
 
-export const fetchUserProfiles = cache(async (): Promise<any[]> => {
+export const fetchUserProfiles = cache(async (): Promise<User[]> => {
     const usersCol = collection(db, 'users');
     const snapshot = await getDocs(usersCol);
     const users = snapshot.docs.map(docToUser);
@@ -89,7 +89,7 @@ export const fetchUserProfiles = cache(async (): Promise<any[]> => {
 });
 
 
-export const getUserProfile = cache(async (userId: string): Promise<any | null> => {
+export const getUserProfile = cache(async (userId: string): Promise<User | null> => {
     if (!userId) return null;
     const userDocRef = doc(db, 'users', userId);
     const docSnap = await getDoc(userDocRef);

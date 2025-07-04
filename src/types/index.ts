@@ -73,8 +73,8 @@ export interface User {
   email: string | null;
   photoURL?: string | null;
   planId: string;
-  planExpiryDate?: any; // Can be Firestore Timestamp or null
-  createdAt: any; // Firestore Timestamp
+  planExpiryDate?: string | null; // Dates are serialized to strings for client
+  createdAt: string | null; // Dates are serialized to strings for client
 }
 
 export interface SocialLink {
