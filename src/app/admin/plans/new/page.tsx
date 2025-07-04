@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useForm, useFieldArray } from "react-hook-form";
+import { useForm, useFieldArray, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import { useRouter } from "next/navigation";
@@ -26,17 +26,26 @@ const pricingOptionSchema = z.object({
   stripePriceId: z.string().optional(),
 });
 
-const planQuotaSchema = z.object({
-  key: z.string().min(1, "Key is required."),
-  limit: z.coerce.number(),
-  period: z.enum(['daily', 'monthly', 'yearly', 'lifetime']),
+const featureSchema = z.object({
+  text: z.string().min(1, "Feature description cannot be empty."),
+  isQuota: z.boolean().default(false),
+  key: z.string().optional(),
+  limit: z.coerce.number().optional(),
+  period: z.enum(['daily', 'monthly', 'yearly', 'lifetime']).optional(),
+}).refine(data => {
+    if (data.isQuota) {
+        return data.key && data.limit !== undefined && data.limit !== null && data.period;
+    }
+    return true;
+}, {
+    message: "Key, Limit and Period are required for quota features.",
+    path: ["key"],
 });
 
 const planFormSchema = z.object({
   name: z.string().min(3, "Name must be at least 3 characters."),
   description: z.string().min(10, "Description must be at least 10 characters."),
-  features: z.array(z.object({ text: z.string().min(1, "Feature text cannot be empty.") })),
-  quotas: z.array(planQuotaSchema),
+  features: z.array(featureSchema),
   isAdSupported: z.boolean().default(false),
   published: z.boolean().default(false),
   popular: z.boolean().default(false),
@@ -55,8 +64,7 @@ export default function NewPlanPage() {
     defaultValues: {
       name: "",
       description: "",
-      features: [{ text: "Early access to new papers" }, { text: "Priority customer support" }],
-      quotas: [],
+      features: [{ text: "Early access to new papers", isQuota: false }],
       isAdSupported: false,
       published: false,
       popular: false,
@@ -67,21 +75,20 @@ export default function NewPlanPage() {
   const { fields: featureFields, append: appendFeature, remove: removeFeature } = useFieldArray({
     control: form.control, name: "features",
   });
-  const { fields: quotaFields, append: appendQuota, remove: removeQuota } = useFieldArray({
-    control: form.control, name: "quotas",
-  });
   const { fields: pricingFields, append: appendPricing, remove: removePricing } = useFieldArray({
     control: form.control, name: "pricingOptions",
   });
+  
+  const featuresWatch = useWatch({
+    control: form.control,
+    name: "features",
+  });
+
 
   async function onSubmit(data: PlanFormValues) {
     setIsSubmitting(true);
     try {
-      const planData = {
-        ...data,
-        features: data.features.map(f => f.text) // Convert from object array to string array
-      };
-      await addPlan(planData);
+      await addPlan(data);
       toast({ title: "Plan Created", description: "The new plan has been saved successfully." });
       router.push("/admin/plans");
       router.refresh();
@@ -115,36 +122,31 @@ export default function NewPlanPage() {
             </Card>
 
             <Card>
-              <CardHeader><CardTitle>Plan Features</CardTitle><CardDescription>Add descriptive features that will be shown as a bulleted list on the pricing page.</CardDescription></CardHeader>
-              <CardContent className="space-y-4">
-                  {featureFields.map((field, index) => (
-                    <div key={field.id} className="flex items-end gap-2">
-                        <FormField control={form.control} name={`features.${index}.text`} render={({ field }) => (<FormItem className="flex-grow"><FormLabel>Feature Text</FormLabel><FormControl><Input {...field} placeholder="e.g., Priority customer support" /></FormControl><FormMessage /></FormItem>)} />
-                        <Button type="button" variant="ghost" size="icon" onClick={() => removeFeature(index)}><Trash2 className="h-4 w-4 text-destructive" /></Button>
-                    </div>
-                  ))}
-                  <Button type="button" variant="outline" size="sm" onClick={() => appendFeature({ text: "" })}><PlusCircle className="mr-2 h-4 w-4" />Add Feature</Button>
-                  <FormMessage>{form.formState.errors.features?.message}</FormMessage>
-              </CardContent>
-            </Card>
-
-            <Card>
-                <CardHeader><CardTitle>Usage Quotas</CardTitle><CardDescription>Define specific, measurable limits for features. These will be displayed separately from the main feature list.</CardDescription></CardHeader>
+                <CardHeader><CardTitle>Features & Quotas</CardTitle><CardDescription>Define the features included in this plan. You can optionally set usage quotas for specific features.</CardDescription></CardHeader>
                 <CardContent className="space-y-4">
-                    {quotaFields.map((field, index) => (
-                        <div key={field.id} className="grid grid-cols-1 md:grid-cols-[1fr_1fr_1fr_auto] gap-4 items-end p-4 border rounded-lg">
-                           <FormField control={form.control} name={`quotas.${index}.key`} render={({ field }) => (<FormItem><FormLabel>Feature</FormLabel><Select onValueChange={field.onChange} defaultValue={field.value}><FormControl><SelectTrigger><SelectValue placeholder="Select feature" /></SelectTrigger></FormControl><SelectContent>{QuotaKeys.map(k => <SelectItem key={k.key} value={k.key}>{k.label}</SelectItem>)}</SelectContent></Select><FormMessage /></FormItem>)} />
-                           <FormField control={form.control} name={`quotas.${index}.limit`} render={({ field }) => (<FormItem><FormLabel>Limit</FormLabel><FormControl><Input type="number" {...field} placeholder="e.g., 50" /></FormControl><FormMessage /></FormItem>)} />
-                           <FormField control={form.control} name={`quotas.${index}.period`} render={({ field }) => (<FormItem><FormLabel>Period</FormLabel><Select onValueChange={field.onChange} defaultValue={field.value}><FormControl><SelectTrigger><SelectValue placeholder="Select period" /></SelectTrigger></FormControl><SelectContent>{QuotaPeriods.map(p => <SelectItem key={p.value} value={p.value}>{p.label}</SelectItem>)}</SelectContent></Select><FormMessage /></FormItem>)} />
-                           <Button type="button" variant="ghost" size="icon" onClick={() => removeQuota(index)}><Trash2 className="h-4 w-4 text-destructive" /></Button>
-                        </div>
-                    ))}
-                    <Button type="button" variant="outline" size="sm" onClick={() => appendQuota({ key: "downloads", limit: 10, period: "daily" })}><PlusCircle className="mr-2 h-4 w-4" />Add Quota</Button>
-                    <FormDescription>Use -1 as the limit for unlimited access.</FormDescription>
-                    <FormMessage>{form.formState.errors.quotas?.message}</FormMessage>
+                    <div className="space-y-4">
+                        {featureFields.map((field, index) => (
+                           <div key={field.id} className="p-4 border rounded-lg space-y-4">
+                                <div className="flex justify-between items-start gap-4">
+                                    <FormField control={form.control} name={`features.${index}.text`} render={({ field }) => (<FormItem className="flex-grow"><FormLabel>Feature Description</FormLabel><FormControl><Input {...field} placeholder="e.g., AI-powered feedback" /></FormControl><FormMessage /></FormItem>)} />
+                                    <Button type="button" variant="ghost" size="icon" onClick={() => removeFeature(index)}><Trash2 className="h-4 w-4 text-destructive" /></Button>
+                                </div>
+                                 <FormField control={form.control} name={`features.${index}.isQuota`} render={({ field }) => (<FormItem className="flex flex-row items-center space-x-3 space-y-0 p-3 rounded-md border bg-muted/50"><FormControl><Switch checked={field.value} onCheckedChange={field.onChange} /></FormControl><FormLabel>Set usage quota for this feature</FormLabel></FormItem>)} />
+                                 {featuresWatch?.[index]?.isQuota && (
+                                     <div className="grid grid-cols-1 md:grid-cols-3 gap-4 pt-2">
+                                         <FormField control={form.control} name={`features.${index}.key`} render={({ field }) => (<FormItem><FormLabel>Feature Key</FormLabel><Select onValueChange={field.onChange} defaultValue={field.value}><FormControl><SelectTrigger><SelectValue placeholder="Select feature key" /></SelectTrigger></FormControl><SelectContent>{QuotaKeys.map(k => <SelectItem key={k.key} value={k.key}>{k.label}</SelectItem>)}</SelectContent></Select><FormMessage /></FormItem>)} />
+                                         <FormField control={form.control} name={`features.${index}.limit`} render={({ field }) => (<FormItem><FormLabel>Max Limit</FormLabel><FormControl><Input type="number" {...field} placeholder="e.g., 50" /></FormControl><FormDescription>Enter -1 for unlimited.</FormDescription><FormMessage /></FormItem>)} />
+                                         <FormField control={form.control} name={`features.${index}.period`} render={({ field }) => (<FormItem><FormLabel>Reset Period</FormLabel><Select onValueChange={field.onChange} defaultValue={field.value}><FormControl><SelectTrigger><SelectValue placeholder="Select a period" /></SelectTrigger></FormControl><SelectContent>{QuotaPeriods.map(p => <SelectItem key={p.value} value={p.value}>{p.label}</SelectItem>)}</SelectContent></Select><FormMessage /></FormItem>)} />
+                                     </div>
+                                 )}
+                           </div>
+                        ))}
+                        <Button type="button" variant="outline" size="sm" onClick={() => appendFeature({ text: "", isQuota: false })}><PlusCircle className="mr-2 h-4 w-4" />Add Feature</Button>
+                    </div>
+                     <FormMessage>{form.formState.errors.features?.message}</FormMessage>
                 </CardContent>
             </Card>
-            
+
             <Card>
                 <CardHeader><CardTitle>Pricing Options</CardTitle><CardDescription>Add one or more billing options for this plan.</CardDescription></CardHeader>
                 <CardContent className="space-y-4">

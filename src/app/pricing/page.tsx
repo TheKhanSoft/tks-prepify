@@ -10,34 +10,7 @@ import { Check, Loader2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import type { Plan, PlanQuota } from '@/types';
-import { QuotaKeys } from '@/lib/plan-data';
-
-function processAndDisplayQuotas(quotas: PlanQuota[]) {
-  const groupedQuotas = quotas.reduce((acc, quota) => {
-    if (!acc[quota.key]) {
-      acc[quota.key] = [];
-    }
-    acc[quota.key].push(quota);
-    return acc;
-  }, {} as Record<string, PlanQuota[]>);
-
-  return Object.entries(groupedQuotas).map(([key, rules]) => {
-    const featureLabel = QuotaKeys.find(k => k.key === key)?.label || key;
-    const descriptions = rules.map(rule => 
-        `${rule.limit === -1 ? 'Unlimited' : rule.limit} ${rule.period}`
-    ).join(', ');
-
-    return (
-        <li key={key} className="flex gap-x-3">
-            <Check className="h-6 w-5 flex-none text-primary" aria-hidden="true" />
-            <span>
-                {featureLabel}: <span className="text-foreground/80">{descriptions}</span>
-            </span>
-        </li>
-    );
-  });
-}
+import type { Plan } from '@/types';
 
 export default function PricingPage() {
   const [plans, setPlans] = React.useState<Plan[]>([]);
@@ -130,13 +103,19 @@ export default function PricingPage() {
                         <Check className="h-6 w-5 flex-none text-primary" aria-hidden="true" />
                         {plan.isAdSupported ? 'Ad-supported experience' : 'Ad-free experience'}
                       </li>
-                      {plan.features.map((feature) => (
-                          <li key={feature} className="flex gap-x-3">
-                          <Check className="h-6 w-5 flex-none text-primary" aria-hidden="true" />
-                          {feature}
+                      {plan.features.map((feature, index) => (
+                          <li key={index} className="flex gap-x-3">
+                              <Check className="h-6 w-5 flex-none text-primary" aria-hidden="true" />
+                              <span>
+                                  {feature.text}
+                                  {feature.isQuota && (
+                                    <span className="text-foreground/60 capitalize">
+                                      {' '}({feature.limit === -1 ? 'Unlimited' : feature.limit} / {feature.period})
+                                    </span>
+                                  )}
+                              </span>
                           </li>
                       ))}
-                      {processAndDisplayQuotas(plan.quotas)}
                     </ul>
                 </CardContent>
                 <CardFooter className="p-8 pt-0">

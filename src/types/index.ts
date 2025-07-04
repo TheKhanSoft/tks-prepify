@@ -120,18 +120,19 @@ export interface PricingOption {
 
 export type QuotaPeriod = 'daily' | 'monthly' | 'yearly' | 'lifetime';
 
-export interface PlanQuota {
-  key: string;
-  limit: number; // -1 for unlimited
-  period: QuotaPeriod;
+export interface PlanFeature {
+  text: string;
+  isQuota: boolean;
+  key?: string;
+  limit?: number;
+  period?: QuotaPeriod;
 }
 
 export interface Plan {
   id: string;
   name: string;
   description: string;
-  features: string[]; // simple text features like "Priority support"
-  quotas: PlanQuota[];
+  features: PlanFeature[];
   isAdSupported: boolean;
   published: boolean;
   popular?: boolean;

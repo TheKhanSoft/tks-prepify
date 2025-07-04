@@ -97,7 +97,7 @@ export default function AdminPlansPage() {
               <TableHeader>
                 <TableRow>
                   <TableHead className="w-[25%]">Plan Name</TableHead>
-                  <TableHead className="w-[35%]">Features & Quotas</TableHead>
+                  <TableHead className="w-[35%]">Features</TableHead>
                   <TableHead>Pricing</TableHead>
                   <TableHead className="text-center">Published</TableHead>
                   <TableHead className="text-center">Popular</TableHead>
@@ -117,16 +117,16 @@ export default function AdminPlansPage() {
                        <TableCell>
                           <ul className="list-disc list-inside space-y-1 text-sm">
                               {plan.features.map((feature, index) => (
-                                  <li key={index}>{feature}</li>
+                                <li key={index}>
+                                  {feature.text}
+                                  {feature.isQuota && (
+                                    <Badge variant="secondary" className="ml-2 font-normal capitalize">
+                                      {feature.key}: {feature.limit === -1 ? 'Unlimited' : feature.limit} / {feature.period}
+                                    </Badge>
+                                  )}
+                                </li>
                               ))}
                           </ul>
-                          <div className="flex flex-wrap gap-1 mt-2">
-                             {plan.quotas?.map((quota, index) => (
-                                <Badge key={index} variant="secondary" className="capitalize">
-                                    {quota.key}: {quota.limit === -1 ? 'Unlimited' : quota.limit} / {quota.period}
-                                </Badge>
-                             ))}
-                          </div>
                       </TableCell>
                       <TableCell>
                         <div className="flex flex-col gap-1">
