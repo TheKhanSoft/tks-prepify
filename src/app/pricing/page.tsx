@@ -86,12 +86,12 @@ export default function PricingPage() {
                     </div>
                     <CardDescription className="mt-4">{plan.description}</CardDescription>
                     <div className="mt-6 flex items-baseline gap-x-1">
-                    <span className="text-5xl font-bold tracking-tight">${displayOption.price}</span>
+                    <span className="text-5xl font-bold tracking-tight">PKR {displayOption.price}</span>
                     <span className="text-sm font-semibold leading-6 text-muted-foreground">/{interval}</span>
                     </div>
                      {savings > 0 && (
                         <p className="mt-1 text-sm text-green-600 font-semibold">
-                            You save ${savings.toFixed(2)} a year!
+                            You save PKR {savings.toFixed(2)} a year!
                         </p>
                     )}
                 </CardHeader>

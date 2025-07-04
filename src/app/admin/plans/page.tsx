@@ -117,7 +117,7 @@ export default function AdminPlansPage() {
                         <div className="flex flex-col gap-1">
                             {plan.pricingOptions.map((opt) => (
                                 <Badge key={opt.label} variant="secondary">
-                                    ${opt.price} / {opt.label}
+                                    PKR {opt.price} / {opt.label}
                                 </Badge>
                             ))}
                         </div>
