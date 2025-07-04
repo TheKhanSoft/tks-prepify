@@ -14,7 +14,7 @@ import { Label } from '@/components/ui/label';
 import { BookOpen, Loader2 } from 'lucide-react';
 import { Form, FormControl, FormField, FormItem, FormMessage } from '@/components/ui/form';
 import { useToast } from '@/hooks/use-toast';
-import { createUserWithEmailAndPassword, updateProfile, GoogleAuthProvider, signInWithPopup, UserCredential } from 'firebase/auth';
+import { createUserWithEmailAndPassword, updateProfile, GoogleAuthProvider, signInWithPopup, User as FirebaseAuthUser } from 'firebase/auth';
 import { auth } from '@/lib/firebase';
 import { fetchSettings } from '@/lib/settings-service';
 import type { Settings } from '@/types';
@@ -45,7 +45,7 @@ export default function SignupPage() {
     defaultValues: { name: "", email: "", password: "" },
   });
 
-  const handleSuccessfulSignup = async (userCredential: UserCredential) => {
+  const handleSuccessfulSignup = async (user: FirebaseAuthUser) => {
     if (!settings?.defaultPlanId) {
       toast({
         title: "Configuration Error",
@@ -55,7 +55,7 @@ export default function SignupPage() {
       await auth.signOut(); // Log out the user if setup is incomplete
       return;
     }
-    await createUserProfile(userCredential.user, settings.defaultPlanId);
+    await createUserProfile(user, settings.defaultPlanId);
     toast({ title: "Sign Up Successful", description: "Welcome to Prepify!" });
     router.push('/account/dashboard');
   };
@@ -65,7 +65,7 @@ export default function SignupPage() {
     const provider = new GoogleAuthProvider();
     try {
       const userCredential = await signInWithPopup(auth, provider);
-      await handleSuccessfulSignup(userCredential);
+      await handleSuccessfulSignup(userCredential.user);
     } catch (error: any) {
       console.error(error);
       toast({ title: "Sign Up Failed", description: error.message, variant: "destructive" });
@@ -81,9 +81,13 @@ export default function SignupPage() {
       await updateProfile(userCredential.user, {
         displayName: data.name,
       });
-      // We need to re-assign userCredential.user after updateProfile to get the latest data
-      const updatedUserCredential = { ...userCredential, user: auth.currentUser! };
-      await handleSuccessfulSignup(updatedUserCredential);
+      
+      if (auth.currentUser) {
+        await handleSuccessfulSignup(auth.currentUser);
+      } else {
+        // Fallback, though auth.currentUser should be available
+        await handleSuccessfulSignup(userCredential.user);
+      }
     } catch (error: any) {
       console.error(error);
       let errorMessage = "An unknown error occurred.";
