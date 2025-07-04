@@ -17,6 +17,7 @@ import { useState, useEffect } from "react";
 import { Switch } from "@/components/ui/switch";
 import { getPlanById, updatePlan } from "@/lib/plan-service";
 import type { Plan } from "@/types";
+import { Label } from "@/components/ui/label";
 
 const planFormSchema = z.object({
   name: z.string().min(3, "Name must be at least 3 characters."),

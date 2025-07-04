@@ -16,6 +16,7 @@ import { ArrowLeft, Loader2, PlusCircle, Trash2 } from "lucide-react";
 import { useState } from "react";
 import { Switch } from "@/components/ui/switch";
 import { addPlan } from "@/lib/plan-service";
+import { Label } from "@/components/ui/label";
 
 const planFormSchema = z.object({
   name: z.string().min(3, "Name must be at least 3 characters."),
