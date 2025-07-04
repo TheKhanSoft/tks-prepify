@@ -9,12 +9,13 @@ export const QuotaPeriods: { value: QuotaPeriod; label: string }[] = [
 ];
 
 export const QuotaKeys = [
-    { key: 'downloads', label: 'Downloads' },
-    { key: 'bookmarks', label: 'Bookmarks' },
-    { key: 'take_exam', label: 'Take Exam' },
-    { key: 'ai_interactions', label: 'AI Interactions' },
-    { key: 'priority_support', label: 'Priority Support' },
-    { key: 'early_access', label: 'Early Access' },
-    { key: 'view_analytics', label: 'View Performance Analytics' },
     { key: 'discussion_forums', label: 'Access Discussion Forums' },
+    { key: 'ai_interactions', label: 'AI Interactions' },
+    { key: 'bookmarks', label: 'Bookmarks' },
+    { key: 'downloads', label: 'Downloads' },
+    { key: 'early_access', label: 'Early Access' },
+    { key: 'priority_support', label: 'Priority Support' },
+    { key: 'take_exam', label: 'Take Exam' },
+    { key: 'view_analytics', label: 'View Performance Analytics' },
+    { key: 'view_papers', label: 'View Solved Papers' },
 ];
