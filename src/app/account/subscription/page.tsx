@@ -113,7 +113,7 @@ export default function SubscriptionPage() {
                             {plan.features.map((feature, index) => (
                                 <li key={index} className="flex items-center gap-3">
                                     <Check className="h-5 w-5 text-green-500" />
-                                    <span>{feature}</span>
+                                    <span>{feature.text}</span>
                                 </li>
                             ))}
                         </ul>
