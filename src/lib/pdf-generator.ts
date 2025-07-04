@@ -68,14 +68,18 @@ export const generatePdf = async (paper: Paper, questions: PaperQuestion[], sett
     document.body.removeChild(reportElement);
 
     // 4. Create the PDF and add the rendered content as an image
-    const imgData = canvas.toDataURL('image/png');
     const pdf = new jsPDF('p', 'mm', 'a4');
     
-    const margin = 20; // 20mm margin on all sides
+    // Define margins: 1 inch for top/bottom, 20mm for left/right
+    const topMargin = 25.4;
+    const bottomMargin = 25.4;
+    const leftMargin = 20;
+    const rightMargin = 20;
+
     const pdfWidth = pdf.internal.pageSize.getWidth();
     const pdfHeight = pdf.internal.pageSize.getHeight();
-    const contentWidth = pdfWidth - margin * 2;
-    const contentHeight = pdfHeight - margin * 2;
+    const contentWidth = pdfWidth - leftMargin - rightMargin;
+    const pageContentHeight = pdfHeight - topMargin - bottomMargin;
 
     const canvasWidth = canvas.width;
     const canvasHeight = canvas.height;
@@ -87,15 +91,15 @@ export const generatePdf = async (paper: Paper, questions: PaperQuestion[], sett
     let position = 0;
 
     // Add first page
-    pdf.addImage(imgData, 'PNG', margin, position + margin, contentWidth, totalImgHeight);
-    heightLeft -= contentHeight;
+    pdf.addImage(imgData, 'PNG', leftMargin, position + topMargin, contentWidth, totalImgHeight);
+    heightLeft -= pageContentHeight;
 
     // Add subsequent pages if content overflows
     while (heightLeft > 0) {
-        position -= contentHeight;
+        position -= pageContentHeight;
         pdf.addPage();
-        pdf.addImage(imgData, 'PNG', margin, position + margin, contentWidth, totalImgHeight);
-        heightLeft -= contentHeight;
+        pdf.addImage(imgData, 'PNG', leftMargin, position + topMargin, contentWidth, totalImgHeight);
+        heightLeft -= pageContentHeight;
     }
     
     const pageCount = pdf.internal.getNumberOfPages();
@@ -106,18 +110,19 @@ export const generatePdf = async (paper: Paper, questions: PaperQuestion[], sett
 
         // Watermark
         if (settings.pdfWatermarkEnabled) {
-            const watermarkText = (settings.pdfWatermarkText || 'Downloaded From {siteName}').replace(
-                '{siteName}',
-                settings.siteName
-            );
+            const rawWatermarkText = settings.pdfWatermarkText || 'Downloaded From {siteName}';
+            const watermarkText = rawWatermarkText.replace('{siteName}', settings.siteName);
+            const watermarkLines = watermarkText.split('\\n');
+            
             pdf.setFontSize(50);
             pdf.setTextColor(230, 230, 230); // Very light gray
             // Save current graphics state to apply transparency
             pdf.saveGraphicsState();
             pdf.setGState(new (pdf as any).GState({ opacity: 0.5 }));
-            pdf.text(watermarkText, pdfWidth / 2, pdfHeight / 2, {
-                angle: -45, // Set text at a 45-degree angle
-                align: 'center'
+            pdf.text(watermarkLines, pdfWidth / 2, pdfHeight / 2, {
+                angle: -45,
+                align: 'center',
+                baseline: 'middle' // Vertically center the text block
             });
             // Restore graphics state
             pdf.restoreGraphicsState();
@@ -129,7 +134,7 @@ export const generatePdf = async (paper: Paper, questions: PaperQuestion[], sett
         const footerText = `Page ${i} of ${pageCount}`;
         const textWidth = pdf.getStringUnitWidth(footerText) * pdf.getFontSize() / pdf.internal.scaleFactor;
         const x = (pdfWidth - textWidth) / 2;
-        const y = pdfHeight - (margin / 2);
+        const y = pdfHeight - (bottomMargin / 2);
         pdf.text(footerText, x, y);
     }
     
