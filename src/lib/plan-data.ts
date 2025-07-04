@@ -15,4 +15,6 @@ export const QuotaKeys = [
     { key: 'ai_interactions', label: 'AI Interactions' },
     { key: 'priority_support', label: 'Priority Support' },
     { key: 'early_access', label: 'Early Access' },
+    { key: 'view_analytics', label: 'View Performance Analytics' },
+    { key: 'discussion_forums', label: 'Access Discussion Forums' },
 ];
