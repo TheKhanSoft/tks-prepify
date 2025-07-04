@@ -33,7 +33,7 @@ const changePlanFormSchema = z.object({
 
 const editHistoryFormSchema = z.object({
   endDate: z.date().optional().nullable(),
-  status: z.enum(['current', 'expired', 'migrated', 'cancelled']),
+  status: z.enum(['current', 'expired', 'cancelled']),
   remarks: z.string().optional(),
 });
 
@@ -91,6 +91,7 @@ export default function ManageSubscriptionPage() {
 
   useEffect(() => {
     loadData();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [userId]);
 
   async function onPlanChangeSubmit(data: ChangePlanFormValues) {
@@ -135,7 +136,7 @@ export default function ManageSubscriptionPage() {
   const handleEditClick = (record: UserPlan) => {
     setEditingHistoryRecord(record);
     editHistoryForm.reset({
-        status: record.status,
+        status: record.status as 'current' | 'expired' | 'cancelled',
         endDate: record.endDate ? new Date(record.endDate) : null,
         remarks: record.remarks || '',
     });
@@ -152,15 +153,15 @@ export default function ManageSubscriptionPage() {
   return (
     <div className="space-y-6 max-w-4xl">
       <div><Button variant="outline" onClick={() => router.back()} disabled={isSubmitting}><ArrowLeft className="mr-2 h-4 w-4" />Back to Users</Button></div>
-      <Card><CardHeader><div className="flex items-center gap-4"><Avatar className="h-16 w-16"><AvatarImage src={user.photoURL || undefined} alt={user.name || "User"} /><AvatarFallback>{user.name?.charAt(0) || user.email?.charAt(0)}</AvatarFallback></Avatar><div><CardTitle>Manage Subscription</CardTitle><CardDescription>{user.email}</CardDescription></div></div></CardHeader></Card>
+      <Card><CardHeader><div className="flex items-center gap-4"><Avatar className="h-16 w-16"><AvatarImage src={user.photoURL || undefined} alt={user.name || "User"} data-ai-hint="user avatar" /><AvatarFallback>{user.name?.charAt(0) || user.email?.charAt(0)}</AvatarFallback></Avatar><div><CardTitle>Manage Subscription</CardTitle><CardDescription>{user.email}</CardDescription></div></div></CardHeader></Card>
       
       <Card>
-        <CardHeader><CardTitle>Change Plan</CardTitle><CardDescription>Assign a new subscription plan to this user. This will create a new entry in their history.</CardDescription></CardHeader>
+        <CardHeader><CardTitle>Change Plan</CardTitle><CardDescription>Assign a new subscription plan to this user. This will automatically migrate the current plan and create a new history record.</CardDescription></CardHeader>
         <CardContent>
           <Form {...changePlanForm}>
             <form onSubmit={changePlanForm.handleSubmit(onPlanChangeSubmit)} className="space-y-4">
               <FormField control={changePlanForm.control} name="planId" render={({ field }) => (<FormItem><FormLabel>New Plan</FormLabel><Select onValueChange={field.onChange} defaultValue={field.value} disabled={isSubmitting}><FormControl><SelectTrigger><SelectValue placeholder="Select a plan to assign" /></SelectTrigger></FormControl><SelectContent>{plans.map((plan) => (<SelectItem key={plan.id} value={plan.id}>{plan.name}</SelectItem>))}</SelectContent></Select><FormMessage /></FormItem>)} />
-              <FormField control={changePlanForm.control} name="endDate" render={({ field }) => (<FormItem className="flex flex-col"><FormLabel>Expiry Date (Optional)</FormLabel><Popover><PopoverTrigger asChild><FormControl><Button variant={"outline"} className={cn("w-[240px] pl-3 text-left font-normal", !field.value && "text-muted-foreground")}><CalendarIcon className="mr-2 h-4 w-4" />{field.value ? format(field.value, "PPP") : <span>Pick a date</span>}</Button></FormControl></PopoverTrigger><PopoverContent className="w-auto p-0" align="start"><Calendar mode="single" selected={field.value || undefined} onSelect={field.onChange} disabled={(date) => date < new Date()} initialFocus /></PopoverContent></Popover><FormDescription>Leave blank for automatic duration or no expiry.</FormDescription><FormMessage /></FormItem>)} />
+              <FormField control={changePlanForm.control} name="endDate" render={({ field }) => (<FormItem className="flex flex-col"><FormLabel>Expiry Date (Optional)</FormLabel><Popover><PopoverTrigger asChild><FormControl><Button variant={"outline"} className={cn("w-[240px] pl-3 text-left font-normal", !field.value && "text-muted-foreground")}><CalendarIcon className="mr-2 h-4 w-4" />{field.value ? format(field.value, "PPP") : <span>Pick a date</span>}</Button></FormControl></PopoverTrigger><PopoverContent className="w-auto p-0" align="start"><Calendar mode="single" selected={field.value || undefined} onSelect={field.onChange} disabled={(date) => date < new Date()} initialFocus /></PopoverContent></Popover><FormDescription>Leave blank for automatic duration based on the plan, or no expiry for free plans.</FormDescription><FormMessage /></FormItem>)} />
               <FormField control={changePlanForm.control} name="remarks" render={({ field }) => (<FormItem><FormLabel>Remarks (Optional)</FormLabel><FormControl><Textarea placeholder="e.g., promotional offer, manual extension" {...field} /></FormControl><FormMessage /></FormItem>)} />
               <div className="flex justify-end">
                 <Button type="submit" disabled={isSubmitting || changePlanForm.getValues("planId") === user.planId}>{isSubmitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <RefreshCw className="mr-2 h-4 w-4" />}Change Plan</Button>
@@ -191,7 +192,7 @@ export default function ManageSubscriptionPage() {
             <DialogHeader><DialogTitle>Edit Subscription Record</DialogTitle><DialogDescription>Modify the details for the "{editingHistoryRecord?.planName}" plan subscription.</DialogDescription></DialogHeader>
              <Form {...editHistoryForm}>
                 <form id="edit-history-form" onSubmit={editHistoryForm.handleSubmit(onEditHistorySubmit)} className="space-y-6 py-4">
-                     <FormField control={editHistoryForm.control} name="status" render={({ field }) => (<FormItem><FormLabel>Status</FormLabel><Select onValueChange={field.onChange} defaultValue={field.value}><FormControl><SelectTrigger><SelectValue placeholder="Select a status" /></SelectTrigger></FormControl><SelectContent><SelectItem value="current">Current</SelectItem><SelectItem value="expired">Expired</SelectItem><SelectItem value="migrated">Migrated</SelectItem><SelectItem value="cancelled">Cancelled</SelectItem></SelectContent></Select><FormMessage /></FormItem>)} />
+                     <FormField control={editHistoryForm.control} name="status" render={({ field }) => (<FormItem><FormLabel>Status</FormLabel><Select onValueChange={field.onChange} defaultValue={field.value}><FormControl><SelectTrigger><SelectValue placeholder="Select a status" /></SelectTrigger></FormControl><SelectContent><SelectItem value="current">Current</SelectItem><SelectItem value="expired">Expired</SelectItem><SelectItem value="cancelled">Cancelled</SelectItem></SelectContent></Select><FormMessage /></FormItem>)} />
                      <FormField control={editHistoryForm.control} name="endDate" render={({ field }) => (<FormItem className="flex flex-col"><FormLabel>End Date</FormLabel><Popover><PopoverTrigger asChild><FormControl><Button variant={"outline"} className={cn("w-[240px] pl-3 text-left font-normal", !field.value && "text-muted-foreground")}><CalendarIcon className="mr-2 h-4 w-4" />{field.value ? format(field.value, "PPP") : <span>Pick a date</span>}</Button></FormControl></PopoverTrigger><PopoverContent className="w-auto p-0" align="start"><Calendar mode="single" selected={field.value || undefined} onSelect={field.onChange} initialFocus /></PopoverContent></Popover><FormMessage /></FormItem>)} />
                      <FormField control={editHistoryForm.control} name="remarks" render={({ field }) => (<FormItem><FormLabel>Remarks</FormLabel><FormControl><Textarea {...field} /></FormControl><FormMessage /></FormItem>)} />
                 </form>

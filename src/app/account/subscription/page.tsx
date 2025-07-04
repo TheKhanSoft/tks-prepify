@@ -3,20 +3,23 @@
 
 import { useEffect, useState } from 'react';
 import { useAuth } from '@/hooks/use-auth';
-import { getUserProfile } from '@/lib/user-service';
+import { getUserProfile, fetchUserPlanHistory } from '@/lib/user-service';
 import { fetchPlans } from '@/lib/plan-service';
-import type { Plan, User as UserProfile } from '@/types';
+import type { Plan, User as UserProfile, UserPlan } from '@/types';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
 import { Button } from '@/components/ui/button';
 import { Loader2, Check, ExternalLink } from 'lucide-react';
 import { format } from 'date-fns';
 import Link from 'next/link';
 import { Badge } from '@/components/ui/badge';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { cn } from '@/lib/utils';
 
 export default function SubscriptionPage() {
     const { user, loading: authLoading } = useAuth();
     const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
     const [plan, setPlan] = useState<Plan | null>(null);
+    const [planHistory, setPlanHistory] = useState<UserPlan[]>([]);
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
@@ -24,11 +27,13 @@ export default function SubscriptionPage() {
             const loadData = async () => {
                 setLoading(true);
                 try {
-                    const [profile, plans] = await Promise.all([
+                    const [profile, plans, history] = await Promise.all([
                         getUserProfile(user.uid),
-                        fetchPlans()
+                        fetchPlans(),
+                        fetchUserPlanHistory(user.uid)
                     ]);
                     setUserProfile(profile);
+                    setPlanHistory(history);
                     if (profile) {
                         const currentPlan = plans.find(p => p.id === profile.planId);
                         setPlan(currentPlan || null);
@@ -65,14 +70,14 @@ export default function SubscriptionPage() {
     }
 
     return (
-        <div className="space-y-6">
+        <div className="space-y-8">
             <div>
                 <h1 className="text-3xl font-bold">My Subscription</h1>
                 <p className="text-muted-foreground">Manage your plan and billing details.</p>
             </div>
 
             <Card>
-                <CardHeader className="flex flex-row items-center justify-between">
+                <CardHeader className="flex flex-row items-start md:items-center justify-between gap-4">
                     <div>
                         <CardTitle>Current Plan</CardTitle>
                         <CardDescription>Here are the details of your active subscription.</CardDescription>
@@ -116,26 +121,44 @@ export default function SubscriptionPage() {
                 </CardContent>
             </Card>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <Card>
-                    <CardHeader>
-                        <CardTitle>Usage & Quota</CardTitle>
-                        <CardDescription>Your current usage statistics.</CardDescription>
-                    </CardHeader>
-                    <CardContent className="text-center text-muted-foreground py-12">
-                        <p>Usage tracking is coming soon!</p>
-                    </CardContent>
-                </Card>
-                 <Card>
-                    <CardHeader>
-                        <CardTitle>Billing History</CardTitle>
-                        <CardDescription>Review your past invoices and payments.</CardDescription>
-                    </CardHeader>
-                    <CardContent className="text-center text-muted-foreground py-12">
-                        <p>No billing history found.</p>
-                    </CardContent>
-                </Card>
-            </div>
+             <Card>
+                <CardHeader>
+                    <CardTitle>Billing History</CardTitle>
+                    <CardDescription>A record of your past and current subscriptions.</CardDescription>
+                </CardHeader>
+                <CardContent>
+                    <Table>
+                        <TableHeader>
+                            <TableRow>
+                                <TableHead>Plan</TableHead>
+                                <TableHead>Status</TableHead>
+                                <TableHead>Start Date</TableHead>
+                                <TableHead>End Date</TableHead>
+                            </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                            {planHistory.length > 0 ? (
+                                planHistory.map((ph) => (
+                                    <TableRow key={ph.id}>
+                                        <TableCell className="font-medium">{ph.planName}</TableCell>
+                                        <TableCell>
+                                            <Badge variant={ph.status === 'current' ? 'default' : 'secondary'} className={cn(ph.status === 'current' && 'bg-green-600 hover:bg-green-700')}>{ph.status}</Badge>
+                                        </TableCell>
+                                        <TableCell>{format(new Date(ph.subscriptionDate), 'PPP')}</TableCell>
+                                        <TableCell>{ph.endDate ? format(new Date(ph.endDate), 'PPP') : 'N/A'}</TableCell>
+                                    </TableRow>
+                                ))
+                            ) : (
+                                <TableRow>
+                                    <TableCell colSpan={4} className="h-24 text-center text-muted-foreground">
+                                        No billing history found.
+                                    </TableCell>
+                                </TableRow>
+                            )}
+                        </TableBody>
+                    </Table>
+                </CardContent>
+            </Card>
         </div>
     );
 }
