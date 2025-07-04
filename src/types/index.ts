@@ -94,6 +94,18 @@ export interface Page {
   metaDescription?: string;
 }
 
+export interface Plan {
+  id: string;
+  name: string;
+  price: number;
+  interval: 'month' | 'year';
+  description: string;
+  features: string[];
+  published: boolean;
+  popular?: boolean;
+  stripePriceId?: string;
+}
+
 export interface Settings {
     siteName: string;
     siteDescription: string;

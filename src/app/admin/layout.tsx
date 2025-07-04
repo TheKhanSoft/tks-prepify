@@ -1,6 +1,6 @@
 
 import { SidebarProvider, Sidebar, SidebarHeader, SidebarTrigger, SidebarMenu, SidebarMenuItem, SidebarMenuButton, SidebarContent, SidebarInset, SidebarFooter, SidebarSeparator } from '@/components/ui/sidebar';
-import { LayoutDashboard, FileText, Folder, Home, Users, Settings, Bell, Search, Library, Tags, Mail, FileSliders, ChevronRight, Database } from 'lucide-react';
+import { LayoutDashboard, FileText, Folder, Home, Users, Settings, Bell, Search, Library, Tags, Mail, FileSliders, ChevronRight, Database, Coins } from 'lucide-react';
 import Link from 'next/link';
 import { BookOpen } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -83,6 +83,14 @@ export default async function AdminLayout({
                   <Link href="/admin/categories">
                     <Folder />
                     <span className="group-data-[collapsible=icon]:hidden">Categories</span>
+                  </Link>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+              <SidebarMenuItem>
+                <SidebarMenuButton asChild tooltip="Plans">
+                  <Link href="/admin/plans">
+                    <Coins className="h-4 w-4" />
+                    <span className="group-data-[collapsible=icon]:hidden">Plans</span>
                   </Link>
                 </SidebarMenuButton>
               </SidebarMenuItem>

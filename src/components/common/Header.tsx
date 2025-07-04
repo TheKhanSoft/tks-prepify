@@ -25,6 +25,7 @@ export function Header({ settings }: { settings: Settings }) {
     { href: "/", label: "Home" },
     { href: "/papers", label: "Papers" },
     { href: "/categories", label: "Categories" },
+    { href: "/pricing", label: "Pricing" },
     { href: "/about", label: "About" },
     { href: "/contact", label: "Contact" },
   ];
