@@ -6,7 +6,6 @@ import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Badge } from "@/components/ui/badge"
 import { FileText, Users, Folder, PlusCircle, ArrowUpRight, Loader2, Library, Tags } from 'lucide-react';
-import { users } from '@/lib/data';
 import { fetchCategories } from '@/lib/category-service';
 import { getCategoryPath, getFlattenedCategories, getDescendantCategoryIds } from '@/lib/category-helpers';
 import { fetchPapers } from '@/lib/paper-service';
@@ -79,7 +78,8 @@ export default function AdminDashboardPage() {
       return count;
   }, [allQuestionCategories]);
 
-  const totalUsers = users.length;
+  const totalUsers = 0; // Placeholder
+  const recentUsers: any[] = []; // Placeholder
 
   const papersPerCategory = useMemo(() => {
     if (allPapers.length === 0 || allCategories.length === 0) return [];
@@ -112,7 +112,6 @@ export default function AdminDashboardPage() {
   }, [allQuestions, allQuestionCategories]);
 
   const recentPapers = useMemo(() => [...allPapers].sort((a, b) => b.id.localeCompare(a.id)).slice(0, 5), [allPapers]);
-  const recentUsers = users.slice(-5).reverse();
   
   if (loading) {
       return (
@@ -202,7 +201,7 @@ export default function AdminDashboardPage() {
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold">{totalUsers}</div>
-              <p className="text-xs text-muted-foreground">Registered users (mock data)</p>
+              <p className="text-xs text-muted-foreground">User management coming soon</p>
             </CardContent>
           </Card>
         </Link>
@@ -318,28 +317,32 @@ export default function AdminDashboardPage() {
                 </Button>
               </CardHeader>
               <CardContent>
-                <div className="space-y-4">
-                  {recentUsers.map((user) => (
-                    <div key={user.id} className="flex items-center gap-4">
-                      <Avatar className="hidden h-9 w-9 sm:flex">
-                        <AvatarImage src={`https://placehold.co/40x40.png?text=${user.name.charAt(0)}`} data-ai-hint="letter avatar" alt="Avatar" />
-                        <AvatarFallback>{user.name.charAt(0)}</AvatarFallback>
-                      </Avatar>
-                      <div className="grid gap-1">
-                        <p className="text-sm font-medium leading-none">{user.name}</p>
-                        <p className="text-sm text-muted-foreground">{user.email}</p>
-                      </div>
-                      <div className="ml-auto font-medium text-sm text-muted-foreground">
-                        {new Date(user.createdAt).toLocaleDateString()}
-                      </div>
+                 {recentUsers.length > 0 ? (
+                    <div className="space-y-4">
+                        {recentUsers.map((user) => (
+                            <div key={user.id} className="flex items-center gap-4">
+                            <Avatar className="hidden h-9 w-9 sm:flex">
+                                <AvatarImage src={`https://placehold.co/40x40.png?text=${user.name.charAt(0)}`} data-ai-hint="letter avatar" alt="Avatar" />
+                                <AvatarFallback>{user.name.charAt(0)}</AvatarFallback>
+                            </Avatar>
+                            <div className="grid gap-1">
+                                <p className="text-sm font-medium leading-none">{user.name}</p>
+                                <p className="text-sm text-muted-foreground">{user.email}</p>
+                            </div>
+                            <div className="ml-auto font-medium text-sm text-muted-foreground">
+                                {new Date(user.createdAt).toLocaleDateString()}
+                            </div>
+                            </div>
+                        ))}
                     </div>
-                  ))}
-                </div>
+                 ) : (
+                    <div className="text-center text-muted-foreground py-10">
+                        <p>User list is not yet available.</p>
+                    </div>
+                 )}
               </CardContent>
             </Card>
         </div>
     </div>
   );
 }
-
-    
