@@ -260,10 +260,10 @@ export default function AdminSettingsPage() {
                             <FormItem>
                                 <FormLabel>Watermark Text</FormLabel>
                                 <FormControl>
-                                    <Input {...field} value={field.value || ''} disabled={isSubmitting} />
+                                    <Textarea {...field} value={field.value || ''} disabled={isSubmitting} placeholder={`Downloaded From ${settings.siteName}`} />
                                 </FormControl>
                                 <FormDescription>
-                                    The text to display as the watermark. Use `"{settings.siteName}"` as a placeholder for your site name.
+                                    The text to display as the watermark. Use `"{siteName}"` as a placeholder for your site name. Enter text on multiple lines for a multi-line watermark.
                                 </FormDescription>
                                 <FormMessage />
                             </FormItem>
