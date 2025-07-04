@@ -6,7 +6,7 @@ import { db } from './firebase';
 import type { Paper } from '@/types';
 import { slugify } from './utils';
 
-function docToPaper(doc: DocumentData): Paper {
+export async function docToPaper(doc: DocumentData): Promise<Paper> {
     const data = doc.data();
     return {
         id: doc.id,
@@ -35,7 +35,8 @@ export async function fetchPapers(): Promise<Paper[]> {
     try {
         const papersCol = collection(db, 'papers');
         const paperSnapshot = await getDocs(papersCol);
-        return paperSnapshot.docs.map(doc => docToPaper(doc));
+        const papers = await Promise.all(paperSnapshot.docs.map(doc => docToPaper(doc)));
+        return papers;
     } catch (error) {
         console.error("Error fetching papers:", error);
         // Return empty array on error to prevent page crash
@@ -53,7 +54,7 @@ export async function getPaperById(id: string): Promise<Paper | null> {
         const paperDoc = await getDoc(paperDocRef);
 
         if (paperDoc.exists()) {
-            return docToPaper(paperDoc);
+            return await docToPaper(paperDoc);
         } else {
             return null;
         }
@@ -75,7 +76,7 @@ export async function getPaperBySlug(slug: string): Promise<Paper | null> {
 
         if (!paperSnapshot.empty) {
             // Assuming slugs are unique, return the first one found.
-            return docToPaper(paperSnapshot.docs[0]);
+            return await docToPaper(paperSnapshot.docs[0]);
         } else {
             return null;
         }

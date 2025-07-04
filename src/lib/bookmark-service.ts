@@ -16,7 +16,8 @@ import {
   DocumentData,
 } from 'firebase/firestore';
 import { db } from './firebase';
-import type { Bookmark, Plan } from '@/types';
+import type { Bookmark, Plan, Paper } from '@/types';
+import { docToPaper } from './paper-service';
 
 // Helper to serialize dates safely
 const serializeDate = (date: any): string | null => {
@@ -60,6 +61,63 @@ export async function getBookmarkForPaper(userId: string, paperId: string): Prom
     return docToBookmark(snapshot.docs[0]);
 }
 
+/**
+ * Fetches all active bookmarks for a user and returns the associated paper details.
+ */
+export async function fetchUserBookmarks(userId: string): Promise<Paper[]> {
+  if (!userId) return [];
+  
+  const bookmarksCol = collection(db, 'bookmarks');
+  const q = query(bookmarksCol, where('userId', '==', userId), where('active', '==', true));
+  const snapshot = await getDocs(q);
+
+  if (snapshot.empty) {
+    return [];
+  }
+
+  const paperIds = snapshot.docs.map(doc => doc.data().paperId as string);
+
+  if (paperIds.length === 0) {
+    return [];
+  }
+  
+  const papers: Paper[] = [];
+  const papersCollection = collection(db, 'papers');
+
+  // Firestore 'in' query has a limit of 30 values per query in v9.
+  // We need to fetch papers in chunks if there are more than 30 bookmarks.
+  for (let i = 0; i < paperIds.length; i += 30) {
+    const chunk = paperIds.slice(i, i + 30);
+    if (chunk.length > 0) {
+      const papersQuery = query(papersCollection, where('__name__', 'in', chunk));
+      const papersSnapshot = await getDocs(papersQuery);
+      
+      const paperPromises = papersSnapshot.docs
+        .filter(doc => doc.exists())
+        .map(doc => docToPaper(doc));
+
+      const resolvedPapers = await Promise.all(paperPromises);
+      papers.push(...resolvedPapers);
+    }
+  }
+
+  return papers;
+}
+
+/**
+ * Counts the number of active bookmarks for a given user.
+ */
+export async function countActiveBookmarks(userId: string): Promise<number> {
+    if (!userId) return 0;
+    const activeBookmarksQuery = query(
+        collection(db, 'bookmarks'),
+        where('userId', '==', userId),
+        where('active', '==', true)
+    );
+    const activeCountSnapshot = await getCountFromServer(activeBookmarksQuery);
+    return activeCountSnapshot.data().count;
+}
+
 
 /**
  * Toggles the bookmark status for a user and a paper.
@@ -97,13 +155,7 @@ export async function toggleBookmark(
     const { limit: quotaLimit = 0 } = bookmarkFeature;
 
     if (quotaLimit !== -1) { // -1 means unlimited
-        const activeBookmarksQuery = query(
-            bookmarksCol,
-            where('userId', '==', userId),
-            where('active', '==', true)
-        );
-        const activeCountSnapshot = await getCountFromServer(activeBookmarksQuery);
-        const activeCount = activeCountSnapshot.data().count;
+        const activeCount = await countActiveBookmarks(userId);
 
         if (activeCount >= quotaLimit) {
             return { success: false, bookmarked: false, message: `You have reached your bookmark limit of ${quotaLimit}.` };

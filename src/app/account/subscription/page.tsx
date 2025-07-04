@@ -5,6 +5,7 @@ import { useEffect, useState } from 'react';
 import { useAuth } from '@/hooks/use-auth';
 import { getUserProfile, fetchUserPlanHistory } from '@/lib/user-service';
 import { fetchPlans } from '@/lib/plan-service';
+import { countActiveBookmarks } from '@/lib/bookmark-service';
 import type { Plan, User as UserProfile, UserPlan } from '@/types';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from "@/components/ui/card";
 import { Button } from '@/components/ui/button';
@@ -15,7 +16,6 @@ import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { cn } from '@/lib/utils';
 import { Progress } from '@/components/ui/progress';
-import { Separator } from '@/components/ui/separator';
 
 export default function SubscriptionPage() {
     const { user, loading: authLoading } = useAuth();
@@ -23,19 +23,23 @@ export default function SubscriptionPage() {
     const [plan, setPlan] = useState<Plan | null>(null);
     const [planHistory, setPlanHistory] = useState<UserPlan[]>([]);
     const [loading, setLoading] = useState(true);
+    const [usage, setUsage] = useState<Record<string, number>>({});
 
     useEffect(() => {
         if (user) {
             const loadData = async () => {
                 setLoading(true);
                 try {
-                    const [profile, plans, history] = await Promise.all([
+                    const [profile, plans, history, bookmarkCount] = await Promise.all([
                         getUserProfile(user.uid),
                         fetchPlans(),
-                        fetchUserPlanHistory(user.uid)
+                        fetchUserPlanHistory(user.uid),
+                        countActiveBookmarks(user.uid)
                     ]);
                     setUserProfile(profile);
                     setPlanHistory(history);
+                    setUsage({ bookmarks: bookmarkCount });
+
                     if (profile) {
                         const currentPlan = plans.find(p => p.id === profile.planId);
                         setPlan(currentPlan || null);
@@ -109,8 +113,7 @@ export default function SubscriptionPage() {
                          {quotaFeatures.length > 0 ? (
                             quotaFeatures.map((feature) => {
                                 const limit = feature.limit ?? 0;
-                                // NOTE: "used" is a mocked value. This should be replaced with real data from a usage tracking system.
-                                const used = 0; 
+                                const used = usage[feature.key || ''] || 0;
                                 const percentage = limit > 0 ? (used / limit) * 100 : (limit === -1 ? 100 : 0);
 
                                 return (
