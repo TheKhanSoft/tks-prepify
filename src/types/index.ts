@@ -182,3 +182,12 @@ export interface ContactSubmission {
   createdAt: Date;
   isRead: boolean;
 }
+
+export interface Bookmark {
+  id: string;
+  userId: string;
+  paperId: string;
+  createdAt: string; // ISO string
+  active: boolean;
+  removedAt?: string | null; // ISO string
+}
