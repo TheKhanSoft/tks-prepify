@@ -1,3 +1,4 @@
+
 "use client"
 
 import { useAuth } from '@/hooks/use-auth';
@@ -38,10 +39,10 @@ export default function AccountDashboardPage() {
                 }
             };
             loadData();
-        } else {
+        } else if (!authLoading) {
             setLoading(false);
         }
-    }, [user]);
+    }, [user, authLoading]);
 
     if (authLoading || loading) {
          return (

@@ -62,47 +62,48 @@ export async function createUserProfile(user: UserProfileData, planId: string) {
   }
 }
 
+// This function now returns a fully serialized User object
 const docToUser = (doc: DocumentData): User => {
     const data = doc.data();
+    const createdAt = data.createdAt;
+    const planExpiryDate = data.planExpiryDate;
+
     return {
         id: doc.id,
         name: data.name || null,
         email: data.email || null,
         photoURL: data.photoURL || null,
         planId: data.planId || '',
-        createdAt: data.createdAt, // This will be a Firestore Timestamp
-        planExpiryDate: data.planExpiryDate, // This will be a Firestore Timestamp or null
+        createdAt: createdAt instanceof Timestamp ? createdAt.toDate().toISOString() : null,
+        planExpiryDate: planExpiryDate instanceof Timestamp ? planExpiryDate.toDate().toISOString() : null,
     };
 };
 
 export const fetchUserProfiles = cache(async (): Promise<User[]> => {
-    const usersCol = collection(db, 'users');
-    const snapshot = await getDocs(usersCol);
-    const users = snapshot.docs.map(docToUser);
-
-    // Convert Timestamps to serializable strings before returning
-    return users.map(user => ({
-        ...user,
-        createdAt: user.createdAt instanceof Timestamp ? user.createdAt.toDate().toISOString() : null,
-        planExpiryDate: user.planExpiryDate instanceof Timestamp ? user.planExpiryDate.toDate().toISOString() : null,
-    }));
+    try {
+        const usersCol = collection(db, 'users');
+        const snapshot = await getDocs(usersCol);
+        return snapshot.docs.map(docToUser);
+    } catch (error) {
+        console.error("Error fetching user profiles:", error);
+        return [];
+    }
 });
 
 
 export const getUserProfile = cache(async (userId: string): Promise<User | null> => {
     if (!userId) return null;
-    const userDocRef = doc(db, 'users', userId);
-    const docSnap = await getDoc(userDocRef);
-    if (docSnap.exists()) {
-        const user = docToUser(docSnap);
-        // Convert Timestamps to serializable strings
-        return {
-            ...user,
-            createdAt: user.createdAt instanceof Timestamp ? user.createdAt.toDate().toISOString() : null,
-            planExpiryDate: user.planExpiryDate instanceof Timestamp ? user.planExpiryDate.toDate().toISOString() : null,
+    try {
+        const userDocRef = doc(db, 'users', userId);
+        const docSnap = await getDoc(userDocRef);
+        if (docSnap.exists()) {
+            return docToUser(docSnap);
         }
+        return null;
+    } catch(error) {
+        console.error("Error getting user profile:", error);
+        return null;
     }
-    return null;
 });
 
 export async function updateUserPlan(userId: string, planId: string) {
