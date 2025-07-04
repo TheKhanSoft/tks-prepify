@@ -40,6 +40,7 @@ const settingsFormSchema = z.object({
     url: z.string().url({ message: "Please enter a valid URL." }).or(z.literal("")),
   })).optional(),
   pdfWatermarkEnabled: z.boolean().optional(),
+  pdfWatermarkText: z.string().optional(),
 });
 
 type SettingsFormValues = z.infer<typeof settingsFormSchema>;
@@ -66,6 +67,8 @@ export default function AdminSettingsPage() {
     control: form.control,
     name: "socialLinks",
   });
+
+  const pdfWatermarkEnabled = form.watch("pdfWatermarkEnabled");
 
   useEffect(() => {
     const loadData = async () => {
@@ -220,7 +223,7 @@ export default function AdminSettingsPage() {
             <TabsContent value="downloads">
                <Card>
                   <CardHeader><CardTitle>PDF Download Settings</CardTitle><CardDescription>Customize the options for downloaded PDF papers.</CardDescription></CardHeader>
-                  <CardContent>
+                  <CardContent className="space-y-6">
                      <FormField
                         control={form.control}
                         name="pdfWatermarkEnabled"
@@ -228,7 +231,7 @@ export default function AdminSettingsPage() {
                         <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4">
                             <div className="space-y-0.5">
                                 <FormLabel className="text-base">Enable Watermark</FormLabel>
-                                <FormDescription>Add a "Downloaded From {settings?.siteName}" watermark to each page.</FormDescription>
+                                <FormDescription>Add a watermark to each page of the downloaded PDF.</FormDescription>
                             </div>
                             <FormControl>
                                 <Switch checked={field.value} onCheckedChange={field.onChange} disabled={isSubmitting} />
@@ -236,6 +239,24 @@ export default function AdminSettingsPage() {
                         </FormItem>
                         )}
                     />
+                    {pdfWatermarkEnabled && (
+                        <FormField
+                            control={form.control}
+                            name="pdfWatermarkText"
+                            render={({ field }) => (
+                            <FormItem>
+                                <FormLabel>Watermark Text</FormLabel>
+                                <FormControl>
+                                    <Input {...field} value={field.value || ''} disabled={isSubmitting} />
+                                </FormControl>
+                                <FormDescription>
+                                    The text to display as the watermark. Use `"{siteName}"` as a placeholder for your site name.
+                                </FormDescription>
+                                <FormMessage />
+                            </FormItem>
+                            )}
+                        />
+                    )}
                   </CardContent>
                 </Card>
             </TabsContent>

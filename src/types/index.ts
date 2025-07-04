@@ -173,6 +173,7 @@ export interface Settings {
     contactAddress?: string;
     // Download settings
     pdfWatermarkEnabled?: boolean;
+    pdfWatermarkText?: string;
 }
 
 export interface ContactSubmission {
