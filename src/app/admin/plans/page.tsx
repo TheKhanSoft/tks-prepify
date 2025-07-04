@@ -9,13 +9,12 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { PlusCircle, MoreHorizontal, Edit, Trash2, Loader2, Star } from "lucide-react";
+import { PlusCircle, MoreHorizontal, Edit, Trash2, Loader2, Copy } from "lucide-react";
 import { fetchPlans, deletePlan, updatePlan } from "@/lib/plan-service";
 import type { Plan } from "@/types";
 import { useToast } from "@/hooks/use-toast";
 import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
-import { cn } from "@/lib/utils";
 
 export default function AdminPlansPage() {
   const router = useRouter();
@@ -134,6 +133,7 @@ export default function AdminPlansPage() {
                           <DropdownMenuContent align="end">
                             <DropdownMenuLabel>Actions</DropdownMenuLabel>
                             <DropdownMenuItem asChild><Link href={`/admin/plans/${plan.id}/edit`}><Edit className="mr-2 h-4 w-4" />Edit</Link></DropdownMenuItem>
+                             <DropdownMenuItem asChild><Link href={`/admin/plans/copy/${plan.id}`}><Copy className="mr-2 h-4 w-4" />Copy</Link></DropdownMenuItem>
                             <DropdownMenuSeparator />
                             <DropdownMenuItem className="text-destructive" onSelect={() => openDeleteDialog(plan)} disabled={isPlanUpdating}><Trash2 className="mr-2 h-4 w-4" />Delete</DropdownMenuItem>
                           </DropdownMenuContent>

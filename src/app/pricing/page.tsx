@@ -89,6 +89,9 @@ export default function PricingPage() {
                     <span className="text-5xl font-bold tracking-tight">PKR {displayOption.price}</span>
                     <span className="text-sm font-semibold leading-6 text-muted-foreground">/{interval}</span>
                     </div>
+                     {displayOption.badge && (
+                        <Badge className="mt-2 bg-accent/20 text-accent-foreground border-accent/50 hover:bg-accent/30">{displayOption.badge}</Badge>
+                    )}
                      {savings > 0 && (
                         <p className="mt-1 text-sm text-green-600 font-semibold">
                             You save PKR {savings.toFixed(2)} a year!
