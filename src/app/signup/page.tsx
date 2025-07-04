@@ -1,3 +1,4 @@
+
 'use client';
 
 import Link from 'next/link';
@@ -5,7 +6,7 @@ import { useRouter } from 'next/navigation';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -15,6 +16,9 @@ import { Form, FormControl, FormField, FormItem, FormMessage } from '@/component
 import { useToast } from '@/hooks/use-toast';
 import { createUserWithEmailAndPassword, updateProfile, GoogleAuthProvider, signInWithPopup } from 'firebase/auth';
 import { auth } from '@/lib/firebase';
+import { fetchSettings } from '@/lib/settings-service';
+import type { Settings } from '@/types';
+import { Skeleton } from '@/components/ui/skeleton';
 
 const signupFormSchema = z.object({
   name: z.string().min(2, { message: "Name must be at least 2 characters." }),
@@ -29,6 +33,11 @@ export default function SignupPage() {
   const { toast } = useToast();
   const [loading, setLoading] = useState(false);
   const [googleLoading, setGoogleLoading] = useState(false);
+  const [settings, setSettings] = useState<Settings | null>(null);
+
+  useEffect(() => {
+    fetchSettings().then(setSettings);
+  }, []);
 
   const form = useForm<SignupFormValues>({
     resolver: zodResolver(signupFormSchema),
@@ -79,7 +88,11 @@ export default function SignupPage() {
         <CardHeader className="text-center">
            <div className="flex justify-center items-center gap-2 mb-4">
             <BookOpen className="h-8 w-8 text-primary" />
-            <span className="text-2xl font-bold font-headline">Prepify</span>
+            {settings ? (
+              <span className="text-2xl font-bold font-headline">{settings.siteName}</span>
+            ) : (
+              <Skeleton className="h-8 w-24" />
+            )}
           </div>
           <CardTitle className="text-2xl">Create an Account</CardTitle>
           <CardDescription>Enter your information to get started.</CardDescription>
