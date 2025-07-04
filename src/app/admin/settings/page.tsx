@@ -49,6 +49,17 @@ const iconMap: { [key: string]: React.ComponentType<{ className?: string }> } = 
     Facebook, Github, Instagram, Linkedin, Twitter, Youtube, MessageSquare, MessageCircle, Twitch, Ghost, Send, Link: LinkIcon
 };
 
+const defaultSettingsData: Settings = {
+    siteName: 'Prepify',
+    siteDescription: 'Ace your exams with AI-powered practice.',
+    defaultQuestionCount: 100,
+    defaultDuration: 120,
+    defaultQuestionsPerPage: 2,
+    defaultPlanId: '',
+    socialLinks: [],
+};
+
+
 export default function AdminSettingsPage() {
   const { toast } = useToast();
   const [loading, setLoading] = useState(true);
@@ -109,6 +120,8 @@ export default function AdminSettingsPage() {
         description: "Your global settings have been updated.",
       });
       
+      setSettings(prev => ({...(prev || defaultSettingsData), ...settingsData}));
+      
     } catch (error: any) {
       console.error("Error saving settings:", error);
       toast({
@@ -122,7 +135,7 @@ export default function AdminSettingsPage() {
     }
   }
 
-  if (loading) {
+  if (loading || !settings) {
     return (
       <div className="flex justify-center items-center h-full min-h-[calc(100vh-20rem)]">
         <Loader2 className="h-8 w-8 animate-spin text-primary" />
@@ -250,7 +263,7 @@ export default function AdminSettingsPage() {
                                     <Input {...field} value={field.value || ''} disabled={isSubmitting} />
                                 </FormControl>
                                 <FormDescription>
-                                    The text to display as the watermark. Use `"{siteName}"` as a placeholder for your site name.
+                                    The text to display as the watermark. Use `"{settings.siteName}"` as a placeholder for your site name.
                                 </FormDescription>
                                 <FormMessage />
                             </FormItem>
