@@ -4,7 +4,6 @@
 import { collection, getDocs, doc, getDoc, addDoc, updateDoc, deleteDoc, DocumentData, query, orderBy, where } from 'firebase/firestore';
 import { db } from './firebase';
 import type { Plan } from '@/types';
-import { cache } from 'react';
 
 function docToPlan(doc: DocumentData): Plan {
     const data = doc.data();
@@ -19,7 +18,7 @@ function docToPlan(doc: DocumentData): Plan {
     };
 }
 
-export const fetchPlans = cache(async (publishedOnly = false): Promise<Plan[]> => {
+export async function fetchPlans(publishedOnly = false): Promise<Plan[]> {
     const plansCol = collection(db, 'plans');
     let q;
     if (publishedOnly) {
@@ -40,7 +39,7 @@ export const fetchPlans = cache(async (publishedOnly = false): Promise<Plan[]> =
     });
 
     return plans;
-});
+}
 
 export async function getPlanById(id: string): Promise<Plan | null> {
     if (!id) return null;
@@ -63,3 +62,4 @@ export async function deletePlan(id: string) {
     const planDocRef = doc(db, 'plans', id);
     await deleteDoc(planDocRef);
 }
+    

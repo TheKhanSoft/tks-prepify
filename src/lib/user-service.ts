@@ -4,7 +4,6 @@
 import { doc, setDoc, serverTimestamp, getDoc, collection, getDocs, updateDoc, DocumentData, Timestamp } from 'firebase/firestore';
 import { db } from './firebase';
 import type { User } from '@/types';
-import { cache } from 'react';
 import { fetchPlans } from './plan-service';
 
 // Define a plain object type for user data to be passed from client to server
@@ -93,7 +92,7 @@ const docToUser = (doc: DocumentData): User => {
     };
 };
 
-export const fetchUserProfiles = cache(async (): Promise<User[]> => {
+export async function fetchUserProfiles(): Promise<User[]> {
     try {
         const usersCol = collection(db, 'users');
         const snapshot = await getDocs(usersCol);
@@ -102,10 +101,10 @@ export const fetchUserProfiles = cache(async (): Promise<User[]> => {
         console.error("Error fetching user profiles:", error);
         return [];
     }
-});
+}
 
 
-export const getUserProfile = cache(async (userId: string): Promise<User | null> => {
+export async function getUserProfile(userId: string): Promise<User | null> {
     if (!userId) return null;
     try {
         const userDocRef = doc(db, 'users', userId);
@@ -118,7 +117,7 @@ export const getUserProfile = cache(async (userId: string): Promise<User | null>
         console.error("Error getting user profile:", error);
         return null;
     }
-});
+}
 
 export async function updateUserPlan(userId: string, planId: string) {
     if (!userId || !planId) {
@@ -133,3 +132,4 @@ export async function updateUserProfileInFirestore(userId: string, data: { name?
     const userDocRef = doc(db, 'users', userId);
     await updateDoc(userDocRef, data);
 }
+    

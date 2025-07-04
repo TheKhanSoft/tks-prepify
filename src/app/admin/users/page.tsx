@@ -32,7 +32,7 @@ export default function AdminUsersPage() {
         fetchUserProfiles(),
         fetchPlans(),
       ]);
-      setUsers(fetchedUsers as User[]);
+      setUsers(fetchedUsers);
       setPlans(fetchedPlans);
     } catch (error) {
       toast({
@@ -79,7 +79,7 @@ export default function AdminUsersPage() {
       <Card>
         <CardHeader>
           <CardTitle>All Users</CardTitle>
-          <CardDescription>Total users: {users.length}</CardDescription>
+          <CardDescription>Total users found in the database: {users.length}</CardDescription>
           <div className="pt-4">
              <div className="relative">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
@@ -123,7 +123,7 @@ export default function AdminUsersPage() {
                     </TableCell>
                     <TableCell>
                       {user.createdAt
-                        ? format(new Date(user.createdAt as unknown as string), "PPP")
+                        ? format(new Date(user.createdAt), "PPP")
                         : 'N/A'}
                     </TableCell>
                     <TableCell className="text-right">
@@ -149,3 +149,4 @@ export default function AdminUsersPage() {
     </div>
   );
 }
+    
