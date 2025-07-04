@@ -66,7 +66,7 @@ export async function createUserProfile(user: UserProfileData, planId?: string) 
       planName: assignedPlan.name,
       subscriptionDate: serverTimestamp(),
       endDate: planExpiryDate,
-      status: 'current',
+      status: 'active',
       remarks: 'Initial plan on sign-up.',
     });
   }
@@ -146,7 +146,7 @@ export async function changeUserSubscription(
 
   // Find the user's current plan in the history to mark it as migrated
   const userPlansCol = collection(db, 'user_plans');
-  const q = query(userPlansCol, where("userId", "==", userId), where("status", "==", "current"));
+  const q = query(userPlansCol, where("userId", "==", userId), where("status", "==", "active"));
   const currentPlanSnapshot = await getDocs(q);
 
   if (!currentPlanSnapshot.empty) {
@@ -176,7 +176,7 @@ export async function changeUserSubscription(
     planName: newPlan.name,
     subscriptionDate: serverTimestamp(),
     endDate: newExpiryDate,
-    status: 'current',
+    status: 'active',
     remarks: options?.remarks || 'Plan assigned by admin.',
   });
 

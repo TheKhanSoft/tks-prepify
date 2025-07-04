@@ -33,7 +33,7 @@ const changePlanFormSchema = z.object({
 
 const editHistoryFormSchema = z.object({
   endDate: z.date().optional().nullable(),
-  status: z.enum(['current', 'expired', 'cancelled']),
+  status: z.enum(['active', 'pending', 'suspended', 'expired', 'cancelled']),
   remarks: z.string().optional(),
 });
 
@@ -136,7 +136,7 @@ export default function ManageSubscriptionPage() {
   const handleEditClick = (record: UserPlan) => {
     setEditingHistoryRecord(record);
     editHistoryForm.reset({
-        status: record.status as 'current' | 'expired' | 'cancelled',
+        status: record.status as 'active' | 'pending' | 'suspended' | 'expired' | 'cancelled',
         endDate: record.endDate ? new Date(record.endDate) : null,
         remarks: record.remarks || '',
     });
@@ -179,7 +179,7 @@ export default function ManageSubscriptionPage() {
                 <TableHeader><TableRow><TableHead>Plan</TableHead><TableHead>Status</TableHead><TableHead>Subscribed On</TableHead><TableHead>End Date</TableHead><TableHead>Remarks</TableHead><TableHead className="text-right">Actions</TableHead></TableRow></TableHeader>
                 <TableBody>
                 {planHistory.length > 0 ? (
-                    planHistory.map(ph => (<TableRow key={ph.id}><TableCell className="font-medium">{ph.planName}</TableCell><TableCell><Badge variant={ph.status === 'current' ? 'default' : 'secondary'} className={cn(ph.status === 'current' && 'bg-green-600 hover:bg-green-700')}>{ph.status}</Badge></TableCell><TableCell>{format(new Date(ph.subscriptionDate), 'PPP')}</TableCell><TableCell>{ph.endDate ? format(new Date(ph.endDate), 'PPP') : 'N/A'}</TableCell><TableCell className="truncate max-w-xs">{ph.remarks}</TableCell><TableCell className="text-right"><Button variant="ghost" size="sm" onClick={() => handleEditClick(ph)}><Edit className="mr-2 h-4 w-4" /> Edit</Button></TableCell></TableRow>))
+                    planHistory.map(ph => (<TableRow key={ph.id}><TableCell className="font-medium">{ph.planName}</TableCell><TableCell><Badge variant={ph.status === 'active' ? 'default' : 'secondary'} className={cn(ph.status === 'active' && 'bg-green-600 hover:bg-green-700')}>{ph.status.charAt(0).toUpperCase() + ph.status.slice(1)}</Badge></TableCell><TableCell>{format(new Date(ph.subscriptionDate), 'PPP')}</TableCell><TableCell>{ph.endDate ? format(new Date(ph.endDate), 'PPP') : 'N/A'}</TableCell><TableCell className="truncate max-w-xs">{ph.remarks}</TableCell><TableCell className="text-right"><Button variant="ghost" size="sm" onClick={() => handleEditClick(ph)}><Edit className="mr-2 h-4 w-4" /> Edit</Button></TableCell></TableRow>))
                 ) : (
                     <TableRow><TableCell colSpan={6} className="text-center h-24">No subscription history found.</TableCell></TableRow>
                 )}
@@ -192,8 +192,8 @@ export default function ManageSubscriptionPage() {
             <DialogHeader><DialogTitle>Edit Subscription Record</DialogTitle><DialogDescription>Modify the details for the "{editingHistoryRecord?.planName}" plan subscription.</DialogDescription></DialogHeader>
              <Form {...editHistoryForm}>
                 <form id="edit-history-form" onSubmit={editHistoryForm.handleSubmit(onEditHistorySubmit)} className="space-y-6 py-4">
-                     <FormField control={editHistoryForm.control} name="status" render={({ field }) => (<FormItem><FormLabel>Status</FormLabel><Select onValueChange={field.onChange} defaultValue={field.value}><FormControl><SelectTrigger><SelectValue placeholder="Select a status" /></SelectTrigger></FormControl><SelectContent><SelectItem value="current">Current</SelectItem><SelectItem value="expired">Expired</SelectItem><SelectItem value="cancelled">Cancelled</SelectItem></SelectContent></Select><FormMessage /></FormItem>)} />
-                     <FormField control={editHistoryForm.control} name="endDate" render={({ field }) => (<FormItem className="flex flex-col"><FormLabel>End Date</FormLabel><Popover><PopoverTrigger asChild><FormControl><Button variant={"outline"} className={cn("w-[240px] pl-3 text-left font-normal", !field.value && "text-muted-foreground")}><CalendarIcon className="mr-2 h-4 w-4" />{field.value ? format(field.value, "PPP") : <span>Pick a date</span>}</Button></FormControl></PopoverTrigger><PopoverContent className="w-auto p-0" align="start"><Calendar mode="single" selected={field.value || undefined} onSelect={field.onChange} initialFocus /></PopoverContent></Popover><FormMessage /></FormItem>)} />
+                     <FormField control={editHistoryForm.control} name="status" render={({ field }) => (<FormItem><FormLabel>Status</FormLabel><Select onValueChange={field.onChange} defaultValue={field.value}><FormControl><SelectTrigger><SelectValue placeholder="Select a status" /></SelectTrigger></FormControl><SelectContent><SelectItem value="active">Active</SelectItem><SelectItem value="pending">Pending</SelectItem><SelectItem value="suspended">Suspended</SelectItem><SelectItem value="expired">Expired</SelectItem><SelectItem value="cancelled">Cancelled</SelectItem></SelectContent></Select><FormMessage /></FormItem>)} />
+                     <FormField control={editHistoryForm.control} name="endDate" render={({ field }) => (<FormItem className="flex flex-col"><FormLabel>End Date</FormLabel><Popover><PopoverTrigger asChild><FormControl><Button variant={"outline"} className={cn("w-[240px] pl-3 text-left font-normal", !field.value && "text-muted-foreground")}><CalendarIcon className="mr-2 h-4 w-4" />{field.value ? format(field.value, "PPP") : <span>Pick a date</span>}</Button></FormControl></PopoverTrigger><PopoverContent className="w-auto p-0" align="start"><Calendar mode="single" selected={field.value || undefined} onSelect={field.onChange} initialFocus /></PopoverContent></Popover><FormDescription>When the plan ends/ended. Optional.</FormDescription><FormMessage /></FormItem>)} />
                      <FormField control={editHistoryForm.control} name="remarks" render={({ field }) => (<FormItem><FormLabel>Remarks</FormLabel><FormControl><Textarea {...field} /></FormControl><FormMessage /></FormItem>)} />
                 </form>
             </Form>

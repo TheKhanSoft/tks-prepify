@@ -142,7 +142,7 @@ export default function SubscriptionPage() {
                                     <TableRow key={ph.id}>
                                         <TableCell className="font-medium">{ph.planName}</TableCell>
                                         <TableCell>
-                                            <Badge variant={ph.status === 'current' ? 'default' : 'secondary'} className={cn(ph.status === 'current' && 'bg-green-600 hover:bg-green-700')}>{ph.status}</Badge>
+                                            <Badge variant={ph.status === 'active' ? 'default' : 'secondary'} className={cn(ph.status === 'active' && 'bg-green-600 hover:bg-green-700')}>{ph.status.charAt(0).toUpperCase() + ph.status.slice(1)}</Badge>
                                         </TableCell>
                                         <TableCell>{format(new Date(ph.subscriptionDate), 'PPP')}</TableCell>
                                         <TableCell>{ph.endDate ? format(new Date(ph.endDate), 'PPP') : 'N/A'}</TableCell>

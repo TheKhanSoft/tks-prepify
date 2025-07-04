@@ -77,7 +77,7 @@ export interface User {
   createdAt: string | null; // Dates are serialized to strings for client
 }
 
-export type UserPlanStatus = 'current' | 'expired' | 'migrated' | 'cancelled';
+export type UserPlanStatus = 'active' | 'pending' | 'suspended' | 'expired' | 'migrated' | 'cancelled';
 
 export interface UserPlan {
   id: string; // The document ID of this user_plan entry
