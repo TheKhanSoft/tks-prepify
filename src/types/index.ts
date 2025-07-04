@@ -77,6 +77,19 @@ export interface User {
   createdAt: string | null; // Dates are serialized to strings for client
 }
 
+export type UserPlanStatus = 'current' | 'expired' | 'migrated' | 'cancelled';
+
+export interface UserPlan {
+  id: string; // The document ID of this user_plan entry
+  userId: string;
+  planId: string;
+  planName: string; // Denormalized for easier display
+  subscriptionDate: string; // ISO string
+  endDate: string | null; // ISO string, null for unlimited plans
+  status: UserPlanStatus;
+  remarks?: string;
+}
+
 export interface SocialLink {
   platform: string;
   url: string;

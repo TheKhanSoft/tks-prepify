@@ -1,7 +1,8 @@
 
+
 "use client";
 
-import React, { useState, useEffect, useMemo } from "react";
+import React, { useState, useEffect } from "react";
 import { useRouter, useParams } from "next/navigation";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -9,16 +10,15 @@ import * as z from "zod";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
 import { ArrowLeft, Loader2 } from "lucide-react";
-import { getUserProfile, updateUserPlan } from "@/lib/user-service";
-import { fetchPlans } from "@/lib/plan-service";
-import type { User, Plan } from "@/types";
+import { getUserProfile, updateUserProfileInFirestore } from "@/lib/user-service";
+import type { User } from "@/types";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 
 const formSchema = z.object({
-  planId: z.string().min(1, { message: "Please select a plan." }),
+  name: z.string().min(2, { message: "Name must be at least 2 characters." }),
 });
 
 type FormValues = z.infer<typeof formSchema>;
@@ -30,7 +30,6 @@ export default function EditUserPage() {
   const { toast } = useToast();
 
   const [user, setUser] = useState<User | null>(null);
-  const [plans, setPlans] = useState<Plan[]>([]);
   const [loading, setLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -43,10 +42,7 @@ export default function EditUserPage() {
       if (!userId) return;
       setLoading(true);
       try {
-        const [userData, plansData] = await Promise.all([
-          getUserProfile(userId),
-          fetchPlans(),
-        ]);
+        const userData = await getUserProfile(userId);
 
         if (!userData) {
           toast({ title: "Error", description: "User not found.", variant: "destructive" });
@@ -55,10 +51,9 @@ export default function EditUserPage() {
         }
 
         setUser(userData);
-        setPlans(plansData);
-        form.reset({ planId: userData.planId });
+        form.reset({ name: userData.name || "" });
       } catch (error) {
-        toast({ title: "Error", description: "Failed to load data.", variant: "destructive" });
+        toast({ title: "Error", description: "Failed to load user data.", variant: "destructive" });
       } finally {
         setLoading(false);
       }
@@ -69,13 +64,13 @@ export default function EditUserPage() {
   async function onSubmit(data: FormValues) {
     setIsSubmitting(true);
     try {
-      await updateUserPlan(userId, data.planId);
-      toast({ title: "Success", description: "User's plan has been updated." });
+      await updateUserProfileInFirestore(userId, { name: data.name });
+      toast({ title: "Success", description: "User's name has been updated." });
       router.push("/admin/users");
       router.refresh();
     } catch (error) {
       console.error(error);
-      toast({ title: "Error", description: "Failed to update user's plan.", variant: "destructive" });
+      toast({ title: "Error", description: "Failed to update user's name.", variant: "destructive" });
     } finally {
       setIsSubmitting(false);
     }
@@ -107,7 +102,7 @@ export default function EditUserPage() {
                 <AvatarFallback>{user.name?.charAt(0) || user.email?.charAt(0)}</AvatarFallback>
             </Avatar>
             <div>
-                <CardTitle>{user.name || "Unnamed User"}</CardTitle>
+                <CardTitle>Edit User</CardTitle>
                 <CardDescription>{user.email}</CardDescription>
             </div>
           </div>
@@ -115,31 +110,38 @@ export default function EditUserPage() {
         <CardContent>
           <Form {...form}>
             <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
-              <FormField
-                control={form.control}
-                name="planId"
-                render={({ field }) => (
+               <FormField
+                  control={form.control}
+                  name="name"
+                  render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Membership Plan</FormLabel>
-                    <Select onValueChange={field.onChange} defaultValue={field.value} disabled={isSubmitting}>
-                      <FormControl>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Select a plan" />
-                        </SelectTrigger>
-                      </FormControl>
-                      <SelectContent>
-                        {plans.map((plan) => (
-                          <SelectItem key={plan.id} value={plan.id}>
-                            {plan.name}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                    <FormDescription>Change the user's current membership plan.</FormDescription>
-                    <FormMessage />
+                      <FormLabel>Full Name</FormLabel>
+                      <FormControl><Input {...field} /></FormControl>
+                      <FormMessage />
                   </FormItem>
-                )}
-              />
+                  )}
+                />
+
+                <FormItem>
+                    <FormLabel>Email Address</FormLabel>
+                    <FormControl>
+                        <Input type="email" defaultValue={user.email || ''} disabled />
+                    </FormControl>
+                    <FormDescription>
+                        Changing a user's email requires a secure server environment and is not enabled in this admin panel.
+                    </FormDescription>
+                </FormItem>
+                
+                 <FormItem>
+                    <FormLabel>Password</FormLabel>
+                    <FormControl>
+                        <Input type="password" placeholder="••••••••" disabled />
+                    </FormControl>
+                    <FormDescription>
+                        Changing a user's password requires a secure server environment and is not enabled in this admin panel.
+                    </FormDescription>
+                </FormItem>
+
               <div className="flex justify-end">
                 <Button type="submit" disabled={isSubmitting}>
                   {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}

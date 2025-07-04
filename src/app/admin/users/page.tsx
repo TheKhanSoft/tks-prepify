@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import React, { useState, useEffect, useCallback, useMemo } from "react";
@@ -7,7 +8,7 @@ import Link from 'next/link';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Loader2, Edit, Search } from "lucide-react";
+import { Loader2, Edit, Search, MoreHorizontal, CreditCard } from "lucide-react";
 import { fetchUserProfiles } from "@/lib/user-service";
 import { fetchPlans } from "@/lib/plan-service";
 import type { User, Plan } from "@/types";
@@ -16,6 +17,7 @@ import { format } from "date-fns";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuLabel } from "@/components/ui/dropdown-menu";
 
 export default function AdminUsersPage() {
   const router = useRouter();
@@ -127,11 +129,29 @@ export default function AdminUsersPage() {
                         : 'N/A'}
                     </TableCell>
                     <TableCell className="text-right">
-                       <Button asChild variant="outline" size="sm">
-                          <Link href={`/admin/users/${user.id}/edit`}>
-                            <Edit className="mr-2 h-4 w-4" /> Edit
-                          </Link>
-                       </Button>
+                       <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button aria-haspopup="true" size="icon" variant="ghost">
+                                <MoreHorizontal className="h-4 w-4" />
+                                <span className="sr-only">Actions</span>
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end">
+                            <DropdownMenuLabel>Actions</DropdownMenuLabel>
+                            <DropdownMenuItem asChild>
+                                <Link href={`/admin/users/${user.id}/edit`}>
+                                    <Edit className="mr-2 h-4 w-4" />
+                                    Edit Profile
+                                </Link>
+                            </DropdownMenuItem>
+                            <DropdownMenuItem asChild>
+                                <Link href={`/admin/users/${user.id}/subscription`}>
+                                    <CreditCard className="mr-2 h-4 w-4" />
+                                    Manage Subscription
+                                </Link>
+                            </DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
                     </TableCell>
                   </TableRow>
                 ))
@@ -149,4 +169,3 @@ export default function AdminUsersPage() {
     </div>
   );
 }
-    
