@@ -3,7 +3,7 @@
 
 import { useAuth } from '@/hooks/use-auth';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
-import { ArrowRight, BookCheck, Star, Loader2, Check, ShieldCheck } from 'lucide-react';
+import { ArrowRight, BookCheck, Star, Loader2 } from 'lucide-react';
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
 import type { Plan, User as UserProfile } from '@/types';
@@ -58,22 +58,27 @@ export default function AccountDashboardPage() {
                 <h1 className="text-3xl font-bold">Welcome, {user?.displayName || 'Member'}!</h1>
                 <p className="text-muted-foreground">Here's a summary of your activity and subscription.</p>
             </div>
+            
+            <Card className="bg-gradient-to-r from-primary to-blue-400 text-primary-foreground shadow-lg">
+                <CardContent className="p-6 flex items-center justify-between">
+                    <div>
+                        <p className="text-sm opacity-90">Your Current Subscription</p>
+                        <h3 className="text-2xl font-bold">{plan?.name || 'N/A'}</h3>
+                         {userProfile?.planExpiryDate && (
+                            <p className="text-xs opacity-80 mt-1">
+                                Expires on {format(new Date(userProfile.planExpiryDate), 'PPP')}
+                            </p>
+                        )}
+                    </div>
+                    <Button asChild variant="secondary" className="bg-white/20 hover:bg-white/30">
+                        <Link href="/pricing">
+                            View & Upgrade Plans <ArrowRight className="ml-2 h-4 w-4" />
+                        </Link>
+                    </Button>
+                </CardContent>
+            </Card>
 
-             <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-                <Card>
-                    <CardHeader>
-                        <CardTitle className="flex items-center justify-between">
-                            <span>Current Plan</span>
-                            <ShieldCheck className="h-5 w-5 text-muted-foreground" />
-                        </CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                        <div className="text-4xl font-bold">{plan?.name || 'N/A'}</div>
-                        <p className="text-xs text-muted-foreground">
-                            {userProfile?.planExpiryDate ? `Expires on ${format(new Date(userProfile.planExpiryDate), 'PPP')}` : 'This plan does not expire.'}
-                        </p>
-                    </CardContent>
-                </Card>
+             <div className="grid gap-6 md:grid-cols-2">
                 <Card>
                     <CardHeader>
                         <CardTitle className="flex items-center justify-between">
@@ -99,37 +104,6 @@ export default function AccountDashboardPage() {
                     </CardContent>
                 </Card>
             </div>
-
-            <Card>
-                <CardHeader>
-                    <CardTitle>Manage Subscription</CardTitle>
-                    <CardDescription>
-                        {plan?.description || "View your plan details and explore upgrade options."}
-                    </CardDescription>
-                </CardHeader>
-                <CardContent>
-                    <div className="space-y-4">
-                        {plan ? (
-                            <div>
-                                <h4 className="font-semibold mb-2 text-sm">Plan Features:</h4>
-                                <ul className="space-y-2 text-sm text-muted-foreground">
-                                    {plan.features.map((feature, index) => (
-                                        <li key={index} className="flex items-start gap-2">
-                                            <Check className="h-4 w-4 text-green-500 mt-0.5 shrink-0" />
-                                            <span>{feature}</span>
-                                        </li>
-                                    ))}
-                                </ul>
-                            </div>
-                        ) : (
-                            <p className="text-muted-foreground">You are not currently subscribed to a plan.</p>
-                        )}
-                         <Button asChild size="sm" className="mt-4">
-                           <Link href="/pricing">View & Upgrade Plans <ArrowRight className="ml-2 h-4 w-4" /></Link>
-                        </Button>
-                    </div>
-                </CardContent>
-            </Card>
             
             <Card>
                 <CardHeader>
