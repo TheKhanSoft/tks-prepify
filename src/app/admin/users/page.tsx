@@ -1,4 +1,3 @@
-
 'use client';
 
 import React, { useState, useEffect, useCallback, useMemo } from "react";
@@ -122,7 +121,9 @@ export default function AdminUsersPage() {
                       <Badge variant="outline">{plansMap.get(user.planId) || "No Plan"}</Badge>
                     </TableCell>
                     <TableCell>
-                      {user.createdAt ? format(new Date(user.createdAt.toDate()), "PPP") : 'N/A'}
+                      {user.createdAt && typeof user.createdAt.toDate === 'function' 
+                        ? format(user.createdAt.toDate(), "PPP") 
+                        : 'N/A'}
                     </TableCell>
                     <TableCell className="text-right">
                        <Button asChild variant="outline" size="sm">
