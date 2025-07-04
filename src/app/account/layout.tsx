@@ -4,11 +4,14 @@ import { ReactNode, useState, useEffect } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { useAuth } from '@/hooks/use-auth';
-import { Loader2, LayoutDashboard, User, BarChart3, Bookmark, Home, BookOpen } from 'lucide-react';
+import { Loader2, LayoutDashboard, User, BarChart3, Bookmark, Home, BookOpen, LogOut } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import type { Settings } from '@/types';
 import { fetchSettings } from '@/lib/settings-service';
+import { signOut } from 'firebase/auth';
+import { auth } from '@/lib/firebase';
+import { useToast } from '@/hooks/use-toast';
 
 const accountNavLinks = [
   { href: '/account/dashboard', label: 'Dashboard', icon: LayoutDashboard },
@@ -22,6 +25,17 @@ export default function AccountLayout({ children }: { children: ReactNode }) {
   const router = useRouter();
   const pathname = usePathname();
   const [settings, setSettings] = useState<Settings | null>(null);
+  const { toast } = useToast();
+
+  const handleLogout = async () => {
+    try {
+      await signOut(auth);
+      toast({ title: "Logged Out", description: "You have been successfully logged out." });
+      router.push('/login');
+    } catch (error: any) {
+      toast({ title: "Logout Failed", description: error.message, variant: "destructive" });
+    }
+  };
 
   useEffect(() => {
     if (!loading && !user) {
@@ -60,7 +74,11 @@ export default function AccountLayout({ children }: { children: ReactNode }) {
             </Link>
           ))}
         </nav>
-        <div className="mt-auto p-4">
+        <div className="mt-auto p-4 space-y-2">
+           <Button variant="ghost" onClick={handleLogout} className="w-full justify-start gap-2">
+              <LogOut className="h-4 w-4" />
+              Logout
+          </Button>
           <Link href="/">
              <Button variant="ghost" className="w-full justify-start gap-2">
                 <Home className="h-4 w-4" />
