@@ -66,6 +66,8 @@ export const generatePdf = async (paper: Paper, questions: PaperQuestion[], sett
     });
 
     document.body.removeChild(reportElement);
+    
+    const imgData = canvas.toDataURL('image/png');
 
     // 4. Create the PDF and add the rendered content as an image
     const pdf = new jsPDF('p', 'mm', 'a4');
