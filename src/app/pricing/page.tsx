@@ -108,11 +108,6 @@ export default function PricingPage() {
                               <Check className="h-6 w-5 flex-none text-primary" aria-hidden="true" />
                               <span>
                                   {feature.text}
-                                  {feature.isQuota && (
-                                    <span className="text-foreground/60 capitalize">
-                                      {' '}({feature.limit === -1 ? 'Unlimited' : feature.limit} / {feature.period})
-                                    </span>
-                                  )}
                               </span>
                           </li>
                       ))}

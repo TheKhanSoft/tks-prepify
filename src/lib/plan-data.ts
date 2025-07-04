@@ -11,5 +11,8 @@ export const QuotaPeriods: { value: QuotaPeriod; label: string }[] = [
 export const QuotaKeys = [
     { key: 'downloads', label: 'Downloads' },
     { key: 'bookmarks', label: 'Bookmarks' },
+    { key: 'take_exam', label: 'Take Exam' },
     { key: 'ai_interactions', label: 'AI Interactions' },
+    { key: 'priority_support', label: 'Priority Support' },
+    { key: 'early_access', label: 'Early Access' },
 ];
