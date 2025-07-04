@@ -55,7 +55,7 @@ export default function LoginPage() {
       await signInWithEmailAndPassword(auth, data.email, data.password);
       toast({ title: "Login Successful", description: "Welcome back!" });
       router.push('/admin/dashboard');
-    } catch (error: any)
+    } catch (error: any) {
       console.error(error);
       let errorMessage = "An unknown error occurred.";
       if (error.code === 'auth/user-not-found' || error.code === 'auth/wrong-password' || error.code === 'auth/invalid-credential') {
