@@ -43,6 +43,8 @@ const defaultSettings: Settings = {
     contactEmail: 'contact@prepify.com',
     contactPhone: '+1 (555) 123-4567',
     contactAddress: '123 Education Lane, Knowledge City, 45678',
+    // Download Settings
+    pdfWatermarkEnabled: true,
 };
 
 /**

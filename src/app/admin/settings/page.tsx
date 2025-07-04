@@ -26,6 +26,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { socialPlatforms } from "@/lib/social-platforms";
 import { fetchPlans } from "@/lib/plan-service";
 import type { Plan } from "@/types";
+import { Switch } from "@/components/ui/switch";
 
 const settingsFormSchema = z.object({
   siteName: z.string().min(1, "Site name is required."),
@@ -38,6 +39,7 @@ const settingsFormSchema = z.object({
     platform: z.string().min(1, "Please select a platform."),
     url: z.string().url({ message: "Please enter a valid URL." }).or(z.literal("")),
   })).optional(),
+  pdfWatermarkEnabled: z.boolean().optional(),
 });
 
 type SettingsFormValues = z.infer<typeof settingsFormSchema>;
@@ -136,6 +138,7 @@ export default function AdminSettingsPage() {
               <TabsTrigger value="site">Site</TabsTrigger>
               <TabsTrigger value="social">Social</TabsTrigger>
               <TabsTrigger value="defaults">Defaults</TabsTrigger>
+              <TabsTrigger value="downloads">Downloads</TabsTrigger>
             </TabsList>
 
             <TabsContent value="site">
@@ -210,6 +213,29 @@ export default function AdminSettingsPage() {
                   </CardContent>
                 </Card>
               </div>
+            </TabsContent>
+
+            <TabsContent value="downloads">
+               <Card>
+                  <CardHeader><CardTitle>PDF Download Settings</CardTitle><CardDescription>Customize the options for downloaded PDF papers.</CardDescription></CardHeader>
+                  <CardContent>
+                     <FormField
+                        control={form.control}
+                        name="pdfWatermarkEnabled"
+                        render={({ field }) => (
+                        <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4">
+                            <div className="space-y-0.5">
+                                <FormLabel className="text-base">Enable Watermark</FormLabel>
+                                <FormDescription>Add a "Downloaded From {settings.siteName}" watermark to each page.</FormDescription>
+                            </div>
+                            <FormControl>
+                                <Switch checked={field.value} onCheckedChange={field.onChange} disabled={isSubmitting} />
+                            </FormControl>
+                        </FormItem>
+                        )}
+                    />
+                  </CardContent>
+                </Card>
             </TabsContent>
           </Tabs>
 

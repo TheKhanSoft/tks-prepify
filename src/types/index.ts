@@ -171,6 +171,8 @@ export interface Settings {
     contactEmail?: string;
     contactPhone?: string;
     contactAddress?: string;
+    // Download settings
+    pdfWatermarkEnabled?: boolean;
 }
 
 export interface ContactSubmission {

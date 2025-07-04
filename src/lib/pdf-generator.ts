@@ -81,11 +81,26 @@ export const generatePdf = async (paper: Paper, questions: PaperQuestion[], sett
     }
     
     const pageCount = pdf.internal.getNumberOfPages();
+    
+    // Add watermark and footer to each page
     for (let i = 1; i <= pageCount; i++) {
         pdf.setPage(i);
+
+        // Watermark
+        if (settings.pdfWatermarkEnabled) {
+            const watermarkText = `Downloaded From ${settings.siteName}`;
+            pdf.setFontSize(50);
+            pdf.setTextColor(230, 230, 230); // Very light gray
+            pdf.text(watermarkText, pdfWidth / 2, pdfHeight / 2, {
+                angle: 45,
+                align: 'center'
+            });
+        }
+        
+        // Footer with page number
         pdf.setFontSize(8);
         pdf.setTextColor(150);
-        const footerText = `Downloaded From ${settings.siteName}`;
+        const footerText = `Page ${i} of ${pageCount}`;
         const textWidth = pdf.getStringUnitWidth(footerText) * pdf.getFontSize() / pdf.internal.scaleFactor;
         const x = (pdf.internal.pageSize.getWidth() - textWidth) / 2;
         const y = pdf.internal.pageSize.getHeight() - 10;
