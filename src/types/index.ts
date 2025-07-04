@@ -94,16 +94,22 @@ export interface Page {
   metaDescription?: string;
 }
 
+export interface PricingOption {
+  label: string;
+  price: number;
+  months: number;
+  badge?: string;
+  stripePriceId?: string;
+}
+
 export interface Plan {
   id: string;
   name: string;
-  price: number;
-  interval: 'month' | 'year';
   description: string;
   features: string[];
   published: boolean;
   popular?: boolean;
-  stripePriceId?: string;
+  pricingOptions: PricingOption[];
 }
 
 export interface Settings {

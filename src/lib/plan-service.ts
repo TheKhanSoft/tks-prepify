@@ -11,13 +11,11 @@ function docToPlan(doc: DocumentData): Plan {
     return {
         id: doc.id,
         name: data.name,
-        price: data.price,
-        interval: data.interval,
         description: data.description,
         features: data.features || [],
         published: data.published || false,
         popular: data.popular || false,
-        stripePriceId: data.stripePriceId,
+        pricingOptions: data.pricingOptions || [],
     };
 }
 
@@ -25,12 +23,23 @@ export const fetchPlans = cache(async (publishedOnly = false): Promise<Plan[]> =
     const plansCol = collection(db, 'plans');
     let q;
     if (publishedOnly) {
-        q = query(plansCol, where('published', '==', true), orderBy('price', 'asc'));
+        q = query(plansCol, where('published', '==', true));
     } else {
-        q = query(plansCol, orderBy('price', 'asc'));
+        q = query(plansCol);
     }
     const snapshot = await getDocs(q);
-    return snapshot.docs.map(docToPlan);
+    const plans = snapshot.docs.map(docToPlan);
+    
+    // Sort by the price of the lowest-month option
+    plans.sort((a, b) => {
+        const aMinMonths = Math.min(...a.pricingOptions.map(p => p.months));
+        const bMinMonths = Math.min(...b.pricingOptions.map(p => p.months));
+        const aPrice = a.pricingOptions.find(p => p.months === aMinMonths)?.price || 0;
+        const bPrice = b.pricingOptions.find(p => p.months === bMinMonths)?.price || 0;
+        return aPrice - bPrice;
+    });
+
+    return plans;
 });
 
 export async function getPlanById(id: string): Promise<Plan | null> {

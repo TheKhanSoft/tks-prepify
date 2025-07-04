@@ -98,7 +98,7 @@ export default function AdminPlansPage() {
               <TableHeader>
                 <TableRow>
                   <TableHead className="w-[40%]">Plan Name</TableHead>
-                  <TableHead>Price</TableHead>
+                  <TableHead>Pricing</TableHead>
                   <TableHead className="text-center">Published</TableHead>
                   <TableHead className="text-center">Popular</TableHead>
                   <TableHead><span className="sr-only">Actions</span></TableHead>
@@ -114,7 +114,13 @@ export default function AdminPlansPage() {
                         <div className="text-sm text-muted-foreground">{plan.description}</div>
                       </TableCell>
                       <TableCell>
-                        <Badge variant="secondary">${plan.price} / {plan.interval}</Badge>
+                        <div className="flex flex-col gap-1">
+                            {plan.pricingOptions.map((opt) => (
+                                <Badge key={opt.label} variant="secondary">
+                                    ${opt.price} / {opt.label}
+                                </Badge>
+                            ))}
+                        </div>
                       </TableCell>
                        <TableCell className="text-center">
                             <Switch checked={plan.published} onCheckedChange={(status) => handleStatusToggle(plan.id, 'published', status)} disabled={isPlanUpdating} aria-label="Toggle published status" />
