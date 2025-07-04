@@ -20,7 +20,7 @@ type UserProfileData = {
  * @param user The plain user data object.
  * @param planId The ID of the plan to assign to the user.
  */
-export async function createUserProfile(user: UserProfileData, planId: string) {
+export async function createUserProfile(user: UserProfileData, planId?: string) {
   const userDocRef = doc(db, 'users', user.uid);
 
   const userDoc = await getDoc(userDocRef);
@@ -28,27 +28,34 @@ export async function createUserProfile(user: UserProfileData, planId: string) {
     // User profile already exists, do nothing to avoid overwriting plan, etc.
     return;
   }
-
-  const allPlans = await fetchPlans();
-  const assignedPlan = allPlans.find(p => p.id === planId);
-
+  
   let planExpiryDate: Date | null = null;
-  // Special case for a free plan that never expires.
-  if (assignedPlan && assignedPlan.name !== 'Free Explorer') {
-      // For paid plans, find the pricing option to determine duration.
-      // Defaulting to the shortest duration if multiple exist.
-      const shortestDurationOption = assignedPlan.pricingOptions.sort((a, b) => a.months - b.months)[0];
-      if (shortestDurationOption) {
-          const now = new Date();
-          planExpiryDate = new Date(now.setMonth(now.getMonth() + shortestDurationOption.months));
-      }
+  let finalPlanId = planId;
+
+  if (planId) {
+    const allPlans = await fetchPlans();
+    const assignedPlan = allPlans.find(p => p.id === planId);
+
+    // Special case for a free plan that never expires.
+    if (assignedPlan && assignedPlan.name !== 'Free Explorer') {
+        // For paid plans, find the pricing option to determine duration.
+        // Defaulting to the shortest duration if multiple exist.
+        const shortestDurationOption = assignedPlan.pricingOptions.sort((a, b) => a.months - b.months)[0];
+        if (shortestDurationOption) {
+            const now = new Date();
+            planExpiryDate = new Date(now.setMonth(now.getMonth() + shortestDurationOption.months));
+        }
+    }
+  } else {
+    // If no planId is provided, we assign a "no plan" state.
+    finalPlanId = '';
   }
 
-  const userData: Omit<User, 'id' | 'createdAt' | 'planExpiryDate'> & { createdAt: any; planExpiryDate: any } = {
+  const userData = {
     name: user.displayName,
     email: user.email,
     photoURL: user.photoURL,
-    planId: planId,
+    planId: finalPlanId || '', // Ensure it's never undefined
     planExpiryDate: planExpiryDate,
     createdAt: serverTimestamp(),
   };

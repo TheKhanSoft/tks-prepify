@@ -50,17 +50,6 @@ export default function SignupPage() {
   });
 
   const handleSuccessfulSignup = async (user: FirebaseAuthUser) => {
-    if (!settings?.defaultPlanId) {
-      toast({
-        title: "Configuration Error",
-        description: "A default plan for new users has not been set by the administrator.",
-        variant: "destructive",
-      });
-      await auth.signOut(); // Log out the user if setup is incomplete
-      return;
-    }
-    
-    // Pass a plain object to the server action instead of the complex Firebase User object
     await createUserProfile(
       {
         uid: user.uid,
@@ -68,7 +57,7 @@ export default function SignupPage() {
         email: user.email,
         photoURL: user.photoURL,
       },
-      settings.defaultPlanId
+      settings?.defaultPlanId // Pass the planId; it's now optional in the backend
     );
 
     toast({ title: "Sign Up Successful", description: "Welcome!" });
@@ -97,7 +86,6 @@ export default function SignupPage() {
         displayName: data.name,
       });
       
-      // Use the user from the credential which is the most up-to-date
       await handleSuccessfulSignup(userCredential.user);
 
     } catch (error: any) {
