@@ -13,8 +13,9 @@ export function LayoutProvider({
 }) {
   const pathname = usePathname();
   const isAdminPage = pathname.startsWith('/admin');
+  const isAccountPage = pathname.startsWith('/account');
 
-  if (isAdminPage) {
+  if (isAdminPage || isAccountPage) {
     return <>{children}</>;
   }
 

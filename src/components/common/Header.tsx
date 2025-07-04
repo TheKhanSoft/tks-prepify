@@ -2,7 +2,7 @@
 "use client";
 
 import Link from "next/link";
-import { BookOpen, Globe, Search, User, Menu, Wrench, LogOut } from "lucide-react";
+import { BookOpen, Globe, Search, User, Menu, Wrench, LogOut, LayoutDashboard } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator, DropdownMenuLabel } from "@/components/ui/dropdown-menu";
@@ -109,16 +109,18 @@ export function Header({ settings }: { settings: Settings }) {
             <DropdownMenuContent align="end">
               {user ? (
                 <>
-                  <DropdownMenuLabel>My Account</DropdownMenuLabel>
+                  <DropdownMenuLabel>{user.displayName || user.email}</DropdownMenuLabel>
                   <DropdownMenuSeparator />
-                  <DropdownMenuItem disabled>Profile</DropdownMenuItem>
-                  <DropdownMenuItem disabled>My Results</DropdownMenuItem>
-                  <DropdownMenuItem disabled>Saved Papers</DropdownMenuItem>
-                  <DropdownMenuSeparator />
+                  <DropdownMenuItem asChild>
+                    <Link href="/account/dashboard">
+                      <LayoutDashboard className="mr-2 h-4 w-4" />
+                      My Dashboard
+                    </Link>
+                  </DropdownMenuItem>
                   <DropdownMenuItem asChild>
                     <Link href="/admin/dashboard">
                       <Wrench className="mr-2 h-4 w-4" />
-                      Admin
+                      Admin Panel
                     </Link>
                   </DropdownMenuItem>
                   <DropdownMenuSeparator />
