@@ -62,11 +62,25 @@ export async function createUserProfile(user: UserProfileData, planId: string) {
   }
 }
 
-// This function now returns a fully serialized User object
+// Converts a Firestore document to a fully serialized User object
 const docToUser = (doc: DocumentData): User => {
     const data = doc.data();
-    const createdAt = data.createdAt;
-    const planExpiryDate = data.planExpiryDate;
+    
+    const serializeDate = (date: any): string | null => {
+        if (!date) return null;
+        if (date instanceof Timestamp) { // Check for Firestore Timestamp
+            return date.toDate().toISOString();
+        }
+        if (typeof date === 'string') { // If it's already a string
+            return date;
+        }
+        if (date instanceof Date) { // If it's a JS Date object
+            return date.toISOString();
+        }
+        // Fallback for other types or invalid data
+        const parsedDate = new Date(date);
+        return isNaN(parsedDate.getTime()) ? null : parsedDate.toISOString();
+    };
 
     return {
         id: doc.id,
@@ -74,8 +88,8 @@ const docToUser = (doc: DocumentData): User => {
         email: data.email || null,
         photoURL: data.photoURL || null,
         planId: data.planId || '',
-        createdAt: createdAt instanceof Timestamp ? createdAt.toDate().toISOString() : null,
-        planExpiryDate: planExpiryDate instanceof Timestamp ? planExpiryDate.toDate().toISOString() : null,
+        createdAt: serializeDate(data.createdAt),
+        planExpiryDate: serializeDate(data.planExpiryDate),
     };
 };
 
