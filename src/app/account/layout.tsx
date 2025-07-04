@@ -1,10 +1,11 @@
+
 'use client';
 
 import { ReactNode, useState, useEffect } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { useAuth } from '@/hooks/use-auth';
-import { Loader2, LayoutDashboard, User, BarChart3, Bookmark, Home, BookOpen, LogOut } from 'lucide-react';
+import { Loader2, LayoutDashboard, User, BarChart3, Bookmark, Home, BookOpen, LogOut, CreditCard } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import type { Settings } from '@/types';
@@ -16,6 +17,7 @@ import { useToast } from '@/hooks/use-toast';
 const accountNavLinks = [
   { href: '/account/dashboard', label: 'Dashboard', icon: LayoutDashboard },
   { href: '/account/profile', label: 'Profile', icon: User },
+  { href: '/account/subscription', label: 'Subscription', icon: CreditCard },
   { href: '/account/results', label: 'My Results', icon: BarChart3 },
   { href: '/account/saved-papers', label: 'Saved Papers', icon: Bookmark },
 ];
