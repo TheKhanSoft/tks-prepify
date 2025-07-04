@@ -52,10 +52,16 @@ export default function AdminUsersPage() {
   const plansMap = useMemo(() => new Map(plans.map(p => [p.id, p.name])), [plans]);
   
   const filteredUsers = useMemo(() => {
-      return users.filter(user => 
-        user.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        user.email?.toLowerCase().includes(searchTerm.toLowerCase())
-      );
+    if (!users) return [];
+    if (!searchTerm) return users;
+
+    const lowercasedTerm = searchTerm.toLowerCase();
+
+    return users.filter(user => {
+      const nameMatch = user.name ? user.name.toLowerCase().includes(lowercasedTerm) : false;
+      const emailMatch = user.email ? user.email.toLowerCase().includes(lowercasedTerm) : false;
+      return nameMatch || emailMatch;
+    });
   }, [users, searchTerm]);
 
   if (loading) {
@@ -74,14 +80,16 @@ export default function AdminUsersPage() {
         <CardHeader>
           <CardTitle>All Users</CardTitle>
           <CardDescription>Total users: {users.length}</CardDescription>
-          <div className="pt-4 relative">
-             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-             <Input 
-                placeholder="Search by name or email..."
-                value={searchTerm}
-                onChange={e => setSearchTerm(e.target.value)}
-                className="max-w-sm pl-9"
-              />
+          <div className="pt-4">
+             <div className="relative">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Input 
+                    placeholder="Search by name or email..."
+                    value={searchTerm}
+                    onChange={e => setSearchTerm(e.target.value)}
+                    className="max-w-sm pl-9"
+                />
+            </div>
           </div>
         </CardHeader>
         <CardContent>
@@ -114,7 +122,7 @@ export default function AdminUsersPage() {
                       <Badge variant="outline">{plansMap.get(user.planId) || "No Plan"}</Badge>
                     </TableCell>
                     <TableCell>
-                      {format(new Date(user.createdAt.toDate()), "PPP")}
+                      {user.createdAt ? format(new Date(user.createdAt.toDate()), "PPP") : 'N/A'}
                     </TableCell>
                     <TableCell className="text-right">
                        <Button asChild variant="outline" size="sm">
