@@ -4,7 +4,7 @@
 
 import { doc, setDoc, serverTimestamp, getDoc, collection, getDocs, updateDoc, DocumentData, Timestamp, writeBatch, query, where, orderBy } from 'firebase/firestore';
 import { db } from './firebase';
-import type { User, Plan, UserPlan } from '@/types';
+import type { User, Plan, UserPlan, UserPlanStatus } from '@/types';
 import { fetchPlans } from './plan-service';
 
 // Define a plain object type for user data to be passed from client to server
@@ -62,6 +62,7 @@ export async function createUserProfile(user: UserProfileData, planId?: string) 
       subscriptionDate: serverTimestamp(),
       endDate: planExpiryDate,
       status: 'current',
+      remarks: 'Initial plan on sign-up.',
     });
   }
 
@@ -97,29 +98,19 @@ const docToUser = (doc: DocumentData): User => {
 };
 
 export async function fetchUserProfiles(): Promise<User[]> {
-  try {
-    const usersCol = collection(db, 'users');
-    const snapshot = await getDocs(usersCol);
-    return snapshot.docs.map(docToUser);
-  } catch (error) {
-    console.error("Error fetching user profiles:", error);
-    return [];
-  }
+  const usersCol = collection(db, 'users');
+  const snapshot = await getDocs(usersCol);
+  return snapshot.docs.map(docToUser);
 }
 
 export const getUserProfile = async (userId: string): Promise<User | null> => {
   if (!userId) return null;
-  try {
-    const userDocRef = doc(db, 'users', userId);
-    const docSnap = await getDoc(userDocRef);
-    if (docSnap.exists()) {
-      return docToUser(docSnap);
-    }
-    return null;
-  } catch(error) {
-    console.error("Error getting user profile:", error);
-    return null;
+  const userDocRef = doc(db, 'users', userId);
+  const docSnap = await getDoc(userDocRef);
+  if (docSnap.exists()) {
+    return docToUser(docSnap);
   }
+  return null;
 }
 
 export const updateUserProfileInFirestore = async (userId: string, data: { name?: string | null; photoURL?: string | null }) => {
@@ -128,7 +119,14 @@ export const updateUserProfileInFirestore = async (userId: string, data: { name?
     await updateDoc(userDocRef, data);
 }
 
-export async function changeUserSubscription(userId: string, newPlanId: string) {
+export async function changeUserSubscription(
+  userId: string,
+  newPlanId: string,
+  options?: {
+    endDate?: Date | null;
+    remarks?: string;
+  }
+) {
   if (!userId || !newPlanId) {
     throw new Error("User ID and new Plan ID are required.");
   }
@@ -148,18 +146,22 @@ export async function changeUserSubscription(userId: string, newPlanId: string) 
 
   if (!currentPlanSnapshot.empty) {
     const currentPlanDoc = currentPlanSnapshot.docs[0];
-    batch.update(currentPlanDoc.ref, { status: 'migrated' });
+    batch.update(currentPlanDoc.ref, { status: 'migrated', remarks: `Migrated to ${newPlan.name} by admin.` });
   }
 
-  // Calculate new expiry date
-  let newExpiryDate: Date | null = null;
-  if (newPlan.name.toLowerCase() !== 'free explorer') {
-    const shortestDurationOption = newPlan.pricingOptions.sort((a, b) => a.months - b.months)[0];
-    if (shortestDurationOption) {
-      const now = new Date();
-      newExpiryDate = new Date(now.setMonth(now.getMonth() + shortestDurationOption.months));
+  // Calculate new expiry date if not provided by admin
+  let newExpiryDate: Date | null = options?.endDate ?? null;
+
+  if (options?.endDate === undefined) { // Check if it was not provided at all
+    if (newPlan.name.toLowerCase() !== 'free explorer' && newPlan.pricingOptions.length > 0) {
+      const shortestDurationOption = newPlan.pricingOptions.sort((a, b) => a.months - b.months)[0];
+      if (shortestDurationOption) {
+        const now = new Date();
+        newExpiryDate = new Date(now.setMonth(now.getMonth() + shortestDurationOption.months));
+      }
     }
   }
+
 
   // Add the new plan record to history
   const newUserPlanRef = doc(collection(db, 'user_plans'));
@@ -170,6 +172,7 @@ export async function changeUserSubscription(userId: string, newPlanId: string) 
     subscriptionDate: serverTimestamp(),
     endDate: newExpiryDate,
     status: 'current',
+    remarks: options?.remarks || 'Plan assigned by admin.',
   });
 
   // Update the main user document with the new plan details
@@ -181,6 +184,7 @@ export async function changeUserSubscription(userId: string, newPlanId: string) 
 
   await batch.commit();
 }
+
 
 const docToUserPlan = (doc: DocumentData): UserPlan => {
   const data = doc.data();
@@ -198,13 +202,21 @@ const docToUserPlan = (doc: DocumentData): UserPlan => {
 
 export async function fetchUserPlanHistory(userId: string): Promise<UserPlan[]> {
   if (!userId) return [];
-  try {
-    const userPlansCol = collection(db, 'user_plans');
-    const q = query(userPlansCol, where("userId", "==", userId), orderBy("subscriptionDate", "desc"));
-    const snapshot = await getDocs(q);
-    return snapshot.docs.map(docToUserPlan);
-  } catch (error) {
-    console.error("Error fetching user plan history:", error);
-    return [];
+  const userPlansCol = collection(db, 'user_plans');
+  const q = query(userPlansCol, where("userId", "==", userId), orderBy("subscriptionDate", "desc"));
+  const snapshot = await getDocs(q);
+  return snapshot.docs.map(docToUserPlan);
+}
+
+export async function updateUserPlanHistoryRecord(
+  historyId: string,
+  data: {
+    status?: UserPlanStatus;
+    endDate?: Date | null;
+    remarks?: string;
   }
+) {
+  if (!historyId) throw new Error("History record ID is required.");
+  const historyDocRef = doc(db, 'user_plans', historyId);
+  await updateDoc(historyDocRef, data);
 }
