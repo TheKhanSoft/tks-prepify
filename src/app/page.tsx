@@ -6,9 +6,10 @@ import { fetchPapers } from '@/lib/paper-service';
 import { fetchCategories } from '@/lib/category-service';
 import { fetchSettings } from '@/lib/settings-service';
 import { getDescendantCategoryIds, getCategoryById } from '@/lib/category-helpers';
-import { ArrowRight, Bookmark, FileText, Folder } from 'lucide-react';
+import { ArrowRight, FileText, Folder } from 'lucide-react';
 import Image from 'next/image';
 import type { Category } from '@/types';
+import { PaperCard } from '@/components/common/PaperCard';
 
 // Helper function to recursively find all featured categories from the tree
 function getAllFeaturedCategories(categories: Category[]): Category[] {
@@ -146,27 +147,9 @@ export default async function Home() {
             {featuredPapers.map((paper) => {
               const category = getCategoryById(paper.categoryId, allCategories);
               return (
-              <Card key={paper.id} className="flex flex-col">
-                <CardContent className="p-6">
-                  <div className="flex justify-between items-start">
-                    <div>
-                      <h3 className="text-xl font-bold">{paper.title}</h3>
-                      <p className="text-sm text-muted-foreground mt-1">{category?.name || ''}</p>
-                    </div>
-                    <Button variant="ghost" size="icon" className="shrink-0">
-                      <Bookmark className="h-5 w-5" />
-                      <span className="sr-only">Bookmark</span>
-                    </Button>
-                  </div>
-                  <p className="text-muted-foreground mt-4 flex-grow">{paper.description}</p>
-                </CardContent>
-                <div className="px-6 pb-6">
-                  <Button className="w-full" asChild>
-                    <Link href={`/papers/${paper.slug}`}>View Paper</Link>
-                  </Button>
-                </div>
-              </Card>
-            )})}
+                <PaperCard key={paper.id} paper={paper} categoryName={category?.name} />
+              )
+            })}
           </div>
         </div>
       </section>

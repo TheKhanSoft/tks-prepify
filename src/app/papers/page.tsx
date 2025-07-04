@@ -13,6 +13,7 @@ import { getFlattenedCategories, getDescendantCategoryIds, getCategoryById } fro
 import type { Category, Paper } from '@/types';
 import { Search, Bookmark, Clock, ListChecks, Loader2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { PaperCard } from '@/components/common/PaperCard';
 
 export default function AllPapersPage() {
   const [searchTerm, setSearchTerm] = useState('');
@@ -109,38 +110,7 @@ export default function AllPapersPage() {
             filteredPapers.map(paper => {
                 const category = getCategoryById(paper.categoryId, allCategories);
                 return (
-                <Card key={paper.id} className="flex flex-col hover:shadow-lg transition-shadow duration-300">
-                    <CardHeader>
-                    <div className="flex justify-between items-start">
-                        <div>
-                        <p className="text-sm font-medium text-primary">{category?.name}</p>
-                        <CardTitle className="mt-1">{paper.title}</CardTitle>
-                        </div>
-                        <Button variant="ghost" size="icon" className="shrink-0 group">
-                        <Bookmark className="h-5 w-5 text-muted-foreground group-hover:text-primary group-hover:fill-primary/20 transition-colors" />
-                        <span className="sr-only">Bookmark paper</span>
-                        </Button>
-                    </div>
-                    </CardHeader>
-                    <CardContent className="flex-grow">
-                    <CardDescription>{paper.description}</CardDescription>
-                    <div className="flex items-center text-muted-foreground text-sm mt-4 gap-6">
-                        <div className="flex items-center gap-2">
-                        <ListChecks className="h-4 w-4" />
-                        <span>{paper.questionCount} Questions</span>
-                        </div>
-                        <div className="flex items-center gap-2">
-                        <Clock className="h-4 w-4" />
-                        <span>{paper.duration} min</span>
-                        </div>
-                    </div>
-                    </CardContent>
-                    <div className="p-6 pt-0">
-                    <Button asChild className="w-full">
-                        <Link href={`/papers/${paper.slug}`}>View Paper</Link>
-                    </Button>
-                    </div>
-                </Card>
+                  <PaperCard key={paper.id} paper={paper} categoryName={category?.name} />
                 )
             })
             ) : (
