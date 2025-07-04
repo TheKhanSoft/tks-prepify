@@ -5,13 +5,18 @@ import { useEffect, useState } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
-import { ArrowLeft, ArrowRight, CheckCircle2, Lightbulb, Loader2 } from 'lucide-react';
+import { ArrowLeft, ArrowRight, CheckCircle2, Lightbulb, Loader2, Bookmark, Download } from 'lucide-react';
 import { Separator } from '@/components/ui/separator';
 import { cn } from '@/lib/utils';
 import { getPaperBySlug } from '@/lib/paper-service';
 import { fetchQuestionsForPaper, PaperQuestion } from '@/lib/question-service';
-import type { Paper, Settings } from '@/types';
+import type { Paper, Settings, Plan } from '@/types';
 import { fetchSettings } from '@/lib/settings-service';
+import { useAuth } from '@/hooks/use-auth';
+import { useToast } from '@/hooks/use-toast';
+import { getBookmarkForPaper, toggleBookmark } from '@/lib/bookmark-service';
+import { getUserProfile } from '@/lib/user-service';
+import { getPlanById } from '@/lib/plan-service';
 
 export default function SolvedPaperPage() {
   const router = useRouter();
@@ -22,6 +27,13 @@ export default function SolvedPaperPage() {
   const [questions, setQuestions] = useState<PaperQuestion[]>([]);
   const [settings, setSettings] = useState<Settings | null>(null);
   const [loading, setLoading] = useState(true);
+
+  // New state for bookmarking
+  const { user, loading: authLoading } = useAuth();
+  const { toast } = useToast();
+  const [isBookmarked, setIsBookmarked] = useState(false);
+  const [isTogglingBookmark, setIsTogglingBookmark] = useState(false);
+  const [isLoadingBookmark, setIsLoadingBookmark] = useState(true);
 
   const [currentPage, setCurrentPage] = useState(1);
   const questionsPerPage = paper?.questionsPerPage || settings?.defaultQuestionsPerPage || 2;
@@ -54,6 +66,76 @@ export default function SolvedPaperPage() {
     };
     loadData();
   }, [slug]);
+
+  // New effect for fetching bookmark status
+  useEffect(() => {
+    if (authLoading || !paper) return;
+
+    if (user) {
+        setIsLoadingBookmark(true);
+        getBookmarkForPaper(user.uid, paper.id)
+            .then((bookmark) => {
+                setIsBookmarked(!!bookmark);
+            })
+            .finally(() => {
+                setIsLoadingBookmark(false);
+            });
+    } else {
+        setIsLoadingBookmark(false);
+    }
+  }, [user, paper, authLoading]);
+
+  // New handlers for buttons
+  const handleBookmarkClick = async () => {
+    if (!paper) return;
+    if (!user) {
+      toast({
+        title: 'Login Required',
+        description: 'You must be logged in to save papers.',
+        variant: 'destructive',
+      });
+      router.push('/login');
+      return;
+    }
+
+    setIsTogglingBookmark(true);
+    try {
+        const profile = await getUserProfile(user.uid);
+        if (!profile || !profile.planId) throw new Error('Could not load user profile or plan.');
+
+        const plan = await getPlanById(profile.planId);
+        if (!plan) throw new Error('Could not load subscription plan.');
+
+        const result = await toggleBookmark(user.uid, paper.id, plan);
+
+        if (result.success) {
+            setIsBookmarked(result.bookmarked);
+            toast({ title: result.message });
+        } else {
+            toast({
+                title: 'Action Failed',
+                description: result.message,
+                variant: 'destructive',
+            });
+        }
+    } catch (error) {
+        toast({
+            title: 'An Error Occurred',
+            description: 'Could not process your request. Please try again.',
+            variant: 'destructive',
+        });
+        console.error(error);
+    } finally {
+        setIsTogglingBookmark(false);
+    }
+  };
+
+  const handleDownloadClick = () => {
+    toast({
+        title: 'Coming Soon!',
+        description: 'Download functionality is not yet available.',
+    });
+  };
 
   if (loading) {
     return (
@@ -100,6 +182,22 @@ export default function SolvedPaperPage() {
         </Button>
         <h1 className="text-4xl font-bold font-headline">{paper.title}</h1>
         <p className="text-lg text-muted-foreground mt-2">{paper.description}</p>
+        
+        <div className="mt-6 flex gap-4">
+            <Button onClick={handleBookmarkClick} disabled={isLoadingBookmark || isTogglingBookmark}>
+                {isTogglingBookmark ? (
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                ) : (
+                    <Bookmark className={cn("mr-2 h-4 w-4", isBookmarked && "fill-current")} />
+                )}
+                {isBookmarked ? 'Saved' : 'Save Paper'}
+            </Button>
+            <Button variant="outline" onClick={handleDownloadClick}>
+                <Download className="mr-2 h-4 w-4" />
+                Download
+            </Button>
+        </div>
+
       </div>
       
       <Card>
