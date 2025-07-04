@@ -208,9 +208,15 @@ const docToUserPlan = (doc: DocumentData): UserPlan => {
 export async function fetchUserPlanHistory(userId: string): Promise<UserPlan[]> {
   if (!userId) return [];
   const userPlansCol = collection(db, 'user_plans');
-  const q = query(userPlansCol, where("userId", "==", userId), orderBy("subscriptionDate", "desc"));
+  // Removed orderBy to prevent missing-index errors. We will sort client-side.
+  const q = query(userPlansCol, where("userId", "==", userId));
   const snapshot = await getDocs(q);
-  return snapshot.docs.map(docToUserPlan);
+  const plans = snapshot.docs.map(docToUserPlan);
+
+  // Sort the results in-memory after fetching
+  plans.sort((a, b) => new Date(b.subscriptionDate).getTime() - new Date(a.subscriptionDate).getTime());
+  
+  return plans;
 }
 
 export async function updateUserPlanHistoryRecord(
