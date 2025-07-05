@@ -11,102 +11,147 @@ export const generatePdf = async (paper: Paper, questions: PaperQuestion[], sett
     
     const margin = { top: 25.4, bottom: 25.4, left: 20, right: 20 };
     const contentWidth = pdfWidth - margin.left - margin.right;
-    
-    // Create the full HTML content string
-    let fullHtml = `
-        <div style="text-align: center; margin-bottom: 10px; padding: 1px; box-sizing: content-box; font-family: Helvetica, Arial, sans-serif;">
-            <h1 style="font-size: 20pt; margin-bottom: 5px; word-wrap: break-word;">${paper.title}</h1>
-            <p style="font-size: 11pt; color: #555; word-wrap: break-word;">${paper.description}</p>
-            <hr style="border: 0; border-top: 1px solid #ccc; margin-top: 10px;" />
-        </div>`;
+    let y = margin.top;
 
+    // Helper to check for page overflow and add a new page
+    const checkPageBreak = (spaceNeeded: number) => {
+        if (y + spaceNeeded > pdfHeight - margin.bottom) {
+            pdf.addPage();
+            y = margin.top;
+        }
+    };
+    
+    // --- Render Header ---
+    pdf.setFontSize(20).setFont('helvetica', 'bold');
+    const titleLines = pdf.splitTextToSize(paper.title, contentWidth);
+    checkPageBreak(titleLines.length * 10);
+    pdf.text(titleLines, pdfWidth / 2, y, { align: 'center' });
+    y += titleLines.length * 8;
+    
+    pdf.setFontSize(11).setFont('helvetica', 'normal');
+    const descriptionLines = pdf.splitTextToSize(paper.description, contentWidth);
+    checkPageBreak(descriptionLines.length * 5 + 5);
+    y += 5;
+    pdf.text(descriptionLines, pdfWidth / 2, y, { align: 'center' });
+    y += descriptionLines.length * 5;
+
+    y += 10;
+    pdf.setDrawColor(204, 204, 204);
+    pdf.line(margin.left, y, pdfWidth - margin.right, y);
+    y += 10;
+
+
+    // --- Render Questions ---
     for (const q of questions) {
-        const questionText = q.questionText.replace(/\n/g, '<br />');
-        const explanationText = q.explanation ? q.explanation.replace(/\n/g, '<br />') : '';
+        checkPageBreak(20); // rough space for a new question
 
-        let questionHtml = `
-            <div style="margin-bottom: 15px; margin-top: 10px; page-break-inside: avoid; padding: 1px; box-sizing: content-box; font-family: Helvetica, Arial, sans-serif;">
-                <h2 style="font-size: 14pt; font-weight: bold; margin-bottom: 8px; word-wrap: break-word;">Question ${q.order}</h2>
-                <p style="font-size: 12pt; margin-bottom: 8px; word-wrap: break-word;">${questionText}</p>
-            `;
+        // Question number and text
+        pdf.setFontSize(14).setFont('helvetica', 'bold');
+        const questionText = `Question ${q.order}: ${q.questionText}`;
+        const questionLines = pdf.splitTextToSize(questionText, contentWidth);
+        checkPageBreak(questionLines.length * 7);
+        pdf.text(questionLines, margin.left, y);
+        y += questionLines.length * 7;
+        y += 4;
 
+        pdf.setFontSize(11).setFont('helvetica', 'normal');
+
+        // Options or Short Answer
         if (q.type === 'mcq' && q.options) {
-            questionHtml += `<div style="margin-left: 15px;">`;
-            q.options.forEach(opt => {
+            for (const opt of q.options) {
                 const isCorrect = Array.isArray(q.correctAnswer) ? q.correctAnswer.includes(opt) : q.correctAnswer === opt;
-                questionHtml += `<p style="font-size: 11pt; margin: 4px 0; word-wrap: break-word; ${isCorrect ? 'font-weight: bold; color: #28a745;' : ''}">${isCorrect ? '✔' : '•'} ${opt.replace(/\n/g, '<br />')}</p>`;
-            });
-            questionHtml += `</div>`;
+                const prefix = isCorrect ? '✔' : '•';
+                const optionText = `${prefix} ${opt}`;
+                const optionLines = pdf.splitTextToSize(optionText, contentWidth - 5);
+                checkPageBreak(optionLines.length * 6);
+                
+                if (isCorrect) {
+                    pdf.setTextColor(40, 167, 69); // Green
+                    pdf.setFont('helvetica', 'bold');
+                }
+                
+                pdf.text(optionLines, margin.left + 5, y);
+                y += optionLines.length * 5.5;
+
+                if (isCorrect) {
+                    pdf.setTextColor(0, 0, 0); // Reset to black
+                    pdf.setFont('helvetica', 'normal');
+                }
+            }
         } else if (q.type === 'short_answer') {
-            questionHtml += `<p style="font-size: 11pt; color: #28a745; margin-left: 15px; word-wrap: break-word;"><strong>Correct Answer:</strong> ${q.correctAnswer}</p>`;
+            const answerText = `Correct Answer: ${q.correctAnswer}`;
+            const answerLines = pdf.splitTextToSize(answerText, contentWidth - 5);
+            checkPageBreak(answerLines.length * 6);
+            pdf.setTextColor(40, 167, 69);
+            pdf.setFont('helvetica', 'bold');
+            pdf.text(answerLines, margin.left + 5, y);
+            y += answerLines.length * 5.5;
+            pdf.setTextColor(0, 0, 0);
+            pdf.setFont('helvetica', 'normal');
         }
 
-        if (explanationText) {
-            questionHtml += `<p style="font-size: 11pt; color: #444; background-color: #f0f0f0; margin-left: 15px; margin-top: 8px; border-left: 3px solid #ddd; padding: 8px; white-space: pre-wrap; word-wrap: break-word;"><strong>Explanation:</strong> ${explanationText}</p>`;
+        // Explanation
+        if (q.explanation) {
+            y += 4;
+            const explanationText = `Explanation: ${q.explanation}`;
+            const explanationLines = pdf.splitTextToSize(explanationText, contentWidth);
+            checkPageBreak(explanationLines.length * 5 + 4);
+            pdf.setFillColor(240, 240, 240);
+            pdf.rect(margin.left, y - 3, contentWidth, explanationLines.length * 5 + 2, 'F');
+            pdf.setFontSize(10).setFont('helvetica', 'italic');
+            pdf.setTextColor(68, 68, 68);
+            pdf.text(explanationLines, margin.left + 2, y);
+            y += explanationLines.length * 5 + 4;
+            pdf.setFontSize(11).setFont('helvetica', 'normal');
+            pdf.setTextColor(0, 0, 0);
         }
-        questionHtml += `</div>`;
-        
-        fullHtml += questionHtml;
+
+        y += 10; // Space between questions
     }
-
-    const container = document.createElement('div');
-    container.style.width = `${contentWidth}mm`;
-    container.innerHTML = fullHtml;
     
-    await pdf.html(container, {
-        x: margin.left,
-        y: margin.top,
-        autoPaging: 'text',
-        margin: [margin.top, margin.right, margin.bottom, margin.left],
-        html2canvas: {
-            scale: 0.25,
-            useCORS: true,
-        },
-    });
 
-    // Add Watermark and Footer to all pages
+    // --- Add Watermark and Footer to all pages ---
     const pageCount = pdf.internal.getNumberOfPages();
     for (let i = 1; i <= pageCount; i++) {
         pdf.setPage(i);
 
+        // Watermark
         if (settings.pdfWatermarkEnabled) {
             const rawWatermarkText = settings.pdfWatermarkText || 'Downloaded From {siteName}';
             const watermarkText = rawWatermarkText.replace('{siteName}', settings.siteName || 'Prepify');
+            
+            pdf.saveGraphicsState();
+            pdf.setGState(new (pdf as any).GState({ opacity: 0.15 }));
+            pdf.setTextColor(150);
+
+            // Dynamic font size calculation
+            let fontSize = 120;
             const angle = -45;
-            const angleInRadians = angle * (Math.PI / 180);
+            const watermarkLines = watermarkText.split('\n');
 
-            // --- Dynamic Font Size Calculation ---
-            let fontSize = 60;
-            let textDimensions;
-            const safePageWidth = pdfWidth * 0.9;
-            const safePageHeight = pdfHeight * 0.9;
-
-            while (fontSize > 10) {
+            while(fontSize > 10) {
                 pdf.setFontSize(fontSize);
-                textDimensions = pdf.getTextDimensions(watermarkText);
-                
-                const rotatedWidth = Math.abs(textDimensions.w * Math.cos(angleInRadians)) + Math.abs(textDimensions.h * Math.sin(angleInRadians));
-                const rotatedHeight = Math.abs(textDimensions.w * Math.sin(angleInRadians)) + Math.abs(textDimensions.h * Math.cos(angleInRadians));
-                
-                if (rotatedWidth < safePageWidth && rotatedHeight < safePageHeight) {
+                const longestLine = watermarkLines.reduce((a, b) => pdf.getTextWidth(a) > pdf.getTextWidth(b) ? a : b);
+                const textWidth = pdf.getTextWidth(longestLine);
+                const textHeight = watermarkLines.length * fontSize * 0.35; // Approximation of line height
+
+                // Diagonal length approximation
+                const diagonalLength = Math.sqrt(Math.pow(textWidth, 2) + Math.pow(textHeight, 2));
+
+                if (diagonalLength < pdfWidth * 0.8) {
                     break;
                 }
-                fontSize -= 2;
+                fontSize -= 5;
             }
             
-            // --- Apply settings and render ---
             pdf.setFontSize(fontSize);
-            pdf.setTextColor(230, 230, 230);
-            pdf.saveGraphicsState();
-            pdf.setGState(new (pdf as any).GState({ opacity: 0.5 }));
-            
             pdf.text(
                 watermarkText,
                 pdfWidth / 2,
                 pdfHeight / 2,
                 { angle: angle, align: 'center', baseline: 'middle' }
             );
-            
+
             pdf.restoreGraphicsState();
         }
         
@@ -116,8 +161,8 @@ export const generatePdf = async (paper: Paper, questions: PaperQuestion[], sett
         const footerText = `Page ${i} of ${pageCount}`;
         const textWidth = pdf.getStringUnitWidth(footerText) * pdf.getFontSize() / pdf.internal.scaleFactor;
         const x = (pdfWidth - textWidth) / 2;
-        const y = pdfHeight - (margin.bottom / 2);
-        pdf.text(footerText, x, y);
+        const footerY = pdfHeight - 15; // Position footer
+        pdf.text(footerText, x, footerY);
     }
     
     pdf.save(`${paper.slug}.pdf`);
