@@ -263,7 +263,7 @@ export default function AdminSettingsPage() {
                                     <Textarea {...field} value={field.value || ''} disabled={isSubmitting} placeholder={`Downloaded From ${settings.siteName}`} />
                                 </FormControl>
                                 <FormDescription>
-                                    The text to display as the watermark. Use `"{siteName}"` as a placeholder for your site name. Enter text on multiple lines for a multi-line watermark.
+                                    The text to display as the watermark. Use `"{siteName}"` as a placeholder for your site name. Use `\n` for multi-line watermarks.
                                 </FormDescription>
                                 <FormMessage />
                             </FormItem>
