@@ -2,78 +2,30 @@
 'use client';
 
 import jsPDF from 'jspdf';
-import html2canvas from 'html2canvas';
 import type { Paper, PaperQuestion, Settings } from '@/types';
-
-// Helper function to render an element to a canvas
-const renderElementToCanvas = async (element: HTMLElement): Promise<HTMLCanvasElement> => {
-    return await html2canvas(element, {
-        scale: 2, // Higher scale for better quality
-        useCORS: true,
-        windowWidth: element.scrollWidth,
-        windowHeight: element.scrollHeight,
-    });
-};
 
 export const generatePdf = async (paper: Paper, questions: PaperQuestion[], settings: Settings): Promise<void> => {
     const pdf = new jsPDF('p', 'mm', 'a4');
     const pdfWidth = pdf.internal.pageSize.getWidth();
     const pdfHeight = pdf.internal.pageSize.getHeight();
     
-    // 1 inch margins for top/bottom, 20mm for left/right
-    const topMargin = 25.4;
-    const bottomMargin = 25.4;
-    const leftMargin = 20;
-    const rightMargin = 20;
-
-    const contentWidth = pdfWidth - leftMargin - rightMargin;
+    const margin = { top: 25.4, bottom: 25.4, left: 20, right: 20 };
+    const contentWidth = pdfWidth - margin.left - margin.right;
     
-    let currentY = topMargin;
-
-    // Create an off-screen container for rendering individual elements
-    const renderContainer = document.createElement('div');
-    renderContainer.style.position = 'absolute';
-    renderContainer.style.left = '-9999px';
-    // Convert mm content width to px for accurate rendering by html2canvas
-    renderContainer.style.width = `${contentWidth * (96 / 25.4)}px`; // Assuming 96 DPI
-    renderContainer.style.padding = '1px';
-    renderContainer.style.boxSizing = 'content-box';
-    renderContainer.style.fontFamily = 'Helvetica, Arial, sans-serif';
-    renderContainer.style.color = '#000';
-    renderContainer.style.backgroundColor = '#fff';
-    document.body.appendChild(renderContainer);
-
-    // Function to add content and handle pagination
-    const addContent = async (html: string) => {
-        renderContainer.innerHTML = html;
-        const canvas = await renderElementToCanvas(renderContainer);
-        const imgHeight = (canvas.height * contentWidth) / canvas.width;
-
-        if (currentY + imgHeight > pdfHeight - bottomMargin) {
-            pdf.addPage();
-            currentY = topMargin;
-        }
-
-        pdf.addImage(canvas.toDataURL('image/png', 1.0), 'PNG', leftMargin, currentY, contentWidth, imgHeight);
-        currentY += imgHeight + 5; // Add a 5mm gap between elements
-    };
-
-    // 1. Render Header
-    const headerHtml = `
-        <div style="text-align: center; margin-bottom: 10px;">
+    // Create the full HTML content string
+    let fullHtml = `
+        <div style="text-align: center; margin-bottom: 10px; padding: 1px; box-sizing: content-box; font-family: Helvetica, Arial, sans-serif;">
             <h1 style="font-size: 20pt; margin-bottom: 5px; word-wrap: break-word;">${paper.title}</h1>
             <p style="font-size: 11pt; color: #555; word-wrap: break-word;">${paper.description}</p>
             <hr style="border: 0; border-top: 1px solid #ccc; margin-top: 10px;" />
         </div>`;
-    await addContent(headerHtml);
 
-    // 2. Render Questions
     for (const q of questions) {
         const questionText = q.questionText.replace(/\n/g, '<br />');
         const explanationText = q.explanation ? q.explanation.replace(/\n/g, '<br />') : '';
 
         let questionHtml = `
-            <div style="margin-bottom: 10px; break-inside: avoid;">
+            <div style="margin-bottom: 15px; margin-top: 10px; page-break-inside: avoid; padding: 1px; box-sizing: content-box; font-family: Helvetica, Arial, sans-serif;">
                 <h2 style="font-size: 14pt; font-weight: bold; margin-bottom: 8px; word-wrap: break-word;">Question ${q.order}</h2>
                 <p style="font-size: 12pt; margin-bottom: 8px; word-wrap: break-word;">${questionText}</p>
             `;
@@ -94,29 +46,67 @@ export const generatePdf = async (paper: Paper, questions: PaperQuestion[], sett
         }
         questionHtml += `</div>`;
         
-        await addContent(questionHtml);
+        fullHtml += questionHtml;
     }
 
-    // 3. Add Watermark and Footer to all pages
+    const container = document.createElement('div');
+    container.style.width = `${contentWidth}mm`;
+    container.innerHTML = fullHtml;
+    
+    await pdf.html(container, {
+        x: margin.left,
+        y: margin.top,
+        autoPaging: 'text',
+        margin: [margin.top, margin.right, margin.bottom, margin.left],
+        html2canvas: {
+            scale: 0.25,
+            useCORS: true,
+        },
+    });
+
+    // Add Watermark and Footer to all pages
     const pageCount = pdf.internal.getNumberOfPages();
     for (let i = 1; i <= pageCount; i++) {
         pdf.setPage(i);
 
-        // Watermark
         if (settings.pdfWatermarkEnabled) {
             const rawWatermarkText = settings.pdfWatermarkText || 'Downloaded From {siteName}';
-            const watermarkText = rawWatermarkText.replace('{siteName}', settings.siteName);
-            const watermarkLines = watermarkText.split('\\n');
+            const watermarkText = rawWatermarkText.replace('{siteName}', settings.siteName || 'Prepify');
+            const angle = -45;
+            const angleInRadians = angle * (Math.PI / 180);
 
-            pdf.setFontSize(50);
-            pdf.setTextColor(230, 230, 230); // Light gray
+            // --- Dynamic Font Size Calculation ---
+            let fontSize = 60;
+            let textDimensions;
+            const safePageWidth = pdfWidth * 0.9;
+            const safePageHeight = pdfHeight * 0.9;
+
+            while (fontSize > 10) {
+                pdf.setFontSize(fontSize);
+                textDimensions = pdf.getTextDimensions(watermarkText);
+                
+                const rotatedWidth = Math.abs(textDimensions.w * Math.cos(angleInRadians)) + Math.abs(textDimensions.h * Math.sin(angleInRadians));
+                const rotatedHeight = Math.abs(textDimensions.w * Math.sin(angleInRadians)) + Math.abs(textDimensions.h * Math.cos(angleInRadians));
+                
+                if (rotatedWidth < safePageWidth && rotatedHeight < safePageHeight) {
+                    break;
+                }
+                fontSize -= 2;
+            }
+            
+            // --- Apply settings and render ---
+            pdf.setFontSize(fontSize);
+            pdf.setTextColor(230, 230, 230);
             pdf.saveGraphicsState();
             pdf.setGState(new (pdf as any).GState({ opacity: 0.5 }));
-            pdf.text(watermarkLines, pdfWidth / 2, pdfHeight / 2, {
-                angle: -45,
-                align: 'center',
-                baseline: 'middle'
-            });
+            
+            pdf.text(
+                watermarkText,
+                pdfWidth / 2,
+                pdfHeight / 2,
+                { angle: angle, align: 'center', baseline: 'middle' }
+            );
+            
             pdf.restoreGraphicsState();
         }
         
@@ -126,11 +116,9 @@ export const generatePdf = async (paper: Paper, questions: PaperQuestion[], sett
         const footerText = `Page ${i} of ${pageCount}`;
         const textWidth = pdf.getStringUnitWidth(footerText) * pdf.getFontSize() / pdf.internal.scaleFactor;
         const x = (pdfWidth - textWidth) / 2;
-        const y = pdfHeight - 15; // Position footer 15mm from bottom
+        const y = pdfHeight - (margin.bottom / 2);
         pdf.text(footerText, x, y);
     }
-
-    // 4. Clean up and Save
-    document.body.removeChild(renderContainer);
+    
     pdf.save(`${paper.slug}.pdf`);
 };
