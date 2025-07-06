@@ -67,21 +67,18 @@ export const generatePdf = async (paper: Paper, questions: PaperQuestion[], sett
                 checkPageBreak(optionLines.length * 5.5 + 2);
                 
                 if (isCorrect) {
-                    pdf.setTextColor(40, 167, 69); // Green
-                    pdf.setFont('helvetica', 'bold');
-                     // Use ZapfDingbats for checkmark, as standard fonts may not support it
                     pdf.setFont('ZapfDingbats', 'normal');
-                    pdf.text('4', margin.left + 5, y); // '4' is the checkmark in ZapfDingbats
-                    // Switch back to render text
+                    pdf.setTextColor(40, 167, 69); // Green
+                    pdf.text('4', margin.left + 5, y);
+                    
                     pdf.setFont('helvetica', 'bold');
                     pdf.text(optionLines, margin.left + 11, y);
                 } else {
-                    pdf.setTextColor(0, 0, 0); // Black
                     pdf.setFont('helvetica', 'normal');
+                    pdf.setTextColor(0, 0, 0); // Black
                     pdf.text('•', margin.left + 5, y);
                     pdf.text(optionLines, margin.left + 11, y);
                 }
-                
                 y += optionLines.length * 5.5 + 2;
             }
             pdf.setTextColor(0, 0, 0); // Reset color
@@ -106,7 +103,7 @@ export const generatePdf = async (paper: Paper, questions: PaperQuestion[], sett
             pdf.setTextColor(0,0,0);
             pdf.setFont('helvetica', 'normal');
             pdf.text(answerLines, margin.left + 5, y + 13);
-
+            
             y += blockHeight + 4;
         }
 
@@ -141,36 +138,39 @@ export const generatePdf = async (paper: Paper, questions: PaperQuestion[], sett
 
         // Watermark
         if (settings.pdfWatermarkEnabled) {
-            const rawWatermarkText = settings.pdfWatermarkText || 'Downloaded From\n{siteName}';
+            const rawWatermarkText = settings.pdfWatermarkText || '{siteName}';
             const watermarkText = rawWatermarkText.replace('{siteName}', settings.siteName || 'Prepify');
             const watermarkLines = watermarkText.split('\n');
             
+            pdf.saveGraphicsState();
+            pdf.setFont('helvetica', 'bold');
+            pdf.setTextColor(220, 220, 220);
+            pdf.setGState(new (pdf as any).GState({ opacity: 0.2 }));
+
             const angle = -45;
-            
             let fontSize = 80;
             pdf.setFontSize(fontSize);
-
+            
             const calculateRotatedWidth = (lines: string[], angleDeg: number) => {
                 const angleRad = angleDeg * Math.PI / 180;
                 const dims = pdf.getTextDimensions(lines);
                 return Math.abs(dims.w * Math.cos(angleRad)) + Math.abs(dims.h * Math.sin(angleRad));
             };
 
-            while (calculateRotatedWidth(watermarkLines, angle) > pdfWidth * 0.9 && fontSize > 8) {
+            let rotatedWidth = calculateRotatedWidth(watermarkLines, angle);
+            
+            while (rotatedWidth > pdfWidth * 0.9 && fontSize > 8) {
                 fontSize -= 4;
                 pdf.setFontSize(fontSize);
+                rotatedWidth = calculateRotatedWidth(watermarkLines, angle);
             }
-
-            pdf.saveGraphicsState();
-            pdf.setFont('helvetica', 'bold');
-            pdf.setTextColor(220, 220, 220);
-            pdf.setGState(new (pdf as any).GState({ opacity: 0.2 }));
 
             pdf.text(watermarkLines, pdfWidth / 2, pdfHeight / 2, {
                 angle: angle,
                 align: 'center',
                 baseline: 'middle',
             });
+            
             pdf.restoreGraphicsState();
         }
         
