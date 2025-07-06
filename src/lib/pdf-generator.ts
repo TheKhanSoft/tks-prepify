@@ -9,6 +9,7 @@ export const generatePdf = async (paper: Paper, questions: PaperQuestion[], sett
     const pdfWidth = pdf.internal.pageSize.getWidth();
     const pdfHeight = pdf.internal.pageSize.getHeight();
     
+    // 1 inch margins for top and bottom
     const margin = { top: 25.4, bottom: 25.4, left: 20, right: 20 };
     const contentWidth = pdfWidth - margin.left - margin.right;
     let y = margin.top;
@@ -124,21 +125,20 @@ export const generatePdf = async (paper: Paper, questions: PaperQuestion[], sett
             pdf.setGState(new (pdf as any).GState({ opacity: 0.15 }));
             pdf.setTextColor(150);
 
-            // Dynamic font size calculation
+            // Dynamic font size calculation using a more precise method
             let fontSize = 120;
             const angle = -45;
             const watermarkLines = watermarkText.split('\n');
 
             while(fontSize > 10) {
                 pdf.setFontSize(fontSize);
-                const longestLine = watermarkLines.reduce((a, b) => pdf.getTextWidth(a) > pdf.getTextWidth(b) ? a : b);
-                const textWidth = pdf.getTextWidth(longestLine);
-                const textHeight = watermarkLines.length * fontSize * 0.35; // Approximation of line height
-
-                // Diagonal length approximation
-                const diagonalLength = Math.sqrt(Math.pow(textWidth, 2) + Math.pow(textHeight, 2));
-
-                if (diagonalLength < pdfWidth * 0.8) {
+                const dims = pdf.getTextDimensions(watermarkLines);
+                
+                // Calculate diagonal of the text's bounding box
+                const diagonal = Math.sqrt(Math.pow(dims.w, 2) + Math.pow(dims.h, 2));
+                
+                // Check if the diagonal fits within 75% of the page width to be safe
+                if (diagonal < pdfWidth * 0.75) {
                     break;
                 }
                 fontSize -= 5;
@@ -161,9 +161,10 @@ export const generatePdf = async (paper: Paper, questions: PaperQuestion[], sett
         const footerText = `Page ${i} of ${pageCount}`;
         const textWidth = pdf.getStringUnitWidth(footerText) * pdf.getFontSize() / pdf.internal.scaleFactor;
         const x = (pdfWidth - textWidth) / 2;
-        const footerY = pdfHeight - 15; // Position footer
+        const footerY = pdfHeight - 15; // Position footer within the 1-inch bottom margin
         pdf.text(footerText, x, footerY);
     }
     
     pdf.save(`${paper.slug}.pdf`);
 };
+
