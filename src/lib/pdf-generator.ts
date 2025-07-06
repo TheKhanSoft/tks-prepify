@@ -17,17 +17,21 @@ export const generatePdf = async (paper: Paper, questions: PaperQuestion[], sett
         if (y + spaceNeeded > pdfHeight - margin.bottom) {
             pdf.addPage();
             y = margin.top;
+            return true;
         }
+        return false;
     };
     
     // --- Render Header ---
-    pdf.setFontSize(20).setFont('helvetica', 'bold');
+    pdf.setFont('helvetica', 'bold');
+    pdf.setFontSize(20);
     const titleLines = pdf.splitTextToSize(paper.title, contentWidth);
     checkPageBreak(titleLines.length * 10);
     pdf.text(titleLines, pdfWidth / 2, y, { align: 'center' });
     y += titleLines.length * 8;
     
-    pdf.setFontSize(11).setFont('helvetica', 'normal');
+    pdf.setFont('helvetica', 'normal');
+    pdf.setFontSize(11);
     const descriptionLines = pdf.splitTextToSize(paper.description, contentWidth);
     checkPageBreak(descriptionLines.length * 5 + 5);
     y += 5;
@@ -45,7 +49,8 @@ export const generatePdf = async (paper: Paper, questions: PaperQuestion[], sett
         checkPageBreak(20); 
 
         // Question number and text
-        pdf.setFontSize(14).setFont('helvetica', 'bold');
+        pdf.setFontSize(14);
+        pdf.setFont('helvetica', 'bold');
         const questionText = `Question ${q.order}: ${q.questionText}`;
         const questionLines = pdf.splitTextToSize(questionText, contentWidth);
         checkPageBreak(questionLines.length * 7);
@@ -53,7 +58,8 @@ export const generatePdf = async (paper: Paper, questions: PaperQuestion[], sett
         y += questionLines.length * 7;
         y += 4;
 
-        pdf.setFontSize(11).setFont('helvetica', 'normal');
+        pdf.setFontSize(11);
+        pdf.setFont('helvetica', 'normal');
 
         if (q.type === 'mcq' && q.options) {
             for (const opt of q.options) {
@@ -79,19 +85,17 @@ export const generatePdf = async (paper: Paper, questions: PaperQuestion[], sett
             pdf.setFont('helvetica', 'normal');
         } else if (q.type === 'short_answer') {
             checkPageBreak(20);
-            pdf.setFillColor(230, 245, 233);
-            pdf.setDrawColor(40, 167, 69);
-            pdf.setLineWidth(0.2);
-            
             const answerLines = pdf.splitTextToSize(String(q.correctAnswer), contentWidth - 20);
             const blockHeight = answerLines.length * 5.5 + 12;
             checkPageBreak(blockHeight);
 
+            pdf.setFillColor(230, 245, 233); // Light green fill
+            pdf.setDrawColor(230, 245, 233); // No border
             pdf.roundedRect(margin.left, y, contentWidth, blockHeight, 3, 3, 'FD');
             
-            pdf.setTextColor(19, 99, 40);
+            pdf.setTextColor(19, 99, 40); // Darker green text
             pdf.setFont('helvetica', 'bold');
-            pdf.text('Correct Answer:', margin.left + 5, y + 6);
+            pdf.text('✔ Correct Answer:', margin.left + 5, y + 6);
             pdf.setFont('helvetica', 'normal');
             pdf.text(answerLines, margin.left + 5, y + 13);
 
@@ -109,12 +113,14 @@ export const generatePdf = async (paper: Paper, questions: PaperQuestion[], sett
             pdf.setFillColor(240, 240, 240);
             pdf.rect(margin.left, y, contentWidth, explanationHeight, 'F');
             
-            pdf.setFontSize(10).setFont('helvetica', 'italic');
+            pdf.setFontSize(10);
+            pdf.setFont('helvetica', 'italic');
             pdf.setTextColor(68, 68, 68);
             pdf.text(explanationLines, margin.left + 2, y + 5);
             y += explanationHeight + 4;
             
-            pdf.setFontSize(11).setFont('helvetica', 'normal');
+            pdf.setFontSize(11);
+            pdf.setFont('helvetica', 'normal');
             pdf.setTextColor(0, 0, 0);
         }
 
@@ -135,15 +141,25 @@ export const generatePdf = async (paper: Paper, questions: PaperQuestion[], sett
             
             const angle = -45;
             
+            // Start with a large font size and shrink until it fits
             let fontSize = 80;
-            while (fontSize > 10) {
-                pdf.setFontSize(fontSize);
-                const dims = pdf.getTextDimensions(watermarkLines);
-                const rotatedWidth = dims.w * Math.abs(Math.cos(angle * Math.PI / 180)) + dims.h * Math.abs(Math.sin(angle * Math.PI / 180));
-                if (rotatedWidth < pdfWidth * 0.8) {
-                    break;
-                }
+            pdf.setFontSize(fontSize);
+
+            const calculateRotatedDimensions = (lines: string[], angleDeg: number) => {
+                const angleRad = angleDeg * Math.PI / 180;
+                const dims = pdf.getTextDimensions(lines);
+                const rotatedWidth = Math.abs(dims.w * Math.cos(angleRad)) + Math.abs(dims.h * Math.sin(angleRad));
+                const rotatedHeight = Math.abs(dims.w * Math.sin(angleRad)) + Math.abs(dims.h * Math.cos(angleRad));
+                return { rotatedWidth, rotatedHeight };
+            };
+
+            let dims = calculateRotatedDimensions(watermarkLines, angle);
+
+            // Shrink font size until watermark fits within 80% of page dimensions
+            while ((dims.rotatedWidth > pdfWidth * 0.8 || dims.rotatedHeight > pdfHeight * 0.8) && fontSize > 10) {
                 fontSize -= 5;
+                pdf.setFontSize(fontSize);
+                dims = calculateRotatedDimensions(watermarkLines, angle);
             }
 
             pdf.saveGraphicsState();
@@ -160,8 +176,9 @@ export const generatePdf = async (paper: Paper, questions: PaperQuestion[], sett
         }
         
         // Footer with page number
+        pdf.setFont('helvetica', 'normal');
         pdf.setFontSize(9);
-        pdf.setTextColor(150);
+        pdf.setTextColor(150, 150, 150);
         const footerText = `Page ${i} of ${pageCount}`;
         const textWidth = pdf.getStringUnitWidth(footerText) * pdf.getFontSize() / pdf.internal.scaleFactor;
         pdf.text(footerText, (pdfWidth - textWidth) / 2, pdfHeight - 15);
