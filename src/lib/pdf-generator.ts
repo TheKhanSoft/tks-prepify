@@ -9,12 +9,10 @@ export const generatePdf = async (paper: Paper, questions: PaperQuestion[], sett
     const pdfWidth = pdf.internal.pageSize.getWidth();
     const pdfHeight = pdf.internal.pageSize.getHeight();
     
-    // 1 inch margins for top and bottom
     const margin = { top: 25.4, bottom: 25.4, left: 20, right: 20 };
     const contentWidth = pdfWidth - margin.left - margin.right;
     let y = margin.top;
 
-    // Helper to check for page overflow and add a new page
     const checkPageBreak = (spaceNeeded: number) => {
         if (y + spaceNeeded > pdfHeight - margin.bottom) {
             pdf.addPage();
@@ -44,7 +42,7 @@ export const generatePdf = async (paper: Paper, questions: PaperQuestion[], sett
 
     // --- Render Questions ---
     for (const q of questions) {
-        checkPageBreak(20); // rough space for a new question
+        checkPageBreak(20); 
 
         // Question number and text
         pdf.setFontSize(14).setFont('helvetica', 'bold');
@@ -57,52 +55,65 @@ export const generatePdf = async (paper: Paper, questions: PaperQuestion[], sett
 
         pdf.setFontSize(11).setFont('helvetica', 'normal');
 
-        // Options or Short Answer
         if (q.type === 'mcq' && q.options) {
             for (const opt of q.options) {
                 const isCorrect = Array.isArray(q.correctAnswer) ? q.correctAnswer.includes(opt) : q.correctAnswer === opt;
+                
+                if (isCorrect) {
+                    pdf.setTextColor(40, 167, 69); // Green
+                    pdf.setFont('helvetica', 'bold');
+                } else {
+                    pdf.setTextColor(0, 0, 0); // Black
+                    pdf.setFont('helvetica', 'normal');
+                }
+                
                 const prefix = isCorrect ? '✔' : '•';
                 const optionText = `${prefix} ${opt}`;
                 const optionLines = pdf.splitTextToSize(optionText, contentWidth - 5);
                 checkPageBreak(optionLines.length * 6);
                 
-                if (isCorrect) {
-                    pdf.setTextColor(40, 167, 69); // Green
-                    pdf.setFont('helvetica', 'bold');
-                }
-                
                 pdf.text(optionLines, margin.left + 5, y);
                 y += optionLines.length * 5.5;
-
-                if (isCorrect) {
-                    pdf.setTextColor(0, 0, 0); // Reset to black
-                    pdf.setFont('helvetica', 'normal');
-                }
             }
-        } else if (q.type === 'short_answer') {
-            const answerText = `Correct Answer: ${q.correctAnswer}`;
-            const answerLines = pdf.splitTextToSize(answerText, contentWidth - 5);
-            checkPageBreak(answerLines.length * 6);
-            pdf.setTextColor(40, 167, 69);
-            pdf.setFont('helvetica', 'bold');
-            pdf.text(answerLines, margin.left + 5, y);
-            y += answerLines.length * 5.5;
-            pdf.setTextColor(0, 0, 0);
+            pdf.setTextColor(0, 0, 0); // Reset color
             pdf.setFont('helvetica', 'normal');
+        } else if (q.type === 'short_answer') {
+            checkPageBreak(20);
+            pdf.setFillColor(230, 245, 233);
+            pdf.setDrawColor(40, 167, 69);
+            pdf.setLineWidth(0.2);
+            
+            const answerLines = pdf.splitTextToSize(String(q.correctAnswer), contentWidth - 20);
+            const blockHeight = answerLines.length * 5.5 + 12;
+            checkPageBreak(blockHeight);
+
+            pdf.roundedRect(margin.left, y, contentWidth, blockHeight, 3, 3, 'FD');
+            
+            pdf.setTextColor(19, 99, 40);
+            pdf.setFont('helvetica', 'bold');
+            pdf.text('Correct Answer:', margin.left + 5, y + 6);
+            pdf.setFont('helvetica', 'normal');
+            pdf.text(answerLines, margin.left + 5, y + 13);
+
+            y += blockHeight + 4;
+            pdf.setTextColor(0, 0, 0);
         }
 
-        // Explanation
         if (q.explanation) {
             y += 4;
             const explanationText = `Explanation: ${q.explanation}`;
-            const explanationLines = pdf.splitTextToSize(explanationText, contentWidth);
-            checkPageBreak(explanationLines.length * 5 + 4);
+            const explanationLines = pdf.splitTextToSize(explanationText, contentWidth - 4);
+            const explanationHeight = explanationLines.length * 5 + 8;
+            checkPageBreak(explanationHeight);
+
             pdf.setFillColor(240, 240, 240);
-            pdf.rect(margin.left, y - 3, contentWidth, explanationLines.length * 5 + 2, 'F');
+            pdf.rect(margin.left, y, contentWidth, explanationHeight, 'F');
+            
             pdf.setFontSize(10).setFont('helvetica', 'italic');
             pdf.setTextColor(68, 68, 68);
-            pdf.text(explanationLines, margin.left + 2, y);
-            y += explanationLines.length * 5 + 4;
+            pdf.text(explanationLines, margin.left + 2, y + 5);
+            y += explanationHeight + 4;
+            
             pdf.setFontSize(11).setFont('helvetica', 'normal');
             pdf.setTextColor(0, 0, 0);
         }
@@ -118,40 +129,33 @@ export const generatePdf = async (paper: Paper, questions: PaperQuestion[], sett
 
         // Watermark
         if (settings.pdfWatermarkEnabled) {
-            const rawWatermarkText = settings.pdfWatermarkText || 'Downloaded From {siteName}';
+            const rawWatermarkText = settings.pdfWatermarkText || 'Downloaded From\n{siteName}';
             const watermarkText = rawWatermarkText.replace('{siteName}', settings.siteName || 'Prepify');
-            
-            pdf.saveGraphicsState();
-            pdf.setGState(new (pdf as any).GState({ opacity: 0.15 }));
-            pdf.setTextColor(150);
-
-            // Dynamic font size calculation using a more precise method
-            let fontSize = 120;
-            const angle = -45;
             const watermarkLines = watermarkText.split('\n');
-
-            while(fontSize > 10) {
+            
+            const angle = -45;
+            
+            let fontSize = 80;
+            while (fontSize > 10) {
                 pdf.setFontSize(fontSize);
                 const dims = pdf.getTextDimensions(watermarkLines);
-                
-                // Calculate diagonal of the text's bounding box
-                const diagonal = Math.sqrt(Math.pow(dims.w, 2) + Math.pow(dims.h, 2));
-                
-                // Check if the diagonal fits within 75% of the page width to be safe
-                if (diagonal < pdfWidth * 0.75) {
+                const rotatedWidth = dims.w * Math.abs(Math.cos(angle * Math.PI / 180)) + dims.h * Math.abs(Math.sin(angle * Math.PI / 180));
+                if (rotatedWidth < pdfWidth * 0.8) {
                     break;
                 }
                 fontSize -= 5;
             }
-            
-            pdf.setFontSize(fontSize);
-            pdf.text(
-                watermarkText,
-                pdfWidth / 2,
-                pdfHeight / 2,
-                { angle: angle, align: 'center', baseline: 'middle' }
-            );
 
+            pdf.saveGraphicsState();
+            pdf.setFontSize(fontSize);
+            pdf.setTextColor(150, 150, 150);
+            pdf.setGState(new (pdf as any).GState({ opacity: 0.1 }));
+
+            pdf.text(watermarkLines, pdfWidth / 2, pdfHeight / 2, {
+                angle: angle,
+                align: 'center',
+                baseline: 'middle',
+            });
             pdf.restoreGraphicsState();
         }
         
@@ -160,11 +164,8 @@ export const generatePdf = async (paper: Paper, questions: PaperQuestion[], sett
         pdf.setTextColor(150);
         const footerText = `Page ${i} of ${pageCount}`;
         const textWidth = pdf.getStringUnitWidth(footerText) * pdf.getFontSize() / pdf.internal.scaleFactor;
-        const x = (pdfWidth - textWidth) / 2;
-        const footerY = pdfHeight - 15; // Position footer within the 1-inch bottom margin
-        pdf.text(footerText, x, footerY);
+        pdf.text(footerText, (pdfWidth - textWidth) / 2, pdfHeight - 15);
     }
     
     pdf.save(`${paper.slug}.pdf`);
 };
-
