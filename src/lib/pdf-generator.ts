@@ -69,7 +69,11 @@ export const generatePdf = async (paper: Paper, questions: PaperQuestion[], sett
                 if (isCorrect) {
                     pdf.setTextColor(40, 167, 69); // Green
                     pdf.setFont('helvetica', 'bold');
-                    pdf.text('✔', margin.left + 5, y);
+                     // Use ZapfDingbats for checkmark, as standard fonts may not support it
+                    pdf.setFont('ZapfDingbats', 'normal');
+                    pdf.text('4', margin.left + 5, y); // '4' is the checkmark in ZapfDingbats
+                    // Switch back to render text
+                    pdf.setFont('helvetica', 'bold');
                     pdf.text(optionLines, margin.left + 11, y);
                 } else {
                     pdf.setTextColor(0, 0, 0); // Black
@@ -92,9 +96,12 @@ export const generatePdf = async (paper: Paper, questions: PaperQuestion[], sett
             pdf.setDrawColor(230, 245, 233);
             pdf.roundedRect(margin.left, y, contentWidth, blockHeight, 3, 3, 'FD');
             
+            pdf.setFont('ZapfDingbats', 'normal');
             pdf.setTextColor(40, 167, 69);
+            pdf.text('4', margin.left + 5, y + 6);
+
             pdf.setFont('helvetica', 'bold');
-            pdf.text('✔ Correct Answer:', margin.left + 5, y + 6);
+            pdf.text('Correct Answer:', margin.left + 11, y + 6);
 
             pdf.setTextColor(0,0,0);
             pdf.setFont('helvetica', 'normal');
@@ -127,10 +134,12 @@ export const generatePdf = async (paper: Paper, questions: PaperQuestion[], sett
         y += 10;
     }
     
+    // --- Render Watermark and Page Numbers ---
     const pageCount = pdf.internal.getNumberOfPages();
     for (let i = 1; i <= pageCount; i++) {
         pdf.setPage(i);
 
+        // Watermark
         if (settings.pdfWatermarkEnabled) {
             const rawWatermarkText = settings.pdfWatermarkText || 'Downloaded From\n{siteName}';
             const watermarkText = rawWatermarkText.replace('{siteName}', settings.siteName || 'Prepify');
@@ -141,20 +150,15 @@ export const generatePdf = async (paper: Paper, questions: PaperQuestion[], sett
             let fontSize = 80;
             pdf.setFontSize(fontSize);
 
-            const calculateRotatedDimensions = (lines: string[], angleDeg: number) => {
+            const calculateRotatedWidth = (lines: string[], angleDeg: number) => {
                 const angleRad = angleDeg * Math.PI / 180;
                 const dims = pdf.getTextDimensions(lines);
-                const rotatedWidth = Math.abs(dims.w * Math.cos(angleRad)) + Math.abs(dims.h * Math.sin(angleRad));
-                const rotatedHeight = Math.abs(dims.w * Math.sin(angleRad)) + Math.abs(dims.h * Math.cos(angleRad));
-                return { rotatedWidth, rotatedHeight };
+                return Math.abs(dims.w * Math.cos(angleRad)) + Math.abs(dims.h * Math.sin(angleRad));
             };
 
-            let dims = calculateRotatedDimensions(watermarkLines, angle);
-            
-            while ((dims.rotatedWidth > pdfWidth * 0.8 || dims.rotatedHeight > pdfHeight * 0.8) && fontSize > 10) {
-                fontSize -= 5;
+            while (calculateRotatedWidth(watermarkLines, angle) > pdfWidth * 0.9 && fontSize > 8) {
+                fontSize -= 4;
                 pdf.setFontSize(fontSize);
-                dims = calculateRotatedDimensions(watermarkLines, angle);
             }
 
             pdf.saveGraphicsState();
@@ -170,6 +174,7 @@ export const generatePdf = async (paper: Paper, questions: PaperQuestion[], sett
             pdf.restoreGraphicsState();
         }
         
+        // Page Number Footer
         pdf.setFont('helvetica', 'normal');
         pdf.setFontSize(9);
         pdf.setTextColor(150, 150, 150);
