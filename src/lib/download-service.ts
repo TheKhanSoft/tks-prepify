@@ -22,9 +22,7 @@ import {
   addWeeks,
   addMonths,
   addYears,
-  differenceInWeeks,
-  differenceInMonths,
-  differenceInYears,
+  isAfter
 } from 'date-fns';
 
 const serializeDate = (date: any): string | null => {
@@ -54,13 +52,13 @@ export async function countDownloadsForPeriod(
   userId: string,
   period: QuotaPeriod,
   subscriptionDate: Date
-): Promise<{count: number; resetDate: Date}> {
+): Promise<{count: number; resetDate: string}> {
   if (!userId) {
     throw new Error('User ID is required.');
   }
   
   const now = new Date();
-  const subscriptionStart = startOfDay(subscriptionDate);
+  const subscriptionStart = subscriptionDate;
 
   let startDate: Date;
   let resetDate: Date;
@@ -72,23 +70,38 @@ export async function countDownloadsForPeriod(
       break;
     
     case 'weekly': {
-      const weeksPassed = differenceInWeeks(now, subscriptionStart);
-      startDate = addWeeks(subscriptionStart, weeksPassed);
-      resetDate = addWeeks(startDate, 1);
+        let lastReset = subscriptionStart;
+        let nextReset = addWeeks(lastReset, 1);
+        while (isAfter(now, nextReset)) {
+            lastReset = nextReset;
+            nextReset = addWeeks(lastReset, 1);
+        }
+        startDate = lastReset;
+        resetDate = nextReset;
       break;
     }
 
     case 'monthly': {
-      const monthsPassed = differenceInMonths(now, subscriptionStart);
-      startDate = addMonths(subscriptionStart, monthsPassed);
-      resetDate = addMonths(startDate, 1);
+        let lastReset = subscriptionStart;
+        let nextReset = addMonths(lastReset, 1);
+        while (isAfter(now, nextReset)) {
+            lastReset = nextReset;
+            nextReset = addMonths(lastReset, 1);
+        }
+        startDate = lastReset;
+        resetDate = nextReset;
       break;
     }
 
     case 'yearly': {
-      const yearsPassed = differenceInYears(now, subscriptionStart);
-      startDate = addYears(subscriptionStart, yearsPassed);
-      resetDate = addYears(startDate, 1);
+        let lastReset = subscriptionStart;
+        let nextReset = addYears(lastReset, 1);
+        while (isAfter(now, nextReset)) {
+            lastReset = nextReset;
+            nextReset = addYears(lastReset, 1);
+        }
+        startDate = lastReset;
+        resetDate = nextReset;
       break;
     }
 
@@ -108,7 +121,7 @@ export async function countDownloadsForPeriod(
   );
 
   const snapshot = await getCountFromServer(downloadsQuery);
-  return { count: snapshot.data().count, resetDate };
+  return { count: snapshot.data().count, resetDate: resetDate.toISOString() };
 }
 
 

@@ -58,9 +58,9 @@ export default function SubscriptionPage() {
                                         usageData[usageKey] = await countActiveBookmarks(user.uid);
                                         resetDatesData[usageKey] = null; // Bookmarks are lifetime
                                     } else if (feature.key === 'downloads' && feature.period) {
-                                        const { count, resetDate } = await countDownloadsForPeriod(user.uid, feature.period, subscriptionStartDate);
+                                        const { count, resetDate: resetDateString } = await countDownloadsForPeriod(user.uid, feature.period, subscriptionStartDate);
                                         usageData[usageKey] = count;
-                                        resetDatesData[usageKey] = resetDate;
+                                        resetDatesData[usageKey] = resetDateString ? new Date(resetDateString) : null;
                                     }
                                 }
                             }
