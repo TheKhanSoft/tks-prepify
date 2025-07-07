@@ -88,7 +88,30 @@ export async function generateTest(configId: string): Promise<{ config: TestConf
     const allCategories = await fetchQuestionCategories();
     let generatedQuestions: Question[] = [];
 
-    for (const rule of config.composition) {
+    // Use the Largest Remainder Method to handle rounding and ensure total count is met
+    const rulesWithFraction = config.composition.map(rule => {
+        const exactCount = (rule.percentage / 100) * config.totalQuestions;
+        return {
+            ...rule,
+            floorCount: Math.floor(exactCount),
+            fraction: exactCount - Math.floor(exactCount)
+        };
+    });
+
+    let currentTotal = rulesWithFraction.reduce((sum, rule) => sum + rule.floorCount, 0);
+    let remainder = config.totalQuestions - currentTotal;
+    
+    // Sort by fractional part descending to give priority for rounding up
+    rulesWithFraction.sort((a, b) => b.fraction - a.fraction);
+
+    // Distribute the remainder to the rules with the largest fractions
+    for (let i = 0; i < remainder; i++) {
+        rulesWithFraction[i].floorCount++;
+    }
+
+    for (const rule of rulesWithFraction) {
+        if (rule.floorCount === 0) continue;
+
         const categoryIds = getDescendantQuestionCategoryIds(rule.questionCategoryId, allCategories);
         if (categoryIds.length === 0) continue;
 
@@ -98,12 +121,9 @@ export async function generateTest(configId: string): Promise<{ config: TestConf
         let pool = snapshot.docs.map(docToQuestion);
         pool = shuffleArray(pool);
         
-        const pickedQuestions = pool.slice(0, rule.count);
+        const pickedQuestions = pool.slice(0, rule.floorCount);
         generatedQuestions.push(...pickedQuestions);
     }
-    
-    // In case some categories didn't have enough questions, we just use what we have.
-    // The UI should ideally inform the user if the count is less than expected.
 
     const finalShuffledQuestions = shuffleArray(generatedQuestions);
 

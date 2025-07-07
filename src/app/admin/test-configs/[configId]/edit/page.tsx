@@ -22,7 +22,7 @@ import type { QuestionCategory, TestConfig } from "@/types";
 
 const compositionRuleSchema = z.object({
   questionCategoryId: z.string().min(1, "Please select a category."),
-  count: z.coerce.number().min(1, "Count must be at least 1."),
+  percentage: z.coerce.number().min(1, "Percentage must be at least 1.").max(100, "Percentage cannot exceed 100."),
 });
 
 const testConfigSchema = z.object({
@@ -31,6 +31,7 @@ const testConfigSchema = z.object({
   duration: z.coerce.number().int().min(1, "Duration must be at least 1 minute."),
   passingMarks: z.coerce.number().min(0).max(100, "Passing marks must be between 0 and 100."),
   marksPerQuestion: z.coerce.number().min(0, "Marks must be a non-negative number."),
+  totalQuestions: z.coerce.number().int().min(1, "Total questions must be at least 1."),
   hasNegativeMarking: z.boolean().default(false),
   negativeMarkValue: z.coerce.number().min(0).optional(),
   published: z.boolean().default(false),
@@ -43,7 +44,14 @@ const testConfigSchema = z.object({
 }, {
     message: "Negative mark value is required and must be positive if negative marking is enabled.",
     path: ["negativeMarkValue"],
+}).refine(data => {
+    const totalPercentage = data.composition.reduce((sum, rule) => sum + (rule.percentage || 0), 0);
+    return totalPercentage === 100;
+}, {
+    message: "The sum of all category percentages must be exactly 100.",
+    path: ["composition"],
 });
+
 
 type TestConfigFormValues = z.infer<typeof testConfigSchema>;
 
@@ -98,12 +106,9 @@ export default function EditTestConfigPage() {
 
   async function onSubmit(data: TestConfigFormValues) {
     setIsSubmitting(true);
-    const totalQuestions = data.composition.reduce((sum, rule) => sum + rule.count, 0);
-    
     const finalData = {
         ...data,
         negativeMarkValue: data.hasNegativeMarking ? data.negativeMarkValue : 0,
-        totalQuestions,
     };
 
     try {
@@ -145,7 +150,8 @@ export default function EditTestConfigPage() {
           </Card>
           <Card>
             <CardHeader><CardTitle>Marking & Duration</CardTitle></CardHeader>
-            <CardContent className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+             <CardContent className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              <FormField control={form.control} name="totalQuestions" render={({ field }) => (<FormItem><FormLabel>Total Number of Questions</FormLabel><FormControl><Input type="number" {...field} /></FormControl><FormMessage /></FormItem>)} />
               <FormField control={form.control} name="duration" render={({ field }) => (<FormItem><FormLabel>Duration (minutes)</FormLabel><FormControl><Input type="number" {...field} /></FormControl><FormMessage /></FormItem>)} />
               <FormField control={form.control} name="passingMarks" render={({ field }) => (<FormItem><FormLabel>Passing Marks (%)</FormLabel><FormControl><Input type="number" {...field} /></FormControl><FormMessage /></FormItem>)} />
               <FormField control={form.control} name="marksPerQuestion" render={({ field }) => (<FormItem><FormLabel>Marks per Question</FormLabel><FormControl><Input type="number" step="0.5" {...field} /></FormControl><FormMessage /></FormItem>)} />
@@ -156,16 +162,16 @@ export default function EditTestConfigPage() {
             </CardContent>
           </Card>
           <Card>
-            <CardHeader><CardTitle>Question Composition</CardTitle><CardDescription>Define how many questions to pull from each category. The total number of questions will be calculated from this.</CardDescription></CardHeader>
+            <CardHeader><CardTitle>Question Composition</CardTitle><CardDescription>Define what percentage of the total questions to pull from each category. The sum must be 100%.</CardDescription></CardHeader>
             <CardContent className="space-y-4">
               {fields.map((field, index) => (
                 <div key={field.id} className="flex items-end gap-4 p-4 border rounded-lg">
                   <FormField control={form.control} name={`composition.${index}.questionCategoryId`} render={({ field }) => (<FormItem className="flex-grow"><FormLabel>Question Category</FormLabel><Select onValueChange={field.onChange} defaultValue={field.value}><FormControl><SelectTrigger><SelectValue placeholder="Select a category" /></SelectTrigger></FormControl><SelectContent>{flatQuestionCategories.map(cat => (<SelectItem key={cat.id} value={cat.id} style={{ paddingLeft: `${1 + cat.level * 1.5}rem` }}>{cat.name}</SelectItem>))}</SelectContent></Select><FormMessage /></FormItem>)} />
-                  <FormField control={form.control} name={`composition.${index}.count`} render={({ field }) => (<FormItem className="w-24"><FormLabel>Count</FormLabel><FormControl><Input type="number" {...field} /></FormControl><FormMessage /></FormItem>)} />
+                  <FormField control={form.control} name={`composition.${index}.percentage`} render={({ field }) => (<FormItem className="w-32"><FormLabel>Percentage (%)</FormLabel><FormControl><Input type="number" {...field} /></FormControl><FormMessage /></FormItem>)} />
                   <Button type="button" variant="ghost" size="icon" onClick={() => remove(index)}><Trash2 className="h-4 w-4 text-destructive" /></Button>
                 </div>
               ))}
-              <Button type="button" variant="outline" size="sm" onClick={() => append({ questionCategoryId: '', count: 10 })}><PlusCircle className="mr-2 h-4 w-4" />Add Rule</Button>
+              <Button type="button" variant="outline" size="sm" onClick={() => append({ questionCategoryId: '', percentage: 10 })}><PlusCircle className="mr-2 h-4 w-4" />Add Rule</Button>
               <FormMessage>{form.formState.errors.composition?.message || form.formState.errors.composition?.root?.message}</FormMessage>
             </CardContent>
           </Card>

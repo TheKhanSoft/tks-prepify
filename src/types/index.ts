@@ -1,5 +1,4 @@
 
-
 export interface Category {
   id: string;
   name: string;
@@ -42,7 +41,7 @@ export interface QuestionCategory {
 
 export interface TestConfigComposition {
   questionCategoryId: string;
-  count: number;
+  percentage: number;
 }
 
 export interface TestConfig {
@@ -55,8 +54,8 @@ export interface TestConfig {
   negativeMarkValue: number; // e.g., 0.25
   marksPerQuestion: number;
   published: boolean;
+  totalQuestions: number;
   composition: TestConfigComposition[];
-  totalQuestions: number; // Auto-calculated sum of composition counts
 }
 
 
