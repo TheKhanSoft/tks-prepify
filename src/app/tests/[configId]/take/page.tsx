@@ -30,14 +30,17 @@ export default function TakeTestPage() {
     const [questions, setQuestions] = useState<PaperQuestion[]>([]);
     const [loading, setLoading] = useState(true);
     const [attemptId, setAttemptId] = useState<string | null>(null);
+    const [testStarted, setTestStarted] = useState(false);
+    const [isSubmitting, setIsSubmitting] = useState(false);
     
     const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
     const [answers, setAnswers] = useState<AnswersState>({});
     const [timeLeft, setTimeLeft] = useState(0);
 
     const handleSubmit = useCallback(async () => {
-        if (!config || questions.length === 0 || !attemptId) return;
+        if (!config || questions.length === 0 || !attemptId || isSubmitting) return;
 
+        setIsSubmitting(true);
         try {
             await submitTestAttempt(attemptId, config, questions, answers);
             router.replace(`/results/test/${attemptId}`);
@@ -48,13 +51,15 @@ export default function TakeTestPage() {
                 description: "There was an error submitting your test. Please try again.",
                 variant: "destructive"
             });
+            setIsSubmitting(false);
         }
-    }, [answers, config, questions, attemptId, router, toast]);
+    }, [answers, config, questions, attemptId, router, toast, isSubmitting]);
 
     useEffect(() => {
-        if (!slug || !user) return;
+        if (!slug || !user || testStarted) return;
 
         const loadTest = async () => {
+            setTestStarted(true);
             setLoading(true);
             try {
                 const { config: fetchedConfig, questions: fetchedQuestions } = await generateTest(slug);
@@ -77,21 +82,21 @@ export default function TakeTestPage() {
             }
         };
         loadTest();
-    }, [slug, router, toast, user]);
+    }, [slug, user, testStarted, router, toast]);
 
     useEffect(() => {
-        if (timeLeft <= 0 && !loading && questions.length > 0) {
+        if (timeLeft <= 0 && !loading && questions.length > 0 && !isSubmitting) {
             toast({ title: "Time's up!", description: "Submitting your test automatically." });
             handleSubmit();
             return;
         }
-        if (!loading) {
+        if (!loading && !isSubmitting) {
             const timer = setInterval(() => {
                 setTimeLeft((prevTime) => prevTime > 0 ? prevTime - 1 : 0);
             }, 1000);
             return () => clearInterval(timer);
         }
-    }, [timeLeft, loading, handleSubmit, questions.length, toast]);
+    }, [timeLeft, loading, handleSubmit, questions.length, toast, isSubmitting]);
 
     if (loading) {
         return (
@@ -187,23 +192,29 @@ export default function TakeTestPage() {
                 <CardFooter className="flex-col items-stretch gap-4 border-t pt-6">
                      <Progress value={progress} />
                      <div className="flex justify-between items-center">
-                        <Button variant="outline" onClick={() => setCurrentQuestionIndex(p => p - 1)} disabled={currentQuestionIndex === 0}><ArrowLeft className="mr-2 h-4 w-4" /> Previous</Button>
+                        <Button variant="outline" onClick={() => setCurrentQuestionIndex(p => p - 1)} disabled={currentQuestionIndex === 0 || isSubmitting}><ArrowLeft className="mr-2 h-4 w-4" /> Previous</Button>
                         <AlertDialog>
                             <AlertDialogTrigger asChild>
-                               <Button variant="destructive"><Flag className="mr-2 h-4 w-4" /> End Test</Button>
+                               <Button variant="destructive" disabled={isSubmitting}><Flag className="mr-2 h-4 w-4" /> End Test</Button>
                             </AlertDialogTrigger>
                             <AlertDialogContent>
                                 <AlertDialogHeader><AlertDialogTitle>Are you sure you want to end the test?</AlertDialogTitle><AlertDialogDescription>Your test will be submitted with your current answers and the timer will stop.</AlertDialogDescription></AlertDialogHeader>
                                 <AlertDialogFooter>
                                     <AlertDialogCancel>Continue Test</AlertDialogCancel>
-                                    <AlertDialogAction onClick={handleSubmit}>End Test Now</AlertDialogAction>
+                                    <AlertDialogAction onClick={handleSubmit} disabled={isSubmitting}>
+                                        {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                                        End Test Now
+                                    </AlertDialogAction>
                                 </AlertDialogFooter>
                             </AlertDialogContent>
                         </AlertDialog>
                         {currentQuestionIndex < questions.length - 1 ? (
-                            <Button onClick={() => setCurrentQuestionIndex(p => p + 1)}>Next <ArrowRight className="ml-2 h-4 w-4" /></Button>
+                            <Button onClick={() => setCurrentQuestionIndex(p => p + 1)} disabled={isSubmitting}>Next <ArrowRight className="ml-2 h-4 w-4" /></Button>
                         ) : (
-                            <Button onClick={handleSubmit}>Submit Test</Button>
+                            <Button onClick={handleSubmit} disabled={isSubmitting}>
+                                {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                                Submit Test
+                            </Button>
                         )}
                      </div>
                 </CardFooter>
