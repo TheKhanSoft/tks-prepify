@@ -6,6 +6,7 @@ import { useAuth } from '@/hooks/use-auth';
 import { getUserProfile, fetchUserPlanHistory } from '@/lib/user-service';
 import { fetchPlans } from '@/lib/plan-service';
 import { countActiveBookmarks } from '@/lib/bookmark-service';
+import { countMonthlyDownloads } from '@/lib/download-service';
 import type { Plan, User as UserProfile, UserPlan } from '@/types';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from "@/components/ui/card";
 import { Button } from '@/components/ui/button';
@@ -30,15 +31,16 @@ export default function SubscriptionPage() {
             const loadData = async () => {
                 setLoading(true);
                 try {
-                    const [profile, plans, history, bookmarkCount] = await Promise.all([
+                    const [profile, plans, history, bookmarkCount, downloadCount] = await Promise.all([
                         getUserProfile(user.uid),
                         fetchPlans(),
                         fetchUserPlanHistory(user.uid),
-                        countActiveBookmarks(user.uid)
+                        countActiveBookmarks(user.uid),
+                        countMonthlyDownloads(user.uid)
                     ]);
                     setUserProfile(profile);
                     setPlanHistory(history);
-                    setUsage({ bookmarks: bookmarkCount });
+                    setUsage({ bookmarks: bookmarkCount, downloads: downloadCount });
 
                     if (profile) {
                         const currentPlan = plans.find(p => p.id === profile.planId);
