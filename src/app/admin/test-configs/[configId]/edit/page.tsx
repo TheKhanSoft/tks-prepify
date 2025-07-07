@@ -1,0 +1,180 @@
+
+"use client";
+
+import { useForm, useFieldArray, useWatch } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import * as z from "zod";
+import { useRouter, useParams } from "next/navigation";
+import { Button } from "@/components/ui/button";
+import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
+import { Input } from "@/components/ui/input";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Textarea } from "@/components/ui/textarea";
+import { useToast } from "@/hooks/use-toast";
+import { ArrowLeft, Loader2, PlusCircle, Trash2 } from "lucide-react";
+import { useState, useEffect, useMemo } from "react";
+import { Switch } from "@/components/ui/switch";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { getTestConfigById, updateTestConfig } from "@/lib/test-config-service";
+import { fetchQuestionCategories } from "@/lib/question-category-service";
+import { getFlattenedQuestionCategories } from "@/lib/question-category-helpers";
+import type { QuestionCategory, TestConfig } from "@/types";
+
+const compositionRuleSchema = z.object({
+  questionCategoryId: z.string().min(1, "Please select a category."),
+  count: z.coerce.number().min(1, "Count must be at least 1."),
+});
+
+const testConfigSchema = z.object({
+  name: z.string().min(3, "Name must be at least 3 characters."),
+  description: z.string().min(10, "Description is required."),
+  duration: z.coerce.number().int().min(1, "Duration must be at least 1 minute."),
+  passingMarks: z.coerce.number().min(0).max(100, "Passing marks must be between 0 and 100."),
+  marksPerQuestion: z.coerce.number().min(0, "Marks must be a non-negative number."),
+  hasNegativeMarking: z.boolean().default(false),
+  negativeMarkValue: z.coerce.number().min(0).optional(),
+  published: z.boolean().default(false),
+  composition: z.array(compositionRuleSchema).min(1, "At least one question rule is required."),
+}).refine(data => {
+    if (data.hasNegativeMarking) {
+        return data.negativeMarkValue !== undefined && data.negativeMarkValue > 0;
+    }
+    return true;
+}, {
+    message: "Negative mark value is required and must be positive if negative marking is enabled.",
+    path: ["negativeMarkValue"],
+});
+
+type TestConfigFormValues = z.infer<typeof testConfigSchema>;
+
+export default function EditTestConfigPage() {
+  const router = useRouter();
+  const params = useParams();
+  const configId = params.configId as string;
+  const { toast } = useToast();
+  const [loading, setLoading] = useState(true);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [questionCategories, setQuestionCategories] = useState<QuestionCategory[]>([]);
+
+  const form = useForm<TestConfigFormValues>({
+    resolver: zodResolver(testConfigSchema),
+  });
+
+  const { fields, append, remove } = useFieldArray({
+    control: form.control,
+    name: "composition",
+  });
+  
+  const hasNegativeMarking = useWatch({
+    control: form.control,
+    name: "hasNegativeMarking"
+  });
+
+  useEffect(() => {
+    const loadData = async () => {
+      if (!configId) return;
+      setLoading(true);
+      try {
+        const [configData, questionCats] = await Promise.all([
+          getTestConfigById(configId),
+          fetchQuestionCategories()
+        ]);
+        
+        if (configData) {
+          form.reset(configData);
+        } else {
+          toast({ title: "Error", description: "Test Configuration not found.", variant: "destructive" });
+          router.push('/admin/test-configs');
+        }
+        setQuestionCategories(questionCats);
+      } catch (error) {
+        toast({ title: "Error", description: "Failed to load data.", variant: "destructive" });
+      } finally {
+        setLoading(false);
+      }
+    };
+    loadData();
+  }, [configId, form, router, toast]);
+
+  async function onSubmit(data: TestConfigFormValues) {
+    setIsSubmitting(true);
+    const totalQuestions = data.composition.reduce((sum, rule) => sum + rule.count, 0);
+    
+    const finalData = {
+        ...data,
+        negativeMarkValue: data.hasNegativeMarking ? data.negativeMarkValue : 0,
+        totalQuestions,
+    };
+
+    try {
+      await updateTestConfig(configId, finalData);
+      toast({ title: "Success", description: "Test configuration has been updated." });
+      router.push("/admin/test-configs");
+      router.refresh();
+    } catch (error) {
+      toast({ title: "Error", description: "Failed to update configuration.", variant: "destructive" });
+    } finally {
+      setIsSubmitting(false);
+    }
+  }
+
+  const flatQuestionCategories = useMemo(() => getFlattenedQuestionCategories(questionCategories), [questionCategories]);
+  const currentConfigName = form.getValues('name');
+
+  if (loading) {
+    return <div className="flex justify-center items-center h-full min-h-[calc(100vh-20rem)]"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>;
+  }
+
+  return (
+    <div className="space-y-6 max-w-4xl">
+      <div>
+        <Button variant="outline" onClick={() => router.back()} disabled={isSubmitting}>
+          <ArrowLeft className="mr-2 h-4 w-4" />
+          Back to Test Configs
+        </Button>
+      </div>
+      <Form {...form}>
+        <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
+          <Card>
+            <CardHeader><CardTitle>Edit Test Configuration: {currentConfigName}</CardTitle><CardDescription>Update the blueprint for generating dynamic tests.</CardDescription></CardHeader>
+            <CardContent className="space-y-6">
+              <FormField control={form.control} name="name" render={({ field }) => (<FormItem><FormLabel>Configuration Name</FormLabel><FormControl><Input {...field} placeholder="e.g., GAT-A Full Length Test" /></FormControl><FormMessage /></FormItem>)} />
+              <FormField control={form.control} name="description" render={({ field }) => (<FormItem><FormLabel>Description</FormLabel><FormControl><Textarea {...field} placeholder="A brief description of this test." /></FormControl><FormMessage /></FormItem>)} />
+              <FormField control={form.control} name="published" render={({ field }) => (<FormItem className="flex flex-row items-center justify-between rounded-lg border p-4"><div className="space-y-0.5"><FormLabel>Published</FormLabel><FormDescription>Published tests will be available for users to take.</FormDescription></div><FormControl><Switch checked={field.value} onCheckedChange={field.onChange} /></FormControl></FormItem>)} />
+            </CardContent>
+          </Card>
+          <Card>
+            <CardHeader><CardTitle>Marking & Duration</CardTitle></CardHeader>
+            <CardContent className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              <FormField control={form.control} name="duration" render={({ field }) => (<FormItem><FormLabel>Duration (minutes)</FormLabel><FormControl><Input type="number" {...field} /></FormControl><FormMessage /></FormItem>)} />
+              <FormField control={form.control} name="passingMarks" render={({ field }) => (<FormItem><FormLabel>Passing Marks (%)</FormLabel><FormControl><Input type="number" {...field} /></FormControl><FormMessage /></FormItem>)} />
+              <FormField control={form.control} name="marksPerQuestion" render={({ field }) => (<FormItem><FormLabel>Marks per Question</FormLabel><FormControl><Input type="number" step="0.5" {...field} /></FormControl><FormMessage /></FormItem>)} />
+            </CardContent>
+             <CardContent>
+                <FormField control={form.control} name="hasNegativeMarking" render={({ field }) => (<FormItem className="flex flex-row items-center justify-between rounded-lg border p-4"><div className="space-y-0.5"><FormLabel>Enable Negative Marking</FormLabel></div><FormControl><Switch checked={field.value} onCheckedChange={field.onChange} /></FormControl></FormItem>)} />
+                {hasNegativeMarking && (<div className="p-4 border-t"><FormField control={form.control} name="negativeMarkValue" render={({ field }) => (<FormItem><FormLabel>Negative Marks per Question</FormLabel><FormControl><Input type="number" step="0.25" {...field} value={field.value || ''} /></FormControl><FormMessage /></FormItem>)} /></div>)}
+            </CardContent>
+          </Card>
+          <Card>
+            <CardHeader><CardTitle>Question Composition</CardTitle><CardDescription>Define how many questions to pull from each category. The total number of questions will be calculated from this.</CardDescription></CardHeader>
+            <CardContent className="space-y-4">
+              {fields.map((field, index) => (
+                <div key={field.id} className="flex items-end gap-4 p-4 border rounded-lg">
+                  <FormField control={form.control} name={`composition.${index}.questionCategoryId`} render={({ field }) => (<FormItem className="flex-grow"><FormLabel>Question Category</FormLabel><Select onValueChange={field.onChange} defaultValue={field.value}><FormControl><SelectTrigger><SelectValue placeholder="Select a category" /></SelectTrigger></FormControl><SelectContent>{flatQuestionCategories.map(cat => (<SelectItem key={cat.id} value={cat.id} style={{ paddingLeft: `${1 + cat.level * 1.5}rem` }}>{cat.name}</SelectItem>))}</SelectContent></Select><FormMessage /></FormItem>)} />
+                  <FormField control={form.control} name={`composition.${index}.count`} render={({ field }) => (<FormItem className="w-24"><FormLabel>Count</FormLabel><FormControl><Input type="number" {...field} /></FormControl><FormMessage /></FormItem>)} />
+                  <Button type="button" variant="ghost" size="icon" onClick={() => remove(index)}><Trash2 className="h-4 w-4 text-destructive" /></Button>
+                </div>
+              ))}
+              <Button type="button" variant="outline" size="sm" onClick={() => append({ questionCategoryId: '', count: 10 })}><PlusCircle className="mr-2 h-4 w-4" />Add Rule</Button>
+              <FormMessage>{form.formState.errors.composition?.message || form.formState.errors.composition?.root?.message}</FormMessage>
+            </CardContent>
+          </Card>
+          <div className="flex justify-end gap-4">
+            <Button type="button" variant="outline" onClick={() => router.push('/admin/test-configs')} disabled={isSubmitting}>Cancel</Button>
+            <Button type="submit" disabled={isSubmitting}>{isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}Save Changes</Button>
+          </div>
+        </form>
+      </Form>
+    </div>
+  );
+}

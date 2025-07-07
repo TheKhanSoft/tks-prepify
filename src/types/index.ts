@@ -40,6 +40,25 @@ export interface QuestionCategory {
   subcategories?: QuestionCategory[];
 }
 
+export interface TestConfigComposition {
+  questionCategoryId: string;
+  count: number;
+}
+
+export interface TestConfig {
+  id: string;
+  name: string;
+  description: string;
+  duration: number; // in minutes
+  passingMarks: number; // as a percentage, e.g., 50 for 50%
+  hasNegativeMarking: boolean;
+  negativeMarkValue: number; // e.g., 0.25
+  marksPerQuestion: number;
+  published: boolean;
+  composition: TestConfigComposition[];
+  totalQuestions: number; // Auto-calculated sum of composition counts
+}
+
 
 export interface Question {
   id: string;
