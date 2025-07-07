@@ -109,16 +109,16 @@ export default function AdminUsersPage() {
                 filteredUsers.map((user) => (
                   <TableRow key={user.id}>
                     <TableCell>
-                      <div className="flex items-center gap-3">
+                      <Link href={`/admin/users/${user.id}/subscription`} className="flex items-center gap-3 group">
                          <Avatar className="h-9 w-9">
                             <AvatarImage src={user.photoURL || undefined} alt={user.name || "User"} data-ai-hint="user avatar" />
                             <AvatarFallback>{user.name?.charAt(0) || user.email?.charAt(0)}</AvatarFallback>
                         </Avatar>
                         <div>
-                            <div className="font-medium">{user.name || "N/A"}</div>
+                            <div className="font-medium group-hover:underline">{user.name || "N/A"}</div>
                             <div className="text-sm text-muted-foreground">{user.email}</div>
                         </div>
-                      </div>
+                      </Link>
                     </TableCell>
                     <TableCell>
                       <Badge variant="outline">{plansMap.get(user.planId) || "No Plan"}</Badge>
