@@ -8,7 +8,6 @@ import {
   getDocs,
   addDoc,
   serverTimestamp,
-  getCountFromServer,
   Timestamp,
   DocumentData,
 } from 'firebase/firestore';
@@ -39,17 +38,28 @@ const docToDownload = (doc: DocumentData): Download => {
  */
 export async function countMonthlyDownloads(userId: string): Promise<number> {
     if (!userId) return 0;
-    
+
     const now = new Date();
     const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
 
+    // Fetch all download records for the user to avoid needing a composite index.
+    // This is less efficient at scale but works without database index configuration.
     const downloadsQuery = query(
         collection(db, 'downloads'),
-        where('userId', '==', userId),
-        where('createdAt', '>=', startOfMonth)
+        where('userId', '==', userId)
     );
-    const snapshot = await getCountFromServer(downloadsQuery);
-    return snapshot.data().count;
+    const snapshot = await getDocs(downloadsQuery);
+
+    let count = 0;
+    snapshot.forEach(doc => {
+        const data = doc.data();
+        // Filter in-memory by comparing dates
+        if (data.createdAt && data.createdAt.toDate() >= startOfMonth) {
+            count++;
+        }
+    });
+    
+    return count;
 }
 
 
