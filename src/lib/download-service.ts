@@ -36,25 +36,34 @@ const docToDownload = (doc: DocumentData): Download => {
 /**
  * Counts the number of downloads for a user within a given period.
  * This function avoids needing a composite index by filtering in memory.
+ * Date calculations are performed in UTC to align with Firestore timestamps.
  */
 export async function countDownloadsForPeriod(userId: string, period: QuotaPeriod): Promise<number> {
-    if (!userId || period === 'lifetime') return 0; // Lifetime usage is not based on creation date but total count.
+    if (!userId || period === 'lifetime') return 0;
 
     const now = new Date();
     let startDate: Date;
 
+    // Get components in UTC to create a UTC-based start date
+    const yearUTC = now.getUTCFullYear();
+    const monthUTC = now.getUTCMonth();
+    const dateUTC = now.getUTCDate();
+
     switch (period) {
         case 'daily':
-            startDate = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+            // Start of the current day in UTC
+            startDate = new Date(Date.UTC(yearUTC, monthUTC, dateUTC, 0, 0, 0, 0));
             break;
         case 'monthly':
-            startDate = new Date(now.getFullYear(), now.getMonth(), 1);
+            // Start of the current month in UTC
+            startDate = new Date(Date.UTC(yearUTC, monthUTC, 1, 0, 0, 0, 0));
             break;
         case 'yearly':
-            startDate = new Date(now.getFullYear(), 0, 1);
+            // Start of the current year in UTC
+            startDate = new Date(Date.UTC(yearUTC, 0, 1, 0, 0, 0, 0));
             break;
         default:
-             startDate = new Date(0); // Should not happen with typed period
+             startDate = new Date(0); // Should not happen
     }
     
     const downloadsQuery = query(
@@ -66,6 +75,7 @@ export async function countDownloadsForPeriod(userId: string, period: QuotaPerio
     let count = 0;
     snapshot.forEach(doc => {
         const data = doc.data();
+        // Firestore Timestamps are timezone-agnostic and can be directly compared to JS Dates
         if (data.createdAt && data.createdAt.toDate() >= startDate) {
             count++;
         }
@@ -76,7 +86,7 @@ export async function countDownloadsForPeriod(userId: string, period: QuotaPerio
 
 
 /**
- * Checks if a user can download based on their plan quota and records the download if they can.
+ * Checks if a user can download based on ALL their plan quotas and records the download if they can.
  */
 export async function checkAndRecordDownload(
     userId: string,
@@ -84,15 +94,18 @@ export async function checkAndRecordDownload(
     plan: Plan,
 ): Promise<{ success: boolean; message: string; }> {
 
-    const downloadFeature = plan.features.find(f => f.key === 'downloads');
+    const downloadFeatures = plan.features.filter(f => f.key === 'downloads');
     
-    if (!downloadFeature) {
+    if (downloadFeatures.length === 0) {
         return { success: false, message: "Your current plan does not include paper downloads." };
     }
+    
+    const quotaFeatures = downloadFeatures.filter(f => f.isQuota);
 
-    if (downloadFeature.isQuota) {
-        const quotaLimit = downloadFeature.limit ?? 0;
-        const period = downloadFeature.period ?? 'monthly';
+    // Check every download-related quota
+    for (const feature of quotaFeatures) {
+        const quotaLimit = feature.limit ?? 0;
+        const period = feature.period ?? 'monthly';
 
         if (quotaLimit !== -1) { // -1 means unlimited
             const downloadsThisPeriod = await countDownloadsForPeriod(userId, period);
@@ -102,7 +115,7 @@ export async function checkAndRecordDownload(
         }
     }
     
-    // Quota check passed, or feature is included without quota. Record the download.
+    // All quota checks passed, or the feature is non-quota based. Record the download.
     const downloadsCol = collection(db, 'downloads');
     await addDoc(downloadsCol, {
         userId,
