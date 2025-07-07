@@ -21,7 +21,7 @@ import type { Question } from '@/types';
 // Combined type for a question within a paper context
 export type PaperQuestion = Question & { order: number; linkId: string };
 
-function docToQuestion(doc: DocumentData): Question {
+export function docToQuestion(doc: DocumentData): Question {
   const data = doc.data();
   return {
     id: doc.id,

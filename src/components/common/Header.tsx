@@ -2,7 +2,7 @@
 "use client";
 
 import Link from "next/link";
-import { BookOpen, Globe, Search, User, Menu, Wrench, LogOut, LayoutDashboard } from "lucide-react";
+import { BookOpen, Globe, Search, User, Menu, Wrench, LogOut, LayoutDashboard, TestTube } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator, DropdownMenuLabel } from "@/components/ui/dropdown-menu";
@@ -44,6 +44,7 @@ export function Header({ settings }: { settings: Settings }) {
   const navLinks = [
     { href: "/", label: "Home" },
     { href: "/papers", label: "Papers" },
+    { href: "/tests", label: "Tests" },
     { href: "/categories", label: "Categories" },
     { href: "/pricing", label: "Pricing" },
     { href: "/about", label: "About" },

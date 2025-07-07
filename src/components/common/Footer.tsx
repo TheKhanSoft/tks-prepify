@@ -47,9 +47,9 @@ export function Footer({ settings }: { settings: Settings }) {
               <h3 className="font-semibold mb-2">Platform</h3>
               <ul className="space-y-2 text-muted-foreground">
                 <li><Link href="/papers" className="hover:text-primary">Papers</Link></li>
+                <li><Link href="/tests" className="hover:text-primary">Practice Tests</Link></li>
                 <li><Link href="/categories" className="hover:text-primary">Categories</Link></li>
                 <li><Link href="/pricing" className="hover:text-primary">Pricing</Link></li>
-                <li><Link href="/papers" className="hover:text-primary">Take an Exam</Link></li>
                 {!user && (
                   <li><Link href="/signup" className="hover:text-primary">Sign Up</Link></li>
                 )}
