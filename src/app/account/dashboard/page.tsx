@@ -5,7 +5,7 @@ import { useAuth } from '@/hooks/use-auth';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
 import { ArrowRight, BookCheck, Star, Loader2 } from 'lucide-react';
 import Link from 'next/link';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useMemo } from 'react';
 import type { Plan, User as UserProfile, TestAttempt } from '@/types';
 import { getUserProfile } from '@/lib/user-service';
 import { fetchPlans } from '@/lib/plan-service';
@@ -52,8 +52,10 @@ export default function AccountDashboardPage() {
         }
     }, [user, authLoading]);
 
-    const averageScore = attempts.length > 0
-        ? (attempts.reduce((acc, attempt) => acc + attempt.percentage, 0) / attempts.length)
+    const completedAttempts = useMemo(() => attempts.filter(a => a.status === 'completed'), [attempts]);
+
+    const averageScore = completedAttempts.length > 0
+        ? (completedAttempts.reduce((acc, attempt) => acc + attempt.percentage, 0) / completedAttempts.length)
         : null;
 
     if (authLoading || loading) {
@@ -99,8 +101,8 @@ export default function AccountDashboardPage() {
                         </CardTitle>
                     </CardHeader>
                     <CardContent>
-                        <div className="text-4xl font-bold">{attempts.length}</div>
-                        <p className="text-xs text-muted-foreground">You have completed {attempts.length} papers.</p>
+                        <div className="text-4xl font-bold">{completedAttempts.length}</div>
+                        <p className="text-xs text-muted-foreground">You have completed {completedAttempts.length} papers.</p>
                     </CardContent>
                 </Card>
                 <Card>
@@ -123,7 +125,7 @@ export default function AccountDashboardPage() {
                     <CardDescription>Review your most recently completed tests.</CardDescription>
                 </CardHeader>
                 <CardContent>
-                   {attempts.length > 0 ? (
+                   {completedAttempts.length > 0 ? (
                          <Table>
                             <TableHeader>
                                 <TableRow>
@@ -134,7 +136,7 @@ export default function AccountDashboardPage() {
                                 </TableRow>
                             </TableHeader>
                             <TableBody>
-                                {attempts.slice(0, 3).map(attempt => (
+                                {completedAttempts.slice(0, 3).map(attempt => (
                                      <TableRow key={attempt.id}>
                                         <TableCell className="font-medium">{attempt.testConfigName}</TableCell>
                                         <TableCell>{attempt.score.toFixed(2)} / {attempt.totalMarks}</TableCell>

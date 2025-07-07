@@ -14,6 +14,20 @@ import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
+const StatusBadge = ({ attempt }: { attempt: TestAttempt }) => {
+    if (attempt.status === 'completed') {
+        return (
+            <Badge variant={attempt.passed ? "default" : "destructive"} className={cn(attempt.passed && "bg-green-600 hover:bg-green-700")}>
+                {attempt.passed ? "Passed" : "Failed"}
+            </Badge>
+        );
+    }
+    if (attempt.status === 'in-progress') {
+        return <Badge variant="secondary">In Progress</Badge>;
+    }
+    return <Badge variant="outline">{attempt.status}</Badge>;
+};
+
 export default function ResultsPage() {
     const { user, loading: authLoading } = useAuth();
     const [attempts, setAttempts] = useState<TestAttempt[]>([]);
@@ -42,7 +56,7 @@ export default function ResultsPage() {
         <div className="space-y-6">
             <div>
                 <h1 className="text-3xl font-bold">My Results</h1>
-                <p className="text-muted-foreground">A history of all the tests you've completed.</p>
+                <p className="text-muted-foreground">A history of all the tests you've completed or started.</p>
             </div>
             <Card>
                 <CardHeader>
@@ -57,7 +71,7 @@ export default function ResultsPage() {
                                     <TableHead>Test Name</TableHead>
                                     <TableHead>Score</TableHead>
                                     <TableHead>Status</TableHead>
-                                    <TableHead>Date</TableHead>
+                                    <TableHead>Taken On</TableHead>
                                     <TableHead><span className="sr-only">Actions</span></TableHead>
                                 </TableRow>
                             </TableHeader>
@@ -65,19 +79,23 @@ export default function ResultsPage() {
                                 {attempts.map(attempt => (
                                     <TableRow key={attempt.id}>
                                         <TableCell className="font-medium">{attempt.testConfigName}</TableCell>
-                                        <TableCell>{attempt.score.toFixed(2)} / {attempt.totalMarks}</TableCell>
+                                        <TableCell>{attempt.status === 'completed' ? `${attempt.score.toFixed(2)} / ${attempt.totalMarks}`: 'N/A'}</TableCell>
                                         <TableCell>
-                                            <Badge variant={attempt.passed ? "default" : "destructive"} className={cn(attempt.passed && "bg-green-600 hover:bg-green-700")}>
-                                                {attempt.passed ? "Passed" : "Failed"}
-                                            </Badge>
+                                            <StatusBadge attempt={attempt} />
                                         </TableCell>
-                                        <TableCell>{attempt.endTime ? format(new Date(attempt.endTime), "PPP") : 'N/A'}</TableCell>
+                                        <TableCell>{attempt.startTime ? format(new Date(attempt.startTime), "PPP") : 'N/A'}</TableCell>
                                         <TableCell className="text-right">
-                                            <Button asChild variant="ghost" size="sm">
-                                                <Link href={`/results/test/${attempt.id}`}>
+                                            {attempt.status === 'completed' ? (
+                                                <Button asChild variant="ghost" size="sm">
+                                                    <Link href={`/results/test/${attempt.id}`}>
+                                                        View Details <ChevronRight className="h-4 w-4 ml-2" />
+                                                    </Link>
+                                                </Button>
+                                            ) : (
+                                                <Button variant="ghost" size="sm" disabled>
                                                     View Details <ChevronRight className="h-4 w-4 ml-2" />
-                                                </Link>
-                                            </Button>
+                                                </Button>
+                                            )}
                                         </TableCell>
                                     </TableRow>
                                 ))}

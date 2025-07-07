@@ -34,6 +34,7 @@ export async function startTestAttempt(
     userId,
     testConfigId: config.id,
     testConfigName: config.name,
+    testConfigSlug: config.slug,
     startTime: serverTimestamp(),
     endTime: null,
     status: 'in-progress',
@@ -134,6 +135,7 @@ function docToTestAttempt(doc: DocumentData): TestAttempt {
     userId: data.userId,
     testConfigId: data.testConfigId,
     testConfigName: data.testConfigName,
+    testConfigSlug: data.testConfigSlug,
     startTime: serializeDate(data.startTime)!,
     endTime: serializeDate(data.endTime),
     status: data.status,
@@ -185,7 +187,7 @@ export async function getTestAttemptById(attemptId: string): Promise<TestAttempt
 }
 
 /**
- * Fetches all completed test attempts for a given user.
+ * Fetches all test attempts for a given user, regardless of status.
  */
 export async function fetchTestAttemptsForUser(userId: string): Promise<TestAttempt[]> {
     if (!userId) return [];
@@ -193,18 +195,16 @@ export async function fetchTestAttemptsForUser(userId: string): Promise<TestAtte
     const attemptsCol = collection(db, 'test_attempts');
     const q = query(
         attemptsCol,
-        where('userId', '==', userId),
-        where('status', '==', 'completed')
-        // NOTE: orderBy removed to avoid needing a composite index. Sorting is done in-memory.
+        where('userId', '==', userId)
     );
     const snapshot = await getDocs(q);
     const attempts = snapshot.docs.map(docToTestAttempt);
 
-    // Sort by end time descending in code.
+    // Sort by start time descending to show most recent tests first.
     attempts.sort((a, b) => {
-        if (!a.endTime) return 1;
-        if (!b.endTime) return -1;
-        return new Date(b.endTime).getTime() - new Date(a.endTime).getTime();
+        if (!a.startTime) return 1;
+        if (!b.startTime) return -1;
+        return new Date(b.startTime).getTime() - new Date(a.startTime).getTime();
     });
 
     return attempts;

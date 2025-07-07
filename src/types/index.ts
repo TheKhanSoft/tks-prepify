@@ -239,6 +239,7 @@ export interface TestAttempt {
   userId: string;
   testConfigId: string;
   testConfigName: string; // Denormalized for easy display
+  testConfigSlug?: string;
   startTime: string; // ISO string
   endTime: string | null; // ISO string
   status: 'in-progress' | 'completed';
