@@ -9,7 +9,6 @@ import {
   serverTimestamp,
   Timestamp,
   DocumentData,
-  getCountFromServer,
   limit,
   getDocs,
 } from 'firebase/firestore';
@@ -22,6 +21,9 @@ import {
   addWeeks,
   addMonths,
   addYears,
+  differenceInWeeks,
+  differenceInMonths,
+  differenceInYears,
   isAfter,
 } from 'date-fns';
 
@@ -46,7 +48,7 @@ const docToDownload = (doc: DocumentData): Download => {
 
 /**
  * Counts the number of downloads for a user within a given period.
- * This function relies on a composite Firestore index on (userId, createdAt).
+ * This function fetches all user downloads and filters in memory to avoid needing a composite index.
  */
 export async function countDownloadsForPeriod(
   userId: string,
@@ -56,53 +58,57 @@ export async function countDownloadsForPeriod(
   if (!userId) {
     throw new Error('User ID is required.');
   }
-  
+
   const now = new Date();
-  const subscriptionStart = subscriptionDate;
+  const subscriptionStart = startOfDay(subscriptionDate);
 
   let startDate: Date;
-  let resetDate: Date | null;
+  let resetDate: Date | null = null;
 
-  if (period === 'daily') {
-      startDate = startOfDay(now);
-      resetDate = addDays(startDate, 1);
-  } else if (period === 'lifetime') {
-      startDate = new Date(0); // The beginning of time for querying all downloads
-      resetDate = null; // No reset for lifetime
+  if (period === 'lifetime') {
+    startDate = new Date(0); // The beginning of time for querying all downloads
+    resetDate = null; // No reset for lifetime
+  } else if (period === 'daily') {
+    startDate = startOfDay(now);
+    resetDate = addDays(startDate, 1);
   } else {
-      // For weekly, monthly, and yearly, we need to find the start of the current cycle
-      // relative to the user's subscription date.
-      let currentCycleStart = startOfDay(subscriptionStart);
-      let nextCycleStart;
-
-      while (true) {
-          if (period === 'weekly') {
-              nextCycleStart = addWeeks(currentCycleStart, 1);
-          } else if (period === 'monthly') {
-              nextCycleStart = addMonths(currentCycleStart, 1);
-          } else { // 'yearly'
-              nextCycleStart = addYears(currentCycleStart, 1);
-          }
-
-          if (isAfter(nextCycleStart, now)) {
-              // The current date is within the cycle that started at `currentCycleStart`.
-              // The loop breaks, and `currentCycleStart` is our `startDate`.
-              break;
-          }
-          currentCycleStart = nextCycleStart;
-      }
-      startDate = currentCycleStart;
-      resetDate = nextCycleStart;
+    // Logic for weekly, monthly, yearly based on subscription date
+    let difference = 0;
+    if (period === 'weekly') {
+      difference = differenceInWeeks(now, subscriptionStart, { roundingMethod: 'floor' });
+      startDate = addWeeks(subscriptionStart, difference);
+      resetDate = addWeeks(startDate, 1);
+    } else if (period === 'monthly') {
+      difference = differenceInMonths(now, subscriptionStart);
+      startDate = addMonths(subscriptionStart, difference);
+      resetDate = addMonths(startDate, 1);
+    } else { // 'yearly'
+      difference = differenceInYears(now, subscriptionStart);
+      startDate = addYears(subscriptionStart, difference);
+      resetDate = addYears(startDate, 1);
+    }
   }
-    
+  
+  // Fetch all downloads for the user (avoids composite index)
   const downloadsQuery = query(
     collection(db, 'downloads'),
-    where('userId', '==', userId),
-    where('createdAt', '>=', startDate)
+    where('userId', '==', userId)
   );
+  
+  const snapshot = await getDocs(downloadsQuery);
+  if (snapshot.empty) {
+    return { count: 0, resetDate };
+  }
+  
+  const allDownloads = snapshot.docs.map(docToDownload);
 
-  const snapshot = await getCountFromServer(downloadsQuery);
-  return { count: snapshot.data().count, resetDate };
+  // Filter in memory based on the calculated start date
+  const downloadsThisPeriod = allDownloads.filter(download => {
+    const downloadDate = new Date(download.createdAt);
+    return isAfter(downloadDate, startDate) || downloadDate.getTime() === startDate.getTime();
+  });
+  
+  return { count: downloadsThisPeriod.length, resetDate };
 }
 
 
