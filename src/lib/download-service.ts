@@ -5,11 +5,11 @@ import {
   collection,
   query,
   where,
-  getDocs,
   addDoc,
   serverTimestamp,
   Timestamp,
   DocumentData,
+  getCountFromServer,
 } from 'firebase/firestore';
 import { db } from './firebase';
 import type { Plan, Download, QuotaPeriod } from '@/types';
@@ -35,8 +35,8 @@ const docToDownload = (doc: DocumentData): Download => {
 
 /**
  * Counts the number of downloads for a user within a given period.
- * This function avoids needing a composite index by filtering in memory.
- * Date calculations are performed in UTC to align with Firestore timestamps.
+ * This function relies on a composite Firestore index on (userId, createdAt).
+ * If you get a FAILED_PRECONDITION error, please create the index using the link in the browser console.
  */
 export async function countDownloadsForPeriod(userId: string, period: QuotaPeriod): Promise<number> {
     if (!userId || period === 'lifetime') return 0;
@@ -44,44 +44,34 @@ export async function countDownloadsForPeriod(userId: string, period: QuotaPerio
     const now = new Date();
     let startDate: Date;
 
-    // Get components in UTC to create a UTC-based start date
+    // Get components in UTC to create a UTC-based start date, ensuring timezone consistency
     const yearUTC = now.getUTCFullYear();
     const monthUTC = now.getUTCMonth();
     const dateUTC = now.getUTCDate();
 
     switch (period) {
         case 'daily':
-            // Start of the current day in UTC
             startDate = new Date(Date.UTC(yearUTC, monthUTC, dateUTC, 0, 0, 0, 0));
             break;
         case 'monthly':
-            // Start of the current month in UTC
             startDate = new Date(Date.UTC(yearUTC, monthUTC, 1, 0, 0, 0, 0));
             break;
         case 'yearly':
-            // Start of the current year in UTC
             startDate = new Date(Date.UTC(yearUTC, 0, 1, 0, 0, 0, 0));
             break;
         default:
-             startDate = new Date(0); // Should not happen
+            return 0; // Should not be hit with valid types
     }
     
+    // This query requires a composite index on (userId, createdAt).
     const downloadsQuery = query(
         collection(db, 'downloads'),
-        where('userId', '==', userId)
+        where('userId', '==', userId),
+        where('createdAt', '>=', startDate)
     );
-    const snapshot = await getDocs(downloadsQuery);
 
-    let count = 0;
-    snapshot.forEach(doc => {
-        const data = doc.data();
-        // Firestore Timestamps are timezone-agnostic and can be directly compared to JS Dates
-        if (data.createdAt && data.createdAt.toDate() >= startDate) {
-            count++;
-        }
-    });
-    
-    return count;
+    const snapshot = await getCountFromServer(downloadsQuery);
+    return snapshot.data().count;
 }
 
 

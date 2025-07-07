@@ -44,16 +44,15 @@ export default function SubscriptionPage() {
                         setPlan(currentPlan || null);
 
                         if (currentPlan) {
-                            // Dynamically calculate usage based on the plan's quota features
                             const usageData: Record<string, number> = {};
                             for (const feature of currentPlan.features) {
                                 if (feature.isQuota && feature.key) {
+                                    const usageKey = feature.key + (feature.period ? `_${feature.period}` : '');
                                     if (feature.key === 'bookmarks') {
-                                        usageData[feature.key] = await countActiveBookmarks(user.uid);
+                                        usageData[usageKey] = await countActiveBookmarks(user.uid);
                                     } else if (feature.key === 'downloads' && feature.period) {
-                                        usageData[feature.key] = await countDownloadsForPeriod(user.uid, feature.period);
+                                        usageData[usageKey] = await countDownloadsForPeriod(user.uid, feature.period);
                                     }
-                                    // Extend here for other future quota types
                                 }
                             }
                             setUsage(usageData);
@@ -126,13 +125,14 @@ export default function SubscriptionPage() {
                      <div className="space-y-6 rounded-lg border bg-muted/50 p-6">
                         <h4 className="font-semibold text-lg">Current Usage</h4>
                          {quotaFeatures.length > 0 ? (
-                            quotaFeatures.map((feature) => {
+                            quotaFeatures.map((feature, index) => {
                                 const limit = feature.limit ?? 0;
-                                const used = usage[feature.key || ''] || 0;
+                                const usageKey = (feature.key || '') + (feature.period ? `_${feature.period}` : '');
+                                const used = usage[usageKey] || 0;
                                 const percentage = limit > 0 ? (used / limit) * 100 : (limit === -1 ? 100 : 0);
 
                                 return (
-                                    <div key={feature.key}>
+                                    <div key={index}>
                                         <div className="flex justify-between items-center mb-1">
                                             <p className="font-medium text-sm">{feature.text}</p>
                                             <p className="text-xs text-muted-foreground">
