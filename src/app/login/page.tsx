@@ -2,7 +2,7 @@
 'use client';
 
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
@@ -29,6 +29,7 @@ type LoginFormValues = z.infer<typeof loginFormSchema>;
 
 export default function LoginPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { toast } = useToast();
   const [loading, setLoading] = useState(false);
   const [googleLoading, setGoogleLoading] = useState(false);
@@ -49,7 +50,8 @@ export default function LoginPage() {
     try {
       await signInWithPopup(auth, provider);
       toast({ title: "Login Successful", description: "Welcome back!" });
-      router.push('/account/dashboard');
+      const redirectUrl = searchParams.get('redirect');
+      router.push(redirectUrl || '/account/dashboard');
     } catch (error: any) {
       console.error(error);
       toast({ title: "Login Failed", description: error.message, variant: "destructive" });
@@ -63,7 +65,8 @@ export default function LoginPage() {
     try {
       await signInWithEmailAndPassword(auth, data.email, data.password);
       toast({ title: "Login Successful", description: "Welcome back!" });
-      router.push('/account/dashboard');
+      const redirectUrl = searchParams.get('redirect');
+      router.push(redirectUrl || '/account/dashboard');
     } catch (error: any) {
       console.error(error);
       let errorMessage = "An unknown error occurred.";

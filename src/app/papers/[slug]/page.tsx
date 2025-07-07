@@ -2,7 +2,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { useRouter, useParams } from 'next/navigation';
+import { useRouter, useParams, usePathname } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
 import { ArrowLeft, ArrowRight, CheckCircle2, Lightbulb, Loader2, Bookmark, Download } from 'lucide-react';
@@ -23,6 +23,7 @@ import { checkAndRecordDownload } from '@/lib/download-service';
 export default function SolvedPaperPage() {
   const router = useRouter();
   const params = useParams();
+  const pathname = usePathname();
   const slug = params.slug as string;
   
   const [paper, setPaper] = useState<Paper | null>(null);
@@ -97,7 +98,7 @@ export default function SolvedPaperPage() {
         description: 'You must be logged in to save papers.',
         variant: 'destructive',
       });
-      router.push('/login');
+      router.push(`/login?redirect=${pathname}`);
       return;
     }
 
@@ -143,7 +144,7 @@ export default function SolvedPaperPage() {
         description: 'You must be logged in to download papers.',
         variant: 'destructive',
       });
-      router.push('/login');
+      router.push(`/login?redirect=${pathname}`);
       return;
     }
 

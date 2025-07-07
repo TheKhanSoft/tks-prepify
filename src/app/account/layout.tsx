@@ -41,10 +41,10 @@ export default function AccountLayout({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     if (!loading && !user) {
-      router.push('/login');
+      router.push(`/login?redirect=${pathname}`);
     }
     fetchSettings().then(setSettings);
-  }, [user, loading, router]);
+  }, [user, loading, router, pathname]);
 
   if (loading || !user || !settings) {
     return (

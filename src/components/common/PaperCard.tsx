@@ -1,3 +1,4 @@
+
 'use client';
 
 import Link from 'next/link';
@@ -54,7 +55,7 @@ export function PaperCard({ paper, categoryName }: PaperCardProps) {
         description: 'You must be logged in to bookmark papers.',
         variant: 'destructive',
       });
-      router.push('/login');
+      router.push(`/login?redirect=${pathname}`);
       return;
     }
 
