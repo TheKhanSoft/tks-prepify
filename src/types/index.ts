@@ -220,3 +220,32 @@ export interface Download {
   paperId: string;
   createdAt: string; // ISO string
 }
+
+// Data models for dynamic test attempts
+export interface QuestionAttempt {
+  order: number;
+  questionId: string;
+  questionText: string;
+  type: 'mcq' | 'short_answer';
+  options?: string[];
+  correctAnswer: string | string[];
+  explanation?: string;
+  userAnswer?: string | string[];
+  isCorrect: boolean;
+}
+
+export interface TestAttempt {
+  id: string; // The doc ID of this attempt
+  userId: string;
+  testConfigId: string;
+  testConfigName: string; // Denormalized for easy display
+  startTime: string; // ISO string
+  endTime: string | null; // ISO string
+  status: 'in-progress' | 'completed';
+  score: number;
+  totalMarks: number;
+  percentage: number;
+  passed: boolean;
+  // This will be fetched from a subcollection
+  questionAttempts?: QuestionAttempt[];
+}

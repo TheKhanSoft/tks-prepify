@@ -1,7 +1,7 @@
 
 import { clsx, type ClassValue } from "clsx"
 import { twMerge } from "tailwind-merge"
-import type { DocumentData } from "firebase/firestore";
+import type { DocumentData, Timestamp } from "firebase/firestore";
 import type { Question } from "@/types";
 
 export function cn(...inputs: ClassValue[]) {
@@ -33,3 +33,12 @@ export function docToQuestion(doc: DocumentData): Question {
     questionCategoryId: data.questionCategoryId,
   };
 }
+
+export const serializeDate = (date: any): string | null => {
+  if (!date) return null;
+  if (date instanceof Timestamp) return date.toDate().toISOString();
+  if (date instanceof Date) return date.toISOString();
+  if (typeof date === 'string') return date;
+  const parsedDate = new Date(date);
+  return isNaN(parsedDate.getTime()) ? null : parsedDate.toISOString();
+};

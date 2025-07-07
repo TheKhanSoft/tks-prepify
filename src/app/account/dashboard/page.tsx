@@ -6,16 +6,21 @@ import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/com
 import { ArrowRight, BookCheck, Star, Loader2 } from 'lucide-react';
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
-import type { Plan, User as UserProfile } from '@/types';
+import type { Plan, User as UserProfile, TestAttempt } from '@/types';
 import { getUserProfile } from '@/lib/user-service';
 import { fetchPlans } from '@/lib/plan-service';
 import { Button } from '@/components/ui/button';
 import { format } from 'date-fns';
+import { fetchTestAttemptsForUser } from '@/lib/test-attempt-service';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { Badge } from '@/components/ui/badge';
+import { cn } from '@/lib/utils';
 
 export default function AccountDashboardPage() {
     const { user, loading: authLoading } = useAuth();
     const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
     const [plan, setPlan] = useState<Plan | null>(null);
+    const [attempts, setAttempts] = useState<TestAttempt[]>([]);
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
@@ -23,11 +28,14 @@ export default function AccountDashboardPage() {
             const loadData = async () => {
                 setLoading(true);
                 try {
-                    const [profile, plans] = await Promise.all([
+                    const [profile, plans, testAttempts] = await Promise.all([
                         getUserProfile(user.uid),
-                        fetchPlans()
+                        fetchPlans(),
+                        fetchTestAttemptsForUser(user.uid)
                     ]);
                     setUserProfile(profile);
+                    setAttempts(testAttempts);
+
                     if (profile) {
                         const currentPlan = plans.find(p => p.id === profile.planId);
                         setPlan(currentPlan || null);
@@ -43,6 +51,10 @@ export default function AccountDashboardPage() {
             setLoading(false);
         }
     }, [user, authLoading]);
+
+    const averageScore = attempts.length > 0
+        ? (attempts.reduce((acc, attempt) => acc + attempt.percentage, 0) / attempts.length)
+        : null;
 
     if (authLoading || loading) {
          return (
@@ -87,8 +99,8 @@ export default function AccountDashboardPage() {
                         </CardTitle>
                     </CardHeader>
                     <CardContent>
-                        <div className="text-4xl font-bold">0</div>
-                        <p className="text-xs text-muted-foreground">You haven't completed any papers yet.</p>
+                        <div className="text-4xl font-bold">{attempts.length}</div>
+                        <p className="text-xs text-muted-foreground">You have completed {attempts.length} papers.</p>
                     </CardContent>
                 </Card>
                 <Card>
@@ -99,8 +111,8 @@ export default function AccountDashboardPage() {
                         </CardTitle>
                     </CardHeader>
                     <CardContent>
-                        <div className="text-4xl font-bold">N/A</div>
-                        <p className="text-xs text-muted-foreground">Complete a paper to see your average.</p>
+                        <div className="text-4xl font-bold">{averageScore !== null ? `${averageScore.toFixed(1)}%` : "N/A"}</div>
+                        <p className="text-xs text-muted-foreground">{averageScore !== null ? "Your average across all tests." : "Complete a paper to see your average."}</p>
                     </CardContent>
                 </Card>
             </div>
@@ -110,11 +122,40 @@ export default function AccountDashboardPage() {
                     <CardTitle>Recent Results</CardTitle>
                     <CardDescription>Review your most recently completed tests.</CardDescription>
                 </CardHeader>
-                <CardContent className="text-center text-muted-foreground py-12">
-                   <p>Your recent test results will appear here.</p>
-                   <Link href="/papers">
-                        <span className="text-primary hover:underline font-semibold mt-2 inline-block">Take a test now</span>
-                   </Link>
+                <CardContent>
+                   {attempts.length > 0 ? (
+                         <Table>
+                            <TableHeader>
+                                <TableRow>
+                                    <TableHead>Test</TableHead>
+                                    <TableHead>Score</TableHead>
+                                    <TableHead>Status</TableHead>
+                                    <TableHead>Date</TableHead>
+                                </TableRow>
+                            </TableHeader>
+                            <TableBody>
+                                {attempts.slice(0, 3).map(attempt => (
+                                     <TableRow key={attempt.id}>
+                                        <TableCell className="font-medium">{attempt.testConfigName}</TableCell>
+                                        <TableCell>{attempt.score.toFixed(2)} / {attempt.totalMarks}</TableCell>
+                                        <TableCell>
+                                            <Badge variant={attempt.passed ? "default" : "destructive"} className={cn(attempt.passed && "bg-green-600 hover:bg-green-700")}>
+                                                {attempt.passed ? "Passed" : "Failed"}
+                                            </Badge>
+                                        </TableCell>
+                                        <TableCell>{attempt.endTime ? format(new Date(attempt.endTime), "PPP") : 'N/A'}</TableCell>
+                                    </TableRow>
+                                ))}
+                            </TableBody>
+                         </Table>
+                   ) : (
+                    <div className="text-center text-muted-foreground py-12">
+                        <p>Your recent test results will appear here.</p>
+                        <Link href="/papers">
+                                <span className="text-primary hover:underline font-semibold mt-2 inline-block">Take a test now</span>
+                        </Link>
+                    </div>
+                   )}
                 </CardContent>
             </Card>
 

@@ -14,6 +14,8 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Progress } from '@/components/ui/progress';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { useToast } from '@/hooks/use-toast';
+import { useAuth } from '@/hooks/use-auth';
+import { startTestAttempt, submitTestAttempt } from '@/lib/test-attempt-service';
 
 type AnswersState = { [questionId: string]: string | string[] };
 
@@ -21,70 +23,36 @@ export default function TakeTestPage() {
     const params = useParams();
     const router = useRouter();
     const { toast } = useToast();
+    const { user } = useAuth();
     const slug = params.configId as string;
 
     const [config, setConfig] = useState<TestConfig | null>(null);
     const [questions, setQuestions] = useState<PaperQuestion[]>([]);
     const [loading, setLoading] = useState(true);
+    const [attemptId, setAttemptId] = useState<string | null>(null);
     
     const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
     const [answers, setAnswers] = useState<AnswersState>({});
     const [timeLeft, setTimeLeft] = useState(0);
 
-    const handleSubmit = useCallback(() => {
-        if (!config || questions.length === 0) return;
-
-        let score = 0;
-        const processedAnswers: UserAnswer[] = questions.map(q => {
-            const userAnswer = answers[q.id];
-            let isCorrect = false;
-            
-            if (q.type === 'mcq') {
-                 isCorrect = Array.isArray(q.correctAnswer)
-                    ? Array.isArray(userAnswer) && q.correctAnswer.length === userAnswer.length && q.correctAnswer.every(val => userAnswer.includes(val))
-                    : q.correctAnswer === userAnswer;
-            } else { // short_answer
-                isCorrect = typeof userAnswer === 'string' && q.correctAnswer.toString().toLowerCase() === userAnswer.toLowerCase();
-            }
-
-            if(isCorrect) {
-                score += config.marksPerQuestion;
-            } else if (config.hasNegativeMarking && userAnswer) {
-                score -= config.negativeMarkValue || 0;
-            }
-
-            return {
-                questionId: q.id,
-                selectedOption: Array.isArray(userAnswer) ? userAnswer.join(', ') : userAnswer,
-                isCorrect,
-                timeSpent: 0,
-            };
-        });
-        
-        const testAttemptId = `${config.id}-${Date.now()}`;
-        const resultData = {
-            config,
-            questions,
-            answers: processedAnswers,
-            finalScore: score,
-            totalTimeSpent: config.duration * 60 - timeLeft,
-            completedAt: new Date().toISOString(),
-        };
+    const handleSubmit = useCallback(async () => {
+        if (!config || questions.length === 0 || !attemptId) return;
 
         try {
-            localStorage.setItem(`testResult_${testAttemptId}`, JSON.stringify(resultData));
-            router.replace(`/results/test/${testAttemptId}`);
+            await submitTestAttempt(attemptId, config, questions, answers);
+            router.replace(`/results/test/${attemptId}`);
         } catch (error) {
+            console.error("Error submitting test:", error);
             toast({
-                title: "Error saving results",
-                description: "Could not save your test results due to storage limitations. Please clear some space and try again.",
+                title: "Submission Failed",
+                description: "There was an error submitting your test. Please try again.",
                 variant: "destructive"
-            })
+            });
         }
-    }, [answers, config, questions, timeLeft, router, toast]);
+    }, [answers, config, questions, attemptId, router, toast]);
 
     useEffect(() => {
-        if (!slug) return;
+        if (!slug || !user) return;
 
         const loadTest = async () => {
             setLoading(true);
@@ -93,6 +61,9 @@ export default function TakeTestPage() {
                 setConfig(fetchedConfig);
                 setQuestions(fetchedQuestions);
                 setTimeLeft(fetchedConfig.duration * 60);
+
+                const newAttemptId = await startTestAttempt(user.uid, fetchedConfig);
+                setAttemptId(newAttemptId);
             } catch (error) {
                 console.error("Failed to generate test:", error);
                 toast({
@@ -106,18 +77,21 @@ export default function TakeTestPage() {
             }
         };
         loadTest();
-    }, [slug, router, toast]);
+    }, [slug, router, toast, user]);
 
     useEffect(() => {
-        if (timeLeft <= 0 && !loading) {
+        if (timeLeft <= 0 && !loading && questions.length > 0) {
+            toast({ title: "Time's up!", description: "Submitting your test automatically." });
             handleSubmit();
             return;
         }
-        const timer = setInterval(() => {
-            setTimeLeft((prevTime) => prevTime - 1);
-        }, 1000);
-        return () => clearInterval(timer);
-    }, [timeLeft, loading, handleSubmit]);
+        if (!loading) {
+            const timer = setInterval(() => {
+                setTimeLeft((prevTime) => prevTime > 0 ? prevTime - 1 : 0);
+            }, 1000);
+            return () => clearInterval(timer);
+        }
+    }, [timeLeft, loading, handleSubmit, questions.length, toast]);
 
     if (loading) {
         return <div className="flex justify-center items-center h-[80vh]"><Loader2 className="h-8 w-8 animate-spin" /></div>;
@@ -199,7 +173,7 @@ export default function TakeTestPage() {
                                 type="text"
                                 value={answers[currentQuestion.id] as string || ''}
                                 onChange={(e) => handleAnswerChange(currentQuestion.id, e.target.value)}
-                                className="mt-2 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary focus:ring-primary sm:text-sm"
+                                className="mt-2 block w-full rounded-md border-input bg-background shadow-sm focus:border-primary focus:ring-primary sm:text-sm p-2"
                             />
                         </div>
                     )}
