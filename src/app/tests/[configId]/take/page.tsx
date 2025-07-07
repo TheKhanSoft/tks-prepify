@@ -21,7 +21,7 @@ export default function TakeTestPage() {
     const params = useParams();
     const router = useRouter();
     const { toast } = useToast();
-    const configId = params.configId as string;
+    const slug = params.slug as string;
 
     const [config, setConfig] = useState<TestConfig | null>(null);
     const [questions, setQuestions] = useState<PaperQuestion[]>([]);
@@ -32,12 +32,12 @@ export default function TakeTestPage() {
     const [timeLeft, setTimeLeft] = useState(0);
 
     useEffect(() => {
-        if (!configId) return;
+        if (!slug) return;
 
         const loadTest = async () => {
             setLoading(true);
             try {
-                const { config: fetchedConfig, questions: fetchedQuestions } = await generateTest(configId);
+                const { config: fetchedConfig, questions: fetchedQuestions } = await generateTest(slug);
                 setConfig(fetchedConfig);
                 setQuestions(fetchedQuestions);
                 setTimeLeft(fetchedConfig.duration * 60);
@@ -54,7 +54,7 @@ export default function TakeTestPage() {
             }
         };
         loadTest();
-    }, [configId, router, toast]);
+    }, [slug, router, toast]);
 
     useEffect(() => {
         if (timeLeft <= 0 && !loading) {
@@ -65,6 +65,7 @@ export default function TakeTestPage() {
             setTimeLeft((prevTime) => prevTime - 1);
         }, 1000);
         return () => clearInterval(timer);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [timeLeft, loading]);
 
     const handleSubmit = useCallback(() => {
@@ -231,4 +232,3 @@ export default function TakeTestPage() {
         </div>
     );
 }
-

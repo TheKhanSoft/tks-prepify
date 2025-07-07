@@ -62,7 +62,7 @@ export default function TestsPage() {
                             </CardContent>
                             <CardFooter>
                                 <Button asChild className="w-full">
-                                    <Link href={`/tests/${config.id}`}>View Details</Link>
+                                    <Link href={`/tests/${config.slug}`}>View Details</Link>
                                 </Button>
                             </CardFooter>
                         </Card>

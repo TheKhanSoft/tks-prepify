@@ -47,6 +47,7 @@ export interface TestConfigComposition {
 export interface TestConfig {
   id: string;
   name: string;
+  slug?: string;
   description: string;
   duration: number; // in minutes
   passingMarks: number; // as a percentage, e.g., 50 for 50%

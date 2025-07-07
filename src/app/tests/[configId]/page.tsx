@@ -4,7 +4,7 @@
 import { useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { getTestConfigById } from '@/lib/test-config-service';
+import { getTestConfigBySlug } from '@/lib/test-config-service';
 import type { TestConfig } from '@/types';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -14,18 +14,18 @@ import { Badge } from '@/components/ui/badge';
 export default function TestDetailsPage() {
     const params = useParams();
     const router = useRouter();
-    const configId = params.configId as string;
+    const slug = params.slug as string;
 
     const [config, setConfig] = useState<TestConfig | null>(null);
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
-        if (!configId) return;
+        if (!slug) return;
 
         const loadConfig = async () => {
             setLoading(true);
             try {
-                const fetchedConfig = await getTestConfigById(configId);
+                const fetchedConfig = await getTestConfigBySlug(slug);
                 if (fetchedConfig && fetchedConfig.published) {
                     setConfig(fetchedConfig);
                 } else {
@@ -38,7 +38,7 @@ export default function TestDetailsPage() {
             }
         };
         loadConfig();
-    }, [configId]);
+    }, [slug]);
     
     if (loading) {
         return <div className="flex justify-center items-center h-[50vh]"><Loader2 className="h-8 w-8 animate-spin" /></div>;
@@ -98,7 +98,7 @@ export default function TestDetailsPage() {
                             Choose Another Test
                         </Button>
                         <Button size="lg" asChild>
-                            <Link href={`/tests/${config.id}/take`}>Start Test <ArrowRight className="ml-2 h-4 w-4" /></Link>
+                            <Link href={`/tests/${config.slug}/take`}>Start Test <ArrowRight className="ml-2 h-4 w-4" /></Link>
                         </Button>
                     </div>
                 </CardContent>

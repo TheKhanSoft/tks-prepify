@@ -19,13 +19,14 @@ import { db } from './firebase';
 import type { TestConfig, Question, PaperQuestion } from '@/types';
 import { fetchQuestionCategories } from './question-category-service';
 import { getDescendantQuestionCategoryIds } from './question-category-helpers';
-import { docToQuestion } from './utils';
+import { docToQuestion, slugify } from './utils';
 
 function docToTestConfig(doc: DocumentData): TestConfig {
   const data = doc.data();
   return {
     id: doc.id,
     name: data.name,
+    slug: data.slug || slugify(data.name),
     description: data.description,
     duration: data.duration,
     passingMarks: data.passingMarks,
@@ -56,6 +57,18 @@ export async function getTestConfigById(id: string): Promise<TestConfig | null> 
   return configDoc.exists() ? docToTestConfig(configDoc) : null;
 }
 
+export async function getTestConfigBySlug(slug: string): Promise<TestConfig | null> {
+    if (!slug) return null;
+    const configsCol = collection(db, 'test_configs');
+    const q = query(configsCol, where("slug", "==", slug), limit(1));
+    const snapshot = await getDocs(q);
+
+    if (snapshot.empty) {
+        return null;
+    }
+    return docToTestConfig(snapshot.docs[0]);
+}
+
 export async function addTestConfig(configData: Omit<TestConfig, 'id'>) {
   const configsCol = collection(db, 'test_configs');
   await addDoc(configsCol, configData);
@@ -79,8 +92,8 @@ function shuffleArray<T>(array: T[]): T[] {
     return array;
 }
 
-export async function generateTest(configId: string): Promise<{ config: TestConfig; questions: PaperQuestion[] }> {
-    const config = await getTestConfigById(configId);
+export async function generateTest(slug: string): Promise<{ config: TestConfig; questions: PaperQuestion[] }> {
+    const config = await getTestConfigBySlug(slug);
     if (!config || !config.published) {
         throw new Error("Test configuration not found or is not published.");
     }

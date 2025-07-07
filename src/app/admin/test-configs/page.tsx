@@ -112,7 +112,7 @@ export default function AdminTestConfigsPage() {
                     <TableRow key={config.id}>
                       <TableCell>
                         <div className="font-medium">{config.name}</div>
-                        <div className="text-sm text-muted-foreground truncate max-w-xs">{config.description}</div>
+                        <div className="text-sm text-muted-foreground font-mono">{config.slug}</div>
                       </TableCell>
                       <TableCell>{config.totalQuestions}</TableCell>
                       <TableCell>{config.duration} min</TableCell>

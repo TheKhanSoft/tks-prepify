@@ -19,6 +19,7 @@ import { addTestConfig } from "@/lib/test-config-service";
 import { fetchQuestionCategories } from "@/lib/question-category-service";
 import type { QuestionCategory } from "@/types";
 import { getFlattenedQuestionCategories } from "@/lib/question-category-helpers";
+import { slugify } from "@/lib/utils";
 
 const compositionRuleSchema = z.object({
   questionCategoryId: z.string().min(1, "Please select a category."),
@@ -27,6 +28,7 @@ const compositionRuleSchema = z.object({
 
 const testConfigSchema = z.object({
   name: z.string().min(3, "Name must be at least 3 characters."),
+  slug: z.string().optional(),
   description: z.string().min(10, "Description is required."),
   duration: z.coerce.number().int().min(1, "Duration must be at least 1 minute."),
   passingMarks: z.coerce.number().min(0).max(100, "Passing marks must be between 0 and 100."),
@@ -66,6 +68,7 @@ export default function NewTestConfigPage() {
     resolver: zodResolver(testConfigSchema),
     defaultValues: {
       name: "",
+      slug: "",
       description: "",
       duration: 120,
       passingMarks: 50,
@@ -107,6 +110,7 @@ export default function NewTestConfigPage() {
     setIsSubmitting(true);
     const finalData = {
         ...data,
+        slug: slugify(data.slug || data.name),
         negativeMarkValue: data.hasNegativeMarking ? data.negativeMarkValue : 0,
     };
 
@@ -138,6 +142,7 @@ export default function NewTestConfigPage() {
             <CardHeader><CardTitle>New Test Configuration</CardTitle><CardDescription>Create a blueprint for generating dynamic tests for users.</CardDescription></CardHeader>
             <CardContent className="space-y-6">
               <FormField control={form.control} name="name" render={({ field }) => (<FormItem><FormLabel>Configuration Name</FormLabel><FormControl><Input {...field} placeholder="e.g., GAT-A Full Length Test" /></FormControl><FormMessage /></FormItem>)} />
+              <FormField control={form.control} name="slug" render={({ field }) => (<FormItem><FormLabel>URL Slug (Optional)</FormLabel><FormControl><Input {...field} placeholder="e.g., gat-a-full-length-test" /></FormControl><FormDescription>If left blank, a slug will be generated from the name.</FormDescription><FormMessage /></FormItem>)} />
               <FormField control={form.control} name="description" render={({ field }) => (<FormItem><FormLabel>Description</FormLabel><FormControl><Textarea {...field} placeholder="A brief description of this test." /></FormControl><FormMessage /></FormItem>)} />
               <FormField control={form.control} name="published" render={({ field }) => (<FormItem className="flex flex-row items-center justify-between rounded-lg border p-4"><div className="space-y-0.5"><FormLabel>Published</FormLabel><FormDescription>Published tests will be available for users to take.</FormDescription></div><FormControl><Switch checked={field.value} onCheckedChange={field.onChange} /></FormControl></FormItem>)} />
             </CardContent>
