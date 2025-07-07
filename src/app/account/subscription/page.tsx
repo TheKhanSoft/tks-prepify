@@ -6,8 +6,8 @@ import { useAuth } from '@/hooks/use-auth';
 import { getUserProfile, fetchUserPlanHistory } from '@/lib/user-service';
 import { fetchPlans } from '@/lib/plan-service';
 import { countActiveBookmarks } from '@/lib/bookmark-service';
-import { countMonthlyDownloads } from '@/lib/download-service';
-import type { Plan, User as UserProfile, UserPlan } from '@/types';
+import { countDownloadsForPeriod } from '@/lib/download-service';
+import type { Plan, User as UserProfile, UserPlan, QuotaPeriod } from '@/types';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from "@/components/ui/card";
 import { Button } from '@/components/ui/button';
 import { Loader2, Check, ExternalLink } from 'lucide-react';
@@ -31,20 +31,33 @@ export default function SubscriptionPage() {
             const loadData = async () => {
                 setLoading(true);
                 try {
-                    const [profile, plans, history, bookmarkCount, downloadCount] = await Promise.all([
+                    const [profile, plans, history] = await Promise.all([
                         getUserProfile(user.uid),
                         fetchPlans(),
                         fetchUserPlanHistory(user.uid),
-                        countActiveBookmarks(user.uid),
-                        countMonthlyDownloads(user.uid)
                     ]);
                     setUserProfile(profile);
                     setPlanHistory(history);
-                    setUsage({ bookmarks: bookmarkCount, downloads: downloadCount });
 
                     if (profile) {
                         const currentPlan = plans.find(p => p.id === profile.planId);
                         setPlan(currentPlan || null);
+
+                        if (currentPlan) {
+                            // Dynamically calculate usage based on the plan's quota features
+                            const usageData: Record<string, number> = {};
+                            for (const feature of currentPlan.features) {
+                                if (feature.isQuota && feature.key) {
+                                    if (feature.key === 'bookmarks') {
+                                        usageData[feature.key] = await countActiveBookmarks(user.uid);
+                                    } else if (feature.key === 'downloads' && feature.period) {
+                                        usageData[feature.key] = await countDownloadsForPeriod(user.uid, feature.period);
+                                    }
+                                    // Extend here for other future quota types
+                                }
+                            }
+                            setUsage(usageData);
+                        }
                     }
                 } catch (error) {
                     console.error("Failed to load user data:", error);

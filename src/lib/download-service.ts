@@ -12,7 +12,7 @@ import {
   DocumentData,
 } from 'firebase/firestore';
 import { db } from './firebase';
-import type { Plan, Download } from '@/types';
+import type { Plan, Download, QuotaPeriod } from '@/types';
 
 const serializeDate = (date: any): string | null => {
   if (!date) return null;
@@ -34,16 +34,29 @@ const docToDownload = (doc: DocumentData): Download => {
 }
 
 /**
- * Counts the number of downloads for a user within the current month.
+ * Counts the number of downloads for a user within a given period.
+ * This function avoids needing a composite index by filtering in memory.
  */
-export async function countMonthlyDownloads(userId: string): Promise<number> {
-    if (!userId) return 0;
+export async function countDownloadsForPeriod(userId: string, period: QuotaPeriod): Promise<number> {
+    if (!userId || period === 'lifetime') return 0; // Lifetime usage is not based on creation date but total count.
 
     const now = new Date();
-    const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+    let startDate: Date;
 
-    // Fetch all download records for the user to avoid needing a composite index.
-    // This is less efficient at scale but works without database index configuration.
+    switch (period) {
+        case 'daily':
+            startDate = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+            break;
+        case 'monthly':
+            startDate = new Date(now.getFullYear(), now.getMonth(), 1);
+            break;
+        case 'yearly':
+            startDate = new Date(now.getFullYear(), 0, 1);
+            break;
+        default:
+             startDate = new Date(0); // Should not happen with typed period
+    }
+    
     const downloadsQuery = query(
         collection(db, 'downloads'),
         where('userId', '==', userId)
@@ -53,8 +66,7 @@ export async function countMonthlyDownloads(userId: string): Promise<number> {
     let count = 0;
     snapshot.forEach(doc => {
         const data = doc.data();
-        // Filter in-memory by comparing dates
-        if (data.createdAt && data.createdAt.toDate() >= startOfMonth) {
+        if (data.createdAt && data.createdAt.toDate() >= startDate) {
             count++;
         }
     });
@@ -80,12 +92,12 @@ export async function checkAndRecordDownload(
 
     if (downloadFeature.isQuota) {
         const quotaLimit = downloadFeature.limit ?? 0;
+        const period = downloadFeature.period ?? 'monthly';
 
         if (quotaLimit !== -1) { // -1 means unlimited
-            // We'll simplify and assume all download quotas are monthly for now.
-            const monthlyDownloads = await countMonthlyDownloads(userId);
-            if (monthlyDownloads >= quotaLimit) {
-                return { success: false, message: `You have reached your monthly download limit of ${quotaLimit}.` };
+            const downloadsThisPeriod = await countDownloadsForPeriod(userId, period);
+            if (downloadsThisPeriod >= quotaLimit) {
+                return { success: false, message: `You have reached your ${period} download limit of ${quotaLimit}.` };
             }
         }
     }
