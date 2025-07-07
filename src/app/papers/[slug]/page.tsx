@@ -192,15 +192,12 @@ export default function SolvedPaperPage() {
 
   return (
     <div className="container mx-auto px-6 sm:px-10 lg:px-16 py-8 md:py-12">
-      <div className="mb-8">
-        <Button variant="outline" onClick={() => router.back()} className="mb-4">
+      <div className="flex justify-between items-center mb-4">
+        <Button variant="outline" onClick={() => router.back()}>
           <ArrowLeft className="mr-2 h-4 w-4" />
           Back
         </Button>
-        <h1 className="text-4xl font-bold font-headline">{paper.title}</h1>
-        <p className="text-lg text-muted-foreground mt-2">{paper.description}</p>
-        
-        <div className="mt-6 flex gap-4">
+        <div className="flex gap-4">
             <Button onClick={handleBookmarkClick} disabled={isLoadingBookmark || isTogglingBookmark}>
                 {isTogglingBookmark ? (
                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />
@@ -218,7 +215,11 @@ export default function SolvedPaperPage() {
                 Download
             </Button>
         </div>
+      </div>
 
+      <div className="mb-8">
+        <h1 className="text-4xl font-bold font-headline">{paper.title}</h1>
+        <p className="text-lg text-muted-foreground mt-2">{paper.description}</p>
       </div>
       
       <Card>
