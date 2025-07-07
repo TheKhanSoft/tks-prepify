@@ -18,6 +18,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { addTestConfig } from "@/lib/test-config-service";
 import { fetchQuestionCategories } from "@/lib/question-category-service";
 import type { QuestionCategory } from "@/types";
+import { getFlattenedQuestionCategories } from "@/lib/question-category-helpers";
 
 const compositionRuleSchema = z.object({
   questionCategoryId: z.string().min(1, "Please select a category."),
