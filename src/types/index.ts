@@ -118,7 +118,7 @@ export interface PricingOption {
   stripePriceId?: string;
 }
 
-export type QuotaPeriod = 'daily' | 'monthly' | 'yearly' | 'lifetime';
+export type QuotaPeriod = 'daily' | 'weekly' | 'monthly' | 'yearly' | 'lifetime';
 
 export interface PlanFeature {
   text: string;

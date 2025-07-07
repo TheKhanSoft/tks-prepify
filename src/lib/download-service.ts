@@ -16,6 +16,16 @@ import {
 import { db } from './firebase';
 import type { Plan, Download, QuotaPeriod } from '@/types';
 import { getUserProfile } from './user-service';
+import {
+  startOfDay,
+  addDays,
+  addWeeks,
+  addMonths,
+  addYears,
+  differenceInWeeks,
+  differenceInMonths,
+  differenceInYears,
+} from 'date-fns';
 
 const serializeDate = (date: any): string | null => {
   if (!date) return null;
@@ -50,53 +60,45 @@ export async function countDownloadsForPeriod(
   }
   
   const now = new Date();
+  const subscriptionStart = startOfDay(subscriptionDate);
+
   let startDate: Date;
   let resetDate: Date;
 
-  // Set time to 00:00:00 for accurate day-based comparisons
-  now.setHours(0, 0, 0, 0);
-  subscriptionDate.setHours(0, 0, 0, 0);
-
-  if (period === 'lifetime') {
-    startDate = new Date(0); // The beginning of time
-    resetDate = new Date(8640000000000000); // A very far future date
-  } else if (period === 'daily') {
-    startDate = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0, 0);
-    resetDate = new Date(startDate);
-    resetDate.setDate(startDate.getDate() + 1);
-  } else if (period === 'monthly') {
-    const anchorDay = subscriptionDate.getDate();
-    let cycleStartYear = now.getFullYear();
-    let cycleStartMonth = now.getMonth();
+  switch (period) {
+    case 'daily':
+      startDate = startOfDay(now);
+      resetDate = addDays(startDate, 1);
+      break;
     
-    if (now.getDate() < anchorDay) {
-      cycleStartMonth -= 1;
-      if (cycleStartMonth < 0) {
-        cycleStartMonth = 11;
-        cycleStartYear -= 1;
-      }
+    case 'weekly': {
+      const weeksPassed = differenceInWeeks(now, subscriptionStart);
+      startDate = addWeeks(subscriptionStart, weeksPassed);
+      resetDate = addWeeks(startDate, 1);
+      break;
     }
-    
-    startDate = new Date(cycleStartYear, cycleStartMonth, anchorDay, 0, 0, 0, 0);
-    resetDate = new Date(startDate);
-    resetDate.setMonth(resetDate.getMonth() + 1);
 
-  } else if (period === 'yearly') {
-    const anchorMonth = subscriptionDate.getMonth();
-    const anchorDay = subscriptionDate.getDate();
-    let cycleStartYear = now.getFullYear();
-
-    const anniversaryThisYear = new Date(cycleStartYear, anchorMonth, anchorDay, 0, 0, 0, 0);
-    
-    if (now < anniversaryThisYear) {
-      cycleStartYear -= 1;
+    case 'monthly': {
+      const monthsPassed = differenceInMonths(now, subscriptionStart);
+      startDate = addMonths(subscriptionStart, monthsPassed);
+      resetDate = addMonths(startDate, 1);
+      break;
     }
-    
-    startDate = new Date(cycleStartYear, anchorMonth, anchorDay, 0, 0, 0, 0);
-    resetDate = new Date(startDate);
-    resetDate.setFullYear(resetDate.getFullYear() + 1);
-  } else {
-     throw new Error(`Unsupported quota period: ${period}`);
+
+    case 'yearly': {
+      const yearsPassed = differenceInYears(now, subscriptionStart);
+      startDate = addYears(subscriptionStart, yearsPassed);
+      resetDate = addYears(startDate, 1);
+      break;
+    }
+
+    case 'lifetime':
+      startDate = new Date(0); // The beginning of time
+      resetDate = new Date(8640000000000000); // A very far future date
+      break;
+      
+    default:
+       throw new Error(`Unsupported quota period: ${period}`);
   }
     
   const downloadsQuery = query(

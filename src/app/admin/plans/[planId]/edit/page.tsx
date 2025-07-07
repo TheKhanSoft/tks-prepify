@@ -31,7 +31,7 @@ const featureSchema = z.object({
   isQuota: z.boolean().default(false),
   key: z.string().optional(),
   limit: z.coerce.number().optional(),
-  period: z.enum(['daily', 'monthly', 'yearly', 'lifetime']).optional(),
+  period: z.enum(['daily', 'weekly', 'monthly', 'yearly', 'lifetime']).optional(),
 }).refine(data => {
     if (data.isQuota) {
         return data.key && data.limit !== undefined && data.limit !== null && data.period;
