@@ -18,6 +18,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { cn } from '@/lib/utils';
 import { Progress } from '@/components/ui/progress';
 import { Skeleton } from '@/components/ui/skeleton';
+import { useToast } from '@/hooks/use-toast';
 
 type UsageInfo = {
     used: number;
@@ -33,6 +34,7 @@ export default function SubscriptionPage() {
     const [loading, setLoading] = useState(true);
     const [usage, setUsage] = useState<Record<string, UsageInfo>>({});
     const [loadingUsage, setLoadingUsage] = useState(true);
+    const { toast } = useToast();
 
     useEffect(() => {
         if (!user || authLoading) return;
@@ -69,40 +71,50 @@ export default function SubscriptionPage() {
 
         const loadUsageData = async () => {
             setLoadingUsage(true);
-            const usageData: Record<string, UsageInfo> = {};
-            
-            const activePlanHistory = planHistory.find(p => p.status === 'active');
-            const subscriptionStartDate = activePlanHistory?.subscriptionDate
-                ? new Date(activePlanHistory.subscriptionDate)
-                : (userProfile.createdAt ? new Date(userProfile.createdAt) : new Date());
-
-            const quotaFeatures = plan.features.filter(f => f.isQuota && f.key);
-
-            for (const feature of quotaFeatures) {
-                const usageKey = feature.key! + (feature.period ? `_${feature.period}` : '');
-                let usedCount = 0;
-                let resetDate: Date | null = null;
-                const limit = feature.limit ?? 0;
-
-                if (feature.key === 'bookmarks') {
-                    usedCount = await countActiveBookmarks(user.uid);
-                    resetDate = null; // Lifetime
-                } else if (feature.key === 'downloads' && feature.period) {
-                     const result = await countDownloadsForPeriod(user.uid, feature.period, subscriptionStartDate);
-                     usedCount = result.count;
-                     resetDate = result.resetDate;
-                }
+            try {
+                const usageData: Record<string, UsageInfo> = {};
                 
-                usageData[usageKey] = { used: usedCount, limit, resetDate };
+                const activePlanHistory = planHistory.find(p => p.status === 'active');
+                const subscriptionStartDate = activePlanHistory?.subscriptionDate
+                    ? new Date(activePlanHistory.subscriptionDate)
+                    : (userProfile.createdAt ? new Date(userProfile.createdAt) : new Date());
+    
+                const quotaFeatures = plan.features.filter(f => f.isQuota && f.key);
+    
+                for (const feature of quotaFeatures) {
+                    const usageKey = feature.key! + (feature.period ? `_${feature.period}` : '');
+                    let usedCount = 0;
+                    let resetDate: Date | null = null;
+                    const limit = feature.limit ?? 0;
+    
+                    if (feature.key === 'bookmarks') {
+                        usedCount = await countActiveBookmarks(user.uid);
+                        resetDate = null; // Lifetime
+                    } else if (feature.key === 'downloads' && feature.period) {
+                         const result = await countDownloadsForPeriod(user.uid, feature.period, subscriptionStartDate);
+                         usedCount = result.count;
+                         resetDate = result.resetDate;
+                    }
+                    
+                    usageData[usageKey] = { used: usedCount, limit, resetDate };
+                }
+    
+                setUsage(usageData);
+            } catch (error) {
+                console.error("Failed to load usage statistics:", error);
+                toast({
+                    title: "Could not load usage data",
+                    description: "There was an error fetching your current usage statistics. Please try refreshing the page.",
+                    variant: "destructive",
+                });
+            } finally {
+                setLoadingUsage(false);
             }
-
-            setUsage(usageData);
-            setLoadingUsage(false);
         };
 
         loadUsageData();
 
-    }, [user, plan, userProfile, planHistory]);
+    }, [user, plan, userProfile, planHistory, toast]);
 
 
     if (authLoading || loading) {
