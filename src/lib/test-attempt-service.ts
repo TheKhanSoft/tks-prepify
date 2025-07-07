@@ -194,9 +194,18 @@ export async function fetchTestAttemptsForUser(userId: string): Promise<TestAtte
     const q = query(
         attemptsCol,
         where('userId', '==', userId),
-        where('status', '==', 'completed'),
-        orderBy('endTime', 'desc')
+        where('status', '==', 'completed')
+        // NOTE: orderBy removed to avoid needing a composite index. Sorting is done in-memory.
     );
     const snapshot = await getDocs(q);
-    return snapshot.docs.map(docToTestAttempt);
+    const attempts = snapshot.docs.map(docToTestAttempt);
+
+    // Sort by end time descending in code.
+    attempts.sort((a, b) => {
+        if (!a.endTime) return 1;
+        if (!b.endTime) return -1;
+        return new Date(b.endTime).getTime() - new Date(a.endTime).getTime();
+    });
+
+    return attempts;
 }

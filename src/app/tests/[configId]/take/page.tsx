@@ -94,7 +94,13 @@ export default function TakeTestPage() {
     }, [timeLeft, loading, handleSubmit, questions.length, toast]);
 
     if (loading) {
-        return <div className="flex justify-center items-center h-[80vh]"><Loader2 className="h-8 w-8 animate-spin" /></div>;
+        return (
+            <div className="container mx-auto py-8 flex flex-col items-center justify-center h-[80vh] gap-4">
+                <Loader2 className="h-12 w-12 animate-spin text-primary" />
+                <h1 className="text-2xl font-bold">Generating Your Test</h1>
+                <p className="text-muted-foreground">Please wait a moment while we prepare your questions...</p>
+            </div>
+        );
     }
     
     if (!config || questions.length === 0) {

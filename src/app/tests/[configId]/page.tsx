@@ -3,7 +3,6 @@
 
 import { useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import Link from 'next/link';
 import { getTestConfigBySlug } from '@/lib/test-config-service';
 import type { TestConfig } from '@/types';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
@@ -18,6 +17,7 @@ export default function TestDetailsPage() {
 
     const [config, setConfig] = useState<TestConfig | null>(null);
     const [loading, setLoading] = useState(true);
+    const [isStarting, setIsStarting] = useState(false);
 
     useEffect(() => {
         if (!slug) return;
@@ -41,6 +41,12 @@ export default function TestDetailsPage() {
         loadConfig();
     }, [slug]);
     
+    const handleStartTest = () => {
+        if (!config) return;
+        setIsStarting(true);
+        router.push(`/tests/${config.slug}/take`);
+    };
+
     if (loading) {
         return <div className="flex justify-center items-center h-[50vh]"><Loader2 className="h-8 w-8 animate-spin" /></div>;
     }
@@ -98,8 +104,15 @@ export default function TestDetailsPage() {
                             <ArrowLeft className="mr-2 h-4 w-4" />
                             Choose Another Test
                         </Button>
-                        <Button size="lg" asChild>
-                            <Link href={`/tests/${config.slug}/take`}>Start Test <ArrowRight className="ml-2 h-4 w-4" /></Link>
+                         <Button size="lg" onClick={handleStartTest} disabled={isStarting}>
+                            {isStarting ? (
+                                <>
+                                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                    Preparing Test...
+                                </>
+                            ) : (
+                                <>Start Test <ArrowRight className="ml-2 h-4 w-4" /></>
+                            )}
                         </Button>
                     </div>
                 </CardContent>
