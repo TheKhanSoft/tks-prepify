@@ -7,7 +7,7 @@ import { getUserProfile, fetchUserPlanHistory } from '@/lib/user-service';
 import { fetchPlans } from '@/lib/plan-service';
 import { countActiveBookmarks } from '@/lib/bookmark-service';
 import { countDownloadsForPeriod } from '@/lib/download-service';
-import type { Plan, User as UserProfile, UserPlan, QuotaPeriod } from '@/types';
+import type { Plan, User as UserProfile, UserPlan, PlanFeature } from '@/types';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from "@/components/ui/card";
 import { Button } from '@/components/ui/button';
 import { Loader2, Check, ExternalLink } from 'lucide-react';
@@ -17,6 +17,13 @@ import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { cn } from '@/lib/utils';
 import { Progress } from '@/components/ui/progress';
+import { Skeleton } from '@/components/ui/skeleton';
+
+type UsageInfo = {
+    used: number;
+    limit: number;
+    resetDate: Date | null;
+};
 
 export default function SubscriptionPage() {
     const { user, loading: authLoading } = useAuth();
@@ -24,61 +31,79 @@ export default function SubscriptionPage() {
     const [plan, setPlan] = useState<Plan | null>(null);
     const [planHistory, setPlanHistory] = useState<UserPlan[]>([]);
     const [loading, setLoading] = useState(true);
-    const [usage, setUsage] = useState<Record<string, number>>({});
-    const [resetDates, setResetDates] = useState<Record<string, Date | null>>({});
+    const [usage, setUsage] = useState<Record<string, UsageInfo>>({});
+    const [loadingUsage, setLoadingUsage] = useState(true);
 
     useEffect(() => {
-        if (user) {
-            const loadData = async () => {
-                setLoading(true);
-                try {
-                    const [profile, plans, history] = await Promise.all([
-                        getUserProfile(user.uid),
-                        fetchPlans(),
-                        fetchUserPlanHistory(user.uid),
-                    ]);
-                    setUserProfile(profile);
-                    setPlanHistory(history);
+        if (!user || authLoading) return;
 
-                    if (profile) {
-                        const currentPlan = plans.find(p => p.id === profile.planId);
-                        setPlan(currentPlan || null);
+        const loadInitialData = async () => {
+            setLoading(true);
+            try {
+                const [profile, plans, history] = await Promise.all([
+                    getUserProfile(user.uid),
+                    fetchPlans(),
+                    fetchUserPlanHistory(user.uid),
+                ]);
 
-                        if (currentPlan) {
-                            const usageData: Record<string, number> = {};
-                            const resetDatesData: Record<string, Date | null> = {};
+                setUserProfile(profile);
+                setPlanHistory(history);
 
-                            const activePlanHistory = history.find(p => p.status === 'active');
-                            const subscriptionStartDate = activePlanHistory ? new Date(activePlanHistory.subscriptionDate) : (profile.createdAt ? new Date(profile.createdAt) : new Date());
-
-                            for (const feature of currentPlan.features) {
-                                if (feature.isQuota && feature.key) {
-                                    const usageKey = feature.key + (feature.period ? `_${feature.period}` : '');
-                                    if (feature.key === 'bookmarks') {
-                                        usageData[usageKey] = await countActiveBookmarks(user.uid);
-                                        resetDatesData[usageKey] = null; // Bookmarks are lifetime
-                                    } else if (feature.key === 'downloads' && feature.period) {
-                                        const { count, resetDate: resetDateString } = await countDownloadsForPeriod(user.uid, feature.period, subscriptionStartDate);
-                                        usageData[usageKey] = count;
-                                        resetDatesData[usageKey] = resetDateString ? new Date(resetDateString) : null;
-                                    }
-                                }
-                            }
-                            setUsage(usageData);
-                            setResetDates(resetDatesData);
-                        }
-                    }
-                } catch (error) {
-                    console.error("Failed to load user data:", error);
-                } finally {
-                    setLoading(false);
+                if (profile?.planId) {
+                    const currentPlan = plans.find(p => p.id === profile.planId);
+                    setPlan(currentPlan || null);
                 }
-            };
-            loadData();
-        } else if (!authLoading) {
-            setLoading(false);
-        }
+            } catch (error) {
+                console.error("Failed to load initial subscription data:", error);
+            } finally {
+                setLoading(false);
+            }
+        };
+
+        loadInitialData();
+
     }, [user, authLoading]);
+    
+    useEffect(() => {
+        if (!user || !plan || !userProfile) return;
+
+        const loadUsageData = async () => {
+            setLoadingUsage(true);
+            const usageData: Record<string, UsageInfo> = {};
+            
+            const activePlanHistory = planHistory.find(p => p.status === 'active');
+            const subscriptionStartDate = activePlanHistory?.subscriptionDate
+                ? new Date(activePlanHistory.subscriptionDate)
+                : (userProfile.createdAt ? new Date(userProfile.createdAt) : new Date());
+
+            const quotaFeatures = plan.features.filter(f => f.isQuota && f.key);
+
+            for (const feature of quotaFeatures) {
+                const usageKey = feature.key! + (feature.period ? `_${feature.period}` : '');
+                let usedCount = 0;
+                let resetDate: Date | null = null;
+                const limit = feature.limit ?? 0;
+
+                if (feature.key === 'bookmarks') {
+                    usedCount = await countActiveBookmarks(user.uid);
+                    resetDate = null; // Lifetime
+                } else if (feature.key === 'downloads' && feature.period) {
+                     const result = await countDownloadsForPeriod(user.uid, feature.period, subscriptionStartDate);
+                     usedCount = result.count;
+                     resetDate = result.resetDate;
+                }
+                
+                usageData[usageKey] = { used: usedCount, limit, resetDate };
+            }
+
+            setUsage(usageData);
+            setLoadingUsage(false);
+        };
+
+        loadUsageData();
+
+    }, [user, plan, userProfile, planHistory]);
+
 
     if (authLoading || loading) {
         return (
@@ -135,17 +160,23 @@ export default function SubscriptionPage() {
                      <div className="space-y-6 rounded-lg border bg-muted/50 p-6">
                         <h4 className="font-semibold text-lg">Current Usage</h4>
                          {quotaFeatures.length > 0 ? (
-                            quotaFeatures.map((feature, index) => {
-                                const limit = feature.limit ?? 0;
+                            quotaFeatures.map((feature: PlanFeature, index) => {
                                 const usageKey = (feature.key || '') + (feature.period ? `_${feature.period}` : '');
-                                const used = usage[usageKey] || 0;
-                                const percentage = limit > 0 ? (used / limit) * 100 : (limit === -1 ? 100 : 0);
-                                const resetDate = resetDates[usageKey];
+                                const usageInfo = usage[usageKey];
+
+                                if (loadingUsage) {
+                                    return <Skeleton key={index} className="h-10 w-full" />
+                                }
+
+                                if (!usageInfo) return null;
+
+                                const { used, limit, resetDate } = usageInfo;
+                                const percentage = limit > 0 ? (used / limit) * 100 : (limit === -1 ? 0 : 100);
 
                                 return (
                                     <div key={index}>
                                         <div className="flex justify-between items-center mb-1">
-                                            <p className="font-medium text-sm">{feature.text}</p>
+                                            <p className="font-medium text-sm capitalize">{feature.text.split('(')[0] || feature.key}</p>
                                             <p className="text-xs text-muted-foreground">
                                                 <span className="font-semibold text-foreground">{used}</span> / {limit === -1 ? 'Unlimited' : limit}
                                             </p>

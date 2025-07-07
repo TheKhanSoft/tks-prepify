@@ -22,7 +22,7 @@ import {
   addWeeks,
   addMonths,
   addYears,
-  isAfter
+  isAfter,
 } from 'date-fns';
 
 const serializeDate = (date: any): string | null => {
@@ -52,7 +52,7 @@ export async function countDownloadsForPeriod(
   userId: string,
   period: QuotaPeriod,
   subscriptionDate: Date
-): Promise<{count: number; resetDate: string}> {
+): Promise<{count: number; resetDate: Date | null}> {
   if (!userId) {
     throw new Error('User ID is required.');
   }
@@ -61,57 +61,38 @@ export async function countDownloadsForPeriod(
   const subscriptionStart = subscriptionDate;
 
   let startDate: Date;
-  let resetDate: Date;
+  let resetDate: Date | null;
 
-  switch (period) {
-    case 'daily':
+  if (period === 'daily') {
       startDate = startOfDay(now);
       resetDate = addDays(startDate, 1);
-      break;
-    
-    case 'weekly': {
-        let lastReset = subscriptionStart;
-        let nextReset = addWeeks(lastReset, 1);
-        while (isAfter(now, nextReset)) {
-            lastReset = nextReset;
-            nextReset = addWeeks(lastReset, 1);
-        }
-        startDate = lastReset;
-        resetDate = nextReset;
-      break;
-    }
+  } else if (period === 'lifetime') {
+      startDate = new Date(0); // The beginning of time for querying all downloads
+      resetDate = null; // No reset for lifetime
+  } else {
+      // For weekly, monthly, and yearly, we need to find the start of the current cycle
+      // relative to the user's subscription date.
+      let currentCycleStart = startOfDay(subscriptionStart);
+      let nextCycleStart;
 
-    case 'monthly': {
-        let lastReset = subscriptionStart;
-        let nextReset = addMonths(lastReset, 1);
-        while (isAfter(now, nextReset)) {
-            lastReset = nextReset;
-            nextReset = addMonths(lastReset, 1);
-        }
-        startDate = lastReset;
-        resetDate = nextReset;
-      break;
-    }
+      while (true) {
+          if (period === 'weekly') {
+              nextCycleStart = addWeeks(currentCycleStart, 1);
+          } else if (period === 'monthly') {
+              nextCycleStart = addMonths(currentCycleStart, 1);
+          } else { // 'yearly'
+              nextCycleStart = addYears(currentCycleStart, 1);
+          }
 
-    case 'yearly': {
-        let lastReset = subscriptionStart;
-        let nextReset = addYears(lastReset, 1);
-        while (isAfter(now, nextReset)) {
-            lastReset = nextReset;
-            nextReset = addYears(lastReset, 1);
-        }
-        startDate = lastReset;
-        resetDate = nextReset;
-      break;
-    }
-
-    case 'lifetime':
-      startDate = new Date(0); // The beginning of time
-      resetDate = new Date(8640000000000000); // A very far future date
-      break;
-      
-    default:
-       throw new Error(`Unsupported quota period: ${period}`);
+          if (isAfter(nextCycleStart, now)) {
+              // The current date is within the cycle that started at `currentCycleStart`.
+              // The loop breaks, and `currentCycleStart` is our `startDate`.
+              break;
+          }
+          currentCycleStart = nextCycleStart;
+      }
+      startDate = currentCycleStart;
+      resetDate = nextCycleStart;
   }
     
   const downloadsQuery = query(
@@ -121,7 +102,7 @@ export async function countDownloadsForPeriod(
   );
 
   const snapshot = await getCountFromServer(downloadsQuery);
-  return { count: snapshot.data().count, resetDate: resetDate.toISOString() };
+  return { count: snapshot.data().count, resetDate };
 }
 
 
@@ -142,7 +123,6 @@ export async function checkAndRecordDownload(
     }
 
     if (downloadFeatures.length > 0) {
-        // Fetch active user plan subscription date
         const userPlansCol = collection(db, 'user_plans');
         const q = query(userPlansCol, where("userId", "==", userId), where("status", "==", "active"), limit(1));
         const currentPlanSnapshot = await getDocs(q);
@@ -152,17 +132,15 @@ export async function checkAndRecordDownload(
             const currentPlanDoc = currentPlanSnapshot.docs[0].data();
             subscriptionDate = currentPlanDoc.subscriptionDate ? currentPlanDoc.subscriptionDate.toDate() : new Date();
         } else {
-            // fallback to user creation date if no active plan history (should be rare)
             const userProfile = await getUserProfile(userId);
             subscriptionDate = userProfile?.createdAt ? new Date(userProfile.createdAt) : new Date();
         }
 
-        // Check every download-related quota
         for (const feature of downloadFeatures) {
             const quotaLimit = feature.limit ?? 0;
             const period = feature.period;
 
-            if (quotaLimit !== -1 && period) { // -1 means unlimited
+            if (quotaLimit !== -1 && period) {
                 const { count: downloadsThisPeriod } = await countDownloadsForPeriod(userId, period, subscriptionDate);
                 if (downloadsThisPeriod >= quotaLimit) {
                     return { success: false, message: `You have reached your ${period} download limit of ${quotaLimit}.` };
@@ -171,7 +149,6 @@ export async function checkAndRecordDownload(
         }
     }
     
-    // All quota checks passed, or the feature is non-quota based. Record the download.
     const downloadsCol = collection(db, 'downloads');
     await addDoc(downloadsCol, {
         userId,
