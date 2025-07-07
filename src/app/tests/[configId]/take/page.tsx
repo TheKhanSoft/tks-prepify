@@ -21,7 +21,7 @@ export default function TakeTestPage() {
     const params = useParams();
     const router = useRouter();
     const { toast } = useToast();
-    const slug = params.slug as string;
+    const slug = params.configId as string;
 
     const [config, setConfig] = useState<TestConfig | null>(null);
     const [questions, setQuestions] = useState<PaperQuestion[]>([]);
@@ -30,43 +30,6 @@ export default function TakeTestPage() {
     const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
     const [answers, setAnswers] = useState<AnswersState>({});
     const [timeLeft, setTimeLeft] = useState(0);
-
-    useEffect(() => {
-        if (!slug) return;
-
-        const loadTest = async () => {
-            setLoading(true);
-            try {
-                const { config: fetchedConfig, questions: fetchedQuestions } = await generateTest(slug);
-                setConfig(fetchedConfig);
-                setQuestions(fetchedQuestions);
-                setTimeLeft(fetchedConfig.duration * 60);
-            } catch (error) {
-                console.error("Failed to generate test:", error);
-                toast({
-                    title: "Error",
-                    description: "Could not load the test. Please try again.",
-                    variant: "destructive"
-                });
-                router.push('/tests');
-            } finally {
-                setLoading(false);
-            }
-        };
-        loadTest();
-    }, [slug, router, toast]);
-
-    useEffect(() => {
-        if (timeLeft <= 0 && !loading) {
-            handleSubmit();
-            return;
-        }
-        const timer = setInterval(() => {
-            setTimeLeft((prevTime) => prevTime - 1);
-        }, 1000);
-        return () => clearInterval(timer);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [timeLeft, loading]);
 
     const handleSubmit = useCallback(() => {
         if (!config || questions.length === 0) return;
@@ -119,6 +82,42 @@ export default function TakeTestPage() {
             })
         }
     }, [answers, config, questions, timeLeft, router, toast]);
+
+    useEffect(() => {
+        if (!slug) return;
+
+        const loadTest = async () => {
+            setLoading(true);
+            try {
+                const { config: fetchedConfig, questions: fetchedQuestions } = await generateTest(slug);
+                setConfig(fetchedConfig);
+                setQuestions(fetchedQuestions);
+                setTimeLeft(fetchedConfig.duration * 60);
+            } catch (error) {
+                console.error("Failed to generate test:", error);
+                toast({
+                    title: "Error",
+                    description: "Could not load the test. Please try again.",
+                    variant: "destructive"
+                });
+                router.push('/tests');
+            } finally {
+                setLoading(false);
+            }
+        };
+        loadTest();
+    }, [slug, router, toast]);
+
+    useEffect(() => {
+        if (timeLeft <= 0 && !loading) {
+            handleSubmit();
+            return;
+        }
+        const timer = setInterval(() => {
+            setTimeLeft((prevTime) => prevTime - 1);
+        }, 1000);
+        return () => clearInterval(timer);
+    }, [timeLeft, loading, handleSubmit]);
 
     if (loading) {
         return <div className="flex justify-center items-center h-[80vh]"><Loader2 className="h-8 w-8 animate-spin" /></div>;

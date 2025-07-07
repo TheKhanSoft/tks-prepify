@@ -14,7 +14,7 @@ import { Badge } from '@/components/ui/badge';
 export default function TestDetailsPage() {
     const params = useParams();
     const router = useRouter();
-    const slug = params.slug as string;
+    const slug = params.configId as string;
 
     const [config, setConfig] = useState<TestConfig | null>(null);
     const [loading, setLoading] = useState(true);
@@ -29,10 +29,11 @@ export default function TestDetailsPage() {
                 if (fetchedConfig && fetchedConfig.published) {
                     setConfig(fetchedConfig);
                 } else {
-                    // Redirect or show not found
+                    setConfig(null);
                 }
             } catch (error) {
                 console.error("Failed to load test configuration:", error);
+                setConfig(null);
             } finally {
                 setLoading(false);
             }
