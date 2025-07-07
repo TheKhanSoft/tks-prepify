@@ -25,6 +25,7 @@ export default function SubscriptionPage() {
     const [planHistory, setPlanHistory] = useState<UserPlan[]>([]);
     const [loading, setLoading] = useState(true);
     const [usage, setUsage] = useState<Record<string, number>>({});
+    const [resetDates, setResetDates] = useState<Record<string, Date | null>>({});
 
     useEffect(() => {
         if (user) {
@@ -45,17 +46,26 @@ export default function SubscriptionPage() {
 
                         if (currentPlan) {
                             const usageData: Record<string, number> = {};
+                            const resetDatesData: Record<string, Date | null> = {};
+
+                            const activePlanHistory = history.find(p => p.status === 'active');
+                            const subscriptionStartDate = activePlanHistory ? new Date(activePlanHistory.subscriptionDate) : (profile.createdAt ? new Date(profile.createdAt) : new Date());
+
                             for (const feature of currentPlan.features) {
                                 if (feature.isQuota && feature.key) {
                                     const usageKey = feature.key + (feature.period ? `_${feature.period}` : '');
                                     if (feature.key === 'bookmarks') {
                                         usageData[usageKey] = await countActiveBookmarks(user.uid);
+                                        resetDatesData[usageKey] = null; // Bookmarks are lifetime
                                     } else if (feature.key === 'downloads' && feature.period) {
-                                        usageData[usageKey] = await countDownloadsForPeriod(user.uid, feature.period);
+                                        const { count, resetDate } = await countDownloadsForPeriod(user.uid, feature.period, subscriptionStartDate);
+                                        usageData[usageKey] = count;
+                                        resetDatesData[usageKey] = resetDate;
                                     }
                                 }
                             }
                             setUsage(usageData);
+                            setResetDates(resetDatesData);
                         }
                     }
                 } catch (error) {
@@ -130,6 +140,7 @@ export default function SubscriptionPage() {
                                 const usageKey = (feature.key || '') + (feature.period ? `_${feature.period}` : '');
                                 const used = usage[usageKey] || 0;
                                 const percentage = limit > 0 ? (used / limit) * 100 : (limit === -1 ? 100 : 0);
+                                const resetDate = resetDates[usageKey];
 
                                 return (
                                     <div key={index}>
@@ -140,7 +151,15 @@ export default function SubscriptionPage() {
                                             </p>
                                         </div>
                                         <Progress value={percentage} aria-label={`${feature.text} usage`} />
-                                        <p className="text-xs text-muted-foreground mt-1 capitalize">Resets {feature.period}</p>
+                                        {feature.period === 'lifetime' ? (
+                                             <p className="text-xs text-muted-foreground mt-1 capitalize">Does not reset</p>
+                                        ) : resetDate ? (
+                                            <p className="text-xs text-muted-foreground mt-1 capitalize">
+                                                Resets on {format(resetDate, 'PPP')}
+                                            </p>
+                                        ) : (
+                                            <p className="text-xs text-muted-foreground mt-1 capitalize">Resets {feature.period}</p>
+                                        )}
                                     </div>
                                 )
                             })
