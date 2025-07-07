@@ -6,12 +6,15 @@ import { BookOpen, Facebook, Github, Instagram, Linkedin, Twitter, Youtube, Link
 import { Button } from '../ui/button';
 import type { Settings } from '@/types';
 import { socialPlatforms } from '@/lib/social-platforms';
+import { useAuth } from '@/hooks/use-auth';
 
 const iconMap: { [key: string]: React.ComponentType<{ className?: string }> } = {
     Facebook, Github, Instagram, Linkedin, Twitter, Youtube, MessageSquare, MessageCircle, Twitch, Ghost, Send, Link: LinkIcon
 };
 
 export function Footer({ settings }: { settings: Settings }) {
+  const { user } = useAuth();
+
   return (
     <footer className="bg-card border-t">
       <div className="container mx-auto px-6 sm:px-10 lg:px-16 py-8">
@@ -45,7 +48,11 @@ export function Footer({ settings }: { settings: Settings }) {
               <ul className="space-y-2 text-muted-foreground">
                 <li><Link href="/papers" className="hover:text-primary">Papers</Link></li>
                 <li><Link href="/categories" className="hover:text-primary">Categories</Link></li>
-                <li><Link href="/signup" className="hover:text-primary">Sign Up</Link></li>
+                <li><Link href="/pricing" className="hover:text-primary">Pricing</Link></li>
+                <li><Link href="/papers" className="hover:text-primary">Take an Exam</Link></li>
+                {!user && (
+                  <li><Link href="/signup" className="hover:text-primary">Sign Up</Link></li>
+                )}
               </ul>
             </div>
             <div>
