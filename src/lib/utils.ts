@@ -1,6 +1,8 @@
 
 import { clsx, type ClassValue } from "clsx"
 import { twMerge } from "tailwind-merge"
+import type { DocumentData } from "firebase/firestore";
+import type { Question } from "@/types";
 
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs))
@@ -17,4 +19,17 @@ export function slugify(text: string): string {
     .replace(/\-\-+/g, '-')         // Replace multiple - with single -
     .replace(/^-+/, '')             // Trim - from start of text
     .replace(/-+$/, '');            // Trim - from end of text
+}
+
+export function docToQuestion(doc: DocumentData): Question {
+  const data = doc.data();
+  return {
+    id: doc.id,
+    questionText: data.questionText,
+    type: data.type,
+    options: data.options,
+    correctAnswer: data.correctAnswer,
+    explanation: data.explanation,
+    questionCategoryId: data.questionCategoryId,
+  };
 }

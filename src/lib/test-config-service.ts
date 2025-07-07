@@ -19,7 +19,7 @@ import { db } from './firebase';
 import type { TestConfig, Question, PaperQuestion } from '@/types';
 import { fetchQuestionCategories } from './question-category-service';
 import { getDescendantQuestionCategoryIds } from './question-category-helpers';
-import { docToQuestion } from './question-service';
+import { docToQuestion } from './utils';
 
 function docToTestConfig(doc: DocumentData): TestConfig {
   const data = doc.data();

@@ -17,22 +17,10 @@ import {
 } from 'firebase/firestore';
 import { db } from './firebase';
 import type { Question } from '@/types';
+import { docToQuestion } from './utils';
 
 // Combined type for a question within a paper context
 export type PaperQuestion = Question & { order: number; linkId: string };
-
-export function docToQuestion(doc: DocumentData): Question {
-  const data = doc.data();
-  return {
-    id: doc.id,
-    questionText: data.questionText,
-    type: data.type,
-    options: data.options,
-    correctAnswer: data.correctAnswer,
-    explanation: data.explanation,
-    questionCategoryId: data.questionCategoryId,
-  };
-}
 
 // Fetches all questions from the central bank.
 export async function fetchAllQuestions(): Promise<Question[]> {
