@@ -18,6 +18,7 @@ import { getBookmarkForPaper, toggleBookmark } from '@/lib/bookmark-service';
 import { getUserProfile } from '@/lib/user-service';
 import { getPlanById } from '@/lib/plan-service';
 import { generatePdf } from '@/lib/pdf-generator';
+import { checkAndRecordDownload } from '@/lib/download-service';
 
 export default function SolvedPaperPage() {
   const router = useRouter();
@@ -134,18 +135,51 @@ export default function SolvedPaperPage() {
 
   const handleDownloadClick = async () => {
     if (!paper || questions.length === 0 || !settings) return;
+    
+    // 1. Check for user login
+    if (!user) {
+      toast({
+        title: 'Login Required',
+        description: 'You must be logged in to download papers.',
+        variant: 'destructive',
+      });
+      router.push('/login');
+      return;
+    }
+
     setIsDownloading(true);
-    toast({
-        title: 'Generating PDF...',
-        description: 'This may take a moment. Your download will start shortly.',
-    });
+    
     try {
-        await generatePdf(paper, questions, settings);
-    } catch (error) {
-        console.error("PDF generation failed:", error);
+        // 2. Check permissions/quota
+        const profile = await getUserProfile(user.uid);
+        if (!profile || !profile.planId) throw new Error('Could not load user profile or plan.');
+
+        const plan = await getPlanById(profile.planId);
+        if (!plan) throw new Error('Could not load subscription plan.');
+
+        const downloadCheck = await checkAndRecordDownload(user.uid, paper.id, plan);
+
+        if (!downloadCheck.success) {
+            toast({
+                title: 'Download Limit Reached',
+                description: downloadCheck.message,
+                variant: 'destructive',
+            });
+            setIsDownloading(false);
+            return;
+        }
+
+        // 3. Generate PDF if permission is granted
         toast({
-            title: 'PDF Generation Failed',
-            description: 'Could not generate the PDF. Please try again.',
+            title: 'Generating PDF...',
+            description: 'This may take a moment. Your download will start shortly.',
+        });
+        await generatePdf(paper, questions, settings);
+    } catch (error: any) {
+        console.error("PDF generation or permission check failed:", error);
+        toast({
+            title: 'Download Failed',
+            description: error.message || 'Could not generate the PDF. Please try again.',
             variant: 'destructive',
         });
     } finally {

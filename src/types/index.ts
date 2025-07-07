@@ -194,3 +194,10 @@ export interface Bookmark {
   active: boolean;
   removedAt?: string | null; // ISO string
 }
+
+export interface Download {
+  id: string;
+  userId: string;
+  paperId: string;
+  createdAt: string; // ISO string
+}
