@@ -237,7 +237,7 @@ export default function AdminPapersPage() {
                     return (
                     <TableRow key={paper.id}>
                         <TableCell>
-                          <div className="font-medium">{paper.title}</div>
+                          <Link href={`/admin/papers/${paper.id}/questions`} className="font-medium hover:underline">{paper.title}</Link>
                           <div className="text-xs text-muted-foreground">{categoryName}</div>
                           <div className="text-sm text-muted-foreground font-mono">{paper.slug}</div>
                         </TableCell>
@@ -345,6 +345,4 @@ export default function AdminPapersPage() {
     </>
   )
 }
-    
-
     
