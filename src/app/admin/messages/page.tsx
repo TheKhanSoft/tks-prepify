@@ -40,11 +40,6 @@ export default function AdminMessagesPage() {
       const fetchedSubmissions = await fetchContactSubmissions();
       setSubmissions(fetchedSubmissions);
     } catch (error) {
-      toast({
-        title: "Error",
-        description: "Could not load messages.",
-        variant: "destructive",
-      });
     } finally {
       setLoading(false);
     }
@@ -64,11 +59,6 @@ export default function AdminMessagesPage() {
           prev.map(s => (s.id === submission.id ? { ...s, isRead: true } : s))
         );
       } catch (error) {
-        toast({
-          title: "Error",
-          description: "Could not mark message as read.",
-          variant: "destructive",
-        });
       }
     }
   };
@@ -99,6 +89,7 @@ export default function AdminMessagesPage() {
                 <TableRow>
                   <TableHead className="w-12"></TableHead>
                   <TableHead>From</TableHead>
+                  <TableHead>Topic</TableHead>
                   <TableHead>Subject</TableHead>
                   <TableHead>Received</TableHead>
                   <TableHead className="text-right">Actions</TableHead>
@@ -119,6 +110,9 @@ export default function AdminMessagesPage() {
                         <div>{submission.name}</div>
                         <div className="text-xs text-muted-foreground font-normal">{submission.email}</div>
                       </TableCell>
+                      <TableCell>
+                        <Badge variant="secondary">{submission.topic}</Badge>
+                      </TableCell>
                       <TableCell>{submission.subject}</TableCell>
                       <TableCell>
                         {format(new Date(submission.createdAt), "PPP p")}
@@ -136,7 +130,7 @@ export default function AdminMessagesPage() {
                   ))
                 ) : (
                   <TableRow>
-                    <TableCell colSpan={5} className="h-24 text-center">
+                    <TableCell colSpan={6} className="h-24 text-center">
                       No messages found.
                     </TableCell>
                   </TableRow>
@@ -149,10 +143,10 @@ export default function AdminMessagesPage() {
       <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
         <DialogContent className="sm:max-w-2xl">
           <DialogHeader>
-            <DialogTitle>Message from {selectedSubmission?.name}</DialogTitle>
-            <DialogDescription>
-              {selectedSubmission?.subject} - Received on{" "}
-              {selectedSubmission && format(new Date(selectedSubmission.createdAt), "PPP p")}
+            <DialogTitle>{selectedSubmission?.subject}</DialogTitle>
+             <DialogDescription>
+                <Badge variant="outline">{selectedSubmission?.topic}</Badge> - Received on{" "}
+                {selectedSubmission && format(new Date(selectedSubmission.createdAt), "PPP p")}
             </DialogDescription>
           </DialogHeader>
           <div className="py-4 space-y-4">

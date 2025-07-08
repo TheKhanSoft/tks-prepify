@@ -199,6 +199,7 @@ export interface ContactSubmission {
   id: string;
   name: string;
   email: string;
+  topic: string;
   subject: string;
   message: string;
   createdAt: Date;

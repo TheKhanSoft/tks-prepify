@@ -17,34 +17,79 @@ import { useToast } from "@/hooks/use-toast";
 import { submitContactForm } from "@/lib/contact-service";
 import type { Settings } from "@/types";
 import ReactMarkdown from 'react-markdown';
+import { useAuth } from "@/hooks/use-auth";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { cn } from "@/lib/utils";
 
 const contactFormSchema = z.object({
-  name: z.string().min(2, { message: "Name must be at least 2 characters." }),
-  email: z.string().email({ message: "Please enter a valid email address." }),
+  name: z.string().optional(),
+  email: z.string().optional(),
+  topic: z.string({ required_error: "Please select a topic." }),
   subject: z.string().min(5, { message: "Subject must be at least 5 characters." }),
   message: z.string().min(10, { message: "Message must be at least 10 characters." }),
+}).refine((data) => {
+    if(!data.name) return false;
+    return true;
+}, {
+    message: "Name must be at least 2 characters.",
+    path: ["name"],
+}).refine((data) => {
+    if(!data.email) return false;
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    return emailRegex.test(data.email);
+}, {
+    message: "Please enter a valid email address.",
+    path: ["email"],
 });
+
 
 type ContactFormValues = z.infer<typeof contactFormSchema>;
 
+const contactTopics = [
+    "General Inquiry",
+    "Report a Bug",
+    "Request a Paper",
+    "Issue with my Account",
+    "Issue with a Test/Result",
+    "Feedback & Suggestions",
+    "Other"
+];
+
 function ContactForm() {
   const { toast } = useToast();
+  const { user } = useAuth();
   const [isSubmitting, setIsSubmitting] = useState(false);
+  
   const form = useForm<ContactFormValues>({
     resolver: zodResolver(contactFormSchema),
-    defaultValues: { name: "", email: "", subject: "", message: "" },
+    defaultValues: { name: "", email: "", subject: "", message: "", topic: "" },
   });
+  
+  useEffect(() => {
+      if (user) {
+          form.setValue("name", user.displayName || "");
+          form.setValue("email", user.email || "");
+      }
+  }, [user, form]);
 
   async function onSubmit(data: ContactFormValues) {
     setIsSubmitting(true);
     try {
-      const result = await submitContactForm(data);
+       const finalData = {
+        name: user?.displayName || data.name!,
+        email: user?.email || data.email!,
+        topic: data.topic,
+        subject: data.subject,
+        message: data.message,
+      };
+
+      const result = await submitContactForm(finalData);
       if (result.success) {
         toast({
           title: "Message Sent!",
           description: "Thank you for contacting us. We'll get back to you shortly.",
         });
-        form.reset();
+        form.reset({ subject: "", message: "", topic: "" });
       } else {
         throw new Error(result.error);
       }
@@ -62,56 +107,52 @@ function ContactForm() {
   return (
     <Form {...form}>
       <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+        <div className={cn("grid gap-6", !user && "md:grid-cols-2")}>
+            {!user && (
+                <>
+                <FormField
+                    control={form.control}
+                    name="name"
+                    render={({ field }) => (
+                        <FormItem><Label>Full Name</Label><FormControl><Input placeholder="John Doe" {...field} value={field.value || ''} /></FormControl><FormMessage /></FormItem>
+                    )}
+                />
+                <FormField
+                    control={form.control}
+                    name="email"
+                    render={({ field }) => (
+                        <FormItem><Label>Email Address</Label><FormControl><Input type="email" placeholder="john.doe@example.com" {...field} value={field.value || ''} /></FormControl><FormMessage /></FormItem>
+                    )}
+                />
+                </>
+            )}
+        </div>
         <FormField
-          control={form.control}
-          name="name"
-          render={({ field }) => (
-            <FormItem>
-              <Label htmlFor="name">Full Name</Label>
-              <FormControl>
-                <Input id="name" placeholder="John Doe" {...field} />
-              </FormControl>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
-        <FormField
-          control={form.control}
-          name="email"
-          render={({ field }) => (
-            <FormItem>
-              <Label htmlFor="email">Email Address</Label>
-              <FormControl>
-                <Input id="email" type="email" placeholder="john.doe@example.com" {...field} />
-              </FormControl>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
+            control={form.control}
+            name="topic"
+            render={({ field }) => (
+                <FormItem>
+                <Label>Topic</Label>
+                <Select onValueChange={field.onChange} defaultValue={field.value}>
+                    <FormControl><SelectTrigger><SelectValue placeholder="Select a topic..." /></SelectTrigger></FormControl>
+                    <SelectContent>{contactTopics.map(topic => <SelectItem key={topic} value={topic}>{topic}</SelectItem>)}</SelectContent>
+                </Select>
+                <FormMessage />
+                </FormItem>
+            )}
+            />
         <FormField
           control={form.control}
           name="subject"
           render={({ field }) => (
-            <FormItem>
-              <Label htmlFor="subject">Subject</Label>
-              <FormControl>
-                <Input id="subject" placeholder="Question about a paper" {...field} />
-              </FormControl>
-              <FormMessage />
-            </FormItem>
+            <FormItem><Label>Subject</Label><FormControl><Input placeholder="Question about a paper" {...field} /></FormControl><FormMessage /></FormItem>
           )}
         />
         <FormField
           control={form.control}
           name="message"
           render={({ field }) => (
-            <FormItem>
-              <Label htmlFor="message">Message</Label>
-              <FormControl>
-                <Textarea id="message" placeholder="Your message..." rows={5} {...field} />
-              </FormControl>
-              <FormMessage />
-            </FormItem>
+            <FormItem><Label>Message</Label><FormControl><Textarea placeholder="Your message..." rows={5} {...field} /></FormControl><FormMessage /></FormItem>
           )}
         />
         <Button type="submit" className="w-full" disabled={isSubmitting}>

@@ -8,6 +8,7 @@ import type { ContactSubmission } from '@/types';
 type ContactFormData = {
   name: string;
   email: string;
+  topic: string;
   subject: string;
   message: string;
 }
@@ -38,6 +39,7 @@ export async function fetchContactSubmissions(): Promise<ContactSubmission[]> {
         id: doc.id,
         name: data.name,
         email: data.email,
+        topic: data.topic,
         subject: data.subject,
         message: data.message,
         createdAt: data.createdAt.toDate(), // convert Firestore Timestamp to JS Date
