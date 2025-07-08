@@ -2,19 +2,19 @@
 'use client';
 
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
-import { ChevronRight, Loader2, BarChart3 } from 'lucide-react';
+import { ChevronRight, Loader2, BarChart3, ShieldAlert } from 'lucide-react';
 import { useAuth } from "@/hooks/use-auth";
 import { fetchTestAttemptsForUser } from "@/lib/test-attempt-service";
 import type { TestAttempt } from "@/types";
-import { useEffect, useState, useMemo, useCallback } from "react";
+import { useEffect, useState } from "react";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { format } from "date-fns";
 import { Badge } from "@/components/ui/badge";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
-import { useToast } from "@/hooks/use-toast";
 
+// Reusable component to render the status badge
 const StatusBadge = ({ attempt }: { attempt: TestAttempt }) => {
     if (attempt.status === 'completed') {
         return (
@@ -29,42 +29,45 @@ const StatusBadge = ({ attempt }: { attempt: TestAttempt }) => {
     if (attempt.status === 'in-progress') {
         return <Badge variant="secondary" className="capitalize">In Progress</Badge>;
     }
-    return <Badge variant="outline" className="capitalize">{attempt.status}</Badge>;
+    return <Badge variant="outline" className="capitalize">{attempt.status || 'Unknown'}</Badge>;
 };
+
 
 export default function ResultsPage() {
     const { user, loading: authLoading } = useAuth();
     const [attempts, setAttempts] = useState<TestAttempt[]>([]);
     const [loading, setLoading] = useState(true);
-    const { toast } = useToast();
+    const [error, setError] = useState<string | null>(null);
 
-    const loadAttempts = useCallback(async (userId: string) => {
-        setLoading(true);
-        try {
-            const fetchedAttempts = await fetchTestAttemptsForUser(userId);
-            setAttempts(fetchedAttempts);
-        } catch (error) {
-            console.error("Failed to load test history:", error);
-            toast({
-                title: "Error Loading History",
-                description: "Could not retrieve your test results. Please try refreshing the page.",
-                variant: "destructive",
-            });
-        } finally {
-            setLoading(false);
-        }
-    }, [toast]);
-
+    // Fetch attempts when user is available
     useEffect(() => {
-        if (authLoading) return;
-        
-        if (user) {
-            loadAttempts(user.uid);
-        } else {
-            setLoading(false);
+        if (authLoading) {
+            return;
         }
-    }, [user, authLoading, loadAttempts]);
+        if (!user) {
+            setLoading(false);
+            return;
+        }
 
+        const loadAttempts = async () => {
+            setLoading(true);
+            setError(null);
+            try {
+                const fetchedAttempts = await fetchTestAttemptsForUser(user.uid);
+                setAttempts(fetchedAttempts);
+            } catch (err) {
+                console.error("Failed to load test history:", err);
+                setError("Could not retrieve your test results. Please try refreshing the page.");
+            } finally {
+                setLoading(false);
+            }
+        };
+
+        loadAttempts();
+    }, [user, authLoading]);
+    
+
+    // Loading State
     if (loading || authLoading) {
         return (
             <div className="flex justify-center items-center h-full min-h-[calc(100vh-20rem)]">
@@ -89,7 +92,15 @@ export default function ResultsPage() {
                     </CardDescription>
                 </CardHeader>
                 <CardContent>
-                    {attempts.length > 0 ? (
+                    {error && (
+                         <div className="flex flex-col items-center justify-center text-center text-destructive h-64 border-2 border-dashed border-destructive/50 rounded-lg bg-destructive/10">
+                            <ShieldAlert className="h-12 w-12 mb-4" />
+                            <h3 className="text-lg font-semibold">Error Loading Results</h3>
+                            <p className="mt-1">{error}</p>
+                        </div>
+                    )}
+
+                    {!error && attempts.length > 0 && (
                          <Table>
                             <TableHeader>
                                 <TableRow>
@@ -117,7 +128,7 @@ export default function ResultsPage() {
                                                     </Link>
                                                 </Button>
                                             ) : (
-                                                <Button asChild variant="secondary" size="sm">
+                                                 <Button asChild variant="secondary" size="sm">
                                                     <Link href={`/tests/${attempt.testConfigSlug}/take`}>
                                                         Resume Test
                                                     </Link>
@@ -128,7 +139,9 @@ export default function ResultsPage() {
                                 ))}
                             </TableBody>
                          </Table>
-                    ) : (
+                    )}
+
+                    {!error && attempts.length === 0 && (
                         <div className="flex flex-col items-center justify-center text-center text-muted-foreground h-64 border-2 border-dashed rounded-lg">
                             <BarChart3 className="h-12 w-12 mb-4" />
                             <h3 className="text-lg font-semibold">No Results Yet</h3>

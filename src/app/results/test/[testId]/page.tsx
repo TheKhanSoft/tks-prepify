@@ -1,5 +1,5 @@
 
-"use client";
+'use client';
 
 import { useEffect, useState, useMemo, useCallback } from 'react';
 import { useRouter, useParams } from 'next/navigation';
@@ -25,8 +25,8 @@ const chartConfig = {
   incorrect: { label: "Incorrect", color: "hsl(var(--destructive))" },
 } satisfies ChartConfig;
 
-const RETRY_DELAY = 1500; // 1.5 seconds
-const MAX_RETRIES = 3;
+const RETRY_DELAY = 2000; // 2 seconds
+const MAX_RETRIES = 4; // Total time ~8 seconds
 
 export default function DynamicTestResultsPage() {
   const router = useRouter();
@@ -41,37 +41,42 @@ export default function DynamicTestResultsPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  const fetchAttemptWithRetry = useCallback(async (userId: string, retries = MAX_RETRIES) => {
-    try {
-      const attemptData = await getTestAttemptById(attemptId, userId);
-      if (attemptData) {
-        setAttempt(attemptData);
-        setError(null);
-        setLoading(false);
-      } else if (retries > 0) {
-        setTimeout(() => fetchAttemptWithRetry(userId, retries - 1), RETRY_DELAY);
-      } else {
-        setError("Could not load your test results. It might still be processing, or you may not have permission to view this page. Please try refreshing in a moment.");
-        setLoading(false);
-      }
-    } catch (e) {
-      console.error(e);
-      setError("An unexpected error occurred while fetching your results.");
-      setLoading(false);
-    }
-  }, [attemptId]);
-
   useEffect(() => {
-    if (authLoading) return;
+    if (authLoading || !attemptId) return;
     if (!user) {
-      toast({ title: "Unauthorized", description: "You must be logged in to view results.", variant: "destructive" });
-      router.push(`/login?redirect=/results/test/${attemptId}`);
-      return;
+        toast({ title: "Unauthorized", description: "You must be logged in to view results.", variant: "destructive" });
+        router.push(`/login?redirect=/results/test/${attemptId}`);
+        return;
     }
-    if (attemptId && user) {
-      fetchAttemptWithRetry(user.uid);
-    }
-  }, [attemptId, user, authLoading, router, toast, fetchAttemptWithRetry]);
+    
+    let retryCount = 0;
+    const fetchAttempt = async () => {
+        try {
+            const attemptData = await getTestAttemptById(attemptId, user.uid);
+            
+            // The data might exist but the subcollection writes might be lagging.
+            // We check for `questionAttempts` to be populated.
+            if (attemptData && attemptData.status === 'completed' && attemptData.questionAttempts && attemptData.questionAttempts.length > 0) {
+                setAttempt(attemptData);
+                setLoading(false);
+                setError(null);
+            } else if (retryCount < MAX_RETRIES) {
+                retryCount++;
+                setTimeout(fetchAttempt, RETRY_DELAY);
+            } else {
+                 setLoading(false);
+                 setError("Could not load your test results. The data may still be processing, or you may not have permission to view this page. Please try refreshing in a moment.");
+            }
+        } catch (e) {
+            console.error(e);
+            setLoading(false);
+            setError("An unexpected error occurred while fetching your results.");
+        }
+    };
+    
+    fetchAttempt();
+
+  }, [attemptId, user, authLoading, router, toast]);
 
   const handleGetFeedback = async (question: QuestionAttempt) => {
     if (!attempt || loading) return;
@@ -131,7 +136,12 @@ export default function DynamicTestResultsPage() {
   }, [attempt]);
 
   if (loading) {
-    return <div className="flex justify-center items-center h-screen"><Loader2 className="h-8 w-8 animate-spin" /></div>;
+    return (
+        <div className="flex justify-center items-center h-screen flex-col gap-4">
+            <Loader2 className="h-8 w-8 animate-spin" />
+            <p className="text-muted-foreground">Finalizing your results...</p>
+        </div>
+    );
   }
   
   if (error) {
