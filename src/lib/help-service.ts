@@ -13,7 +13,8 @@ import {
   query,
   orderBy,
   writeBatch,
-  where
+  where,
+  limit
 } from 'firebase/firestore';
 import { db } from './firebase';
 import type { HelpArticle, HelpCategory } from '@/types';
@@ -97,6 +98,33 @@ export async function addHelpArticle(data: Omit<HelpArticle, 'id'>) {
     const articlesCol = collection(db, 'help_articles');
     await addDoc(articlesCol, data);
 }
+
+export async function addMultipleHelpArticles(
+  articles: { question: string; answer: string }[],
+  categoryId: string
+) {
+  const batch = writeBatch(db);
+  const articlesCol = collection(db, 'help_articles');
+  
+  const q = query(articlesCol, where("categoryId", "==", categoryId), orderBy("order", "desc"), limit(1));
+  const snapshot = await getDocs(q);
+  let maxOrder = 0;
+  if (!snapshot.empty) {
+    maxOrder = snapshot.docs[0].data().order || 0;
+  }
+
+  articles.forEach((article, index) => {
+    const newArticleRef = doc(articlesCol);
+    batch.set(newArticleRef, {
+      ...article,
+      categoryId: categoryId,
+      order: maxOrder + 1 + index,
+    });
+  });
+  
+  await batch.commit();
+}
+
 
 export async function updateHelpArticle(id: string, data: Partial<Omit<HelpArticle, 'id'>>) {
     const docRef = doc(db, 'help_articles', id);

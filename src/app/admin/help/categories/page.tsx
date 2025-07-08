@@ -9,10 +9,11 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { PlusCircle, MoreHorizontal, Edit, Trash2, Loader2, ArrowLeft, BookPlus } from "lucide-react";
-import { fetchHelpCategories, deleteHelpCategory } from "@/lib/help-service";
+import { PlusCircle, MoreHorizontal, Edit, Trash2, Loader2, ArrowLeft, BookPlus, Sparkles } from "lucide-react";
+import { fetchHelpCategories, deleteHelpCategory, addMultipleHelpArticles } from "@/lib/help-service";
 import type { HelpCategory } from "@/types";
 import { useToast } from "@/hooks/use-toast";
+import { generateHelpArticles } from "@/ai/flows/generate-help-articles-flow";
 
 export default function AdminHelpCategoriesPage() {
   const router = useRouter();
@@ -20,7 +21,9 @@ export default function AdminHelpCategoriesPage() {
   const [categories, setCategories] = useState<HelpCategory[]>([]);
   const [loading, setLoading] = useState(true);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [isGenerating, setIsGenerating] = useState(false);
   const [deleteAlert, setDeleteAlert] = useState<{ open: boolean, category?: HelpCategory }>({ open: false });
+  const [generationDialog, setGenerationDialog] = useState<{ open: boolean, category?: HelpCategory }>({ open: false });
 
   const loadCategories = useCallback(async () => {
     setLoading(true);
@@ -49,6 +52,38 @@ export default function AdminHelpCategoriesPage() {
     } finally {
       setIsDeleting(false);
       setDeleteAlert({ open: false });
+    }
+  };
+
+  const handleGenerateClick = (category: HelpCategory) => {
+    setGenerationDialog({ open: true, category });
+  };
+
+  const handleGenerateArticles = async () => {
+    if (!generationDialog.category) return;
+    setIsGenerating(true);
+    try {
+      const result = await generateHelpArticles({ categoryName: generationDialog.category.name });
+      if (result && result.articles && result.articles.length > 0) {
+        await addMultipleHelpArticles(result.articles, generationDialog.category.id);
+        toast({
+          title: "Articles Generated",
+          description: `${result.articles.length} new articles created for "${generationDialog.category.name}".`,
+        });
+        router.push('/admin/help');
+      } else {
+        throw new Error("AI did not return any articles.");
+      }
+    } catch (error: any) {
+      console.error(error);
+      toast({
+        title: "Generation Failed",
+        description: error.message || "Could not generate articles for this category.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsGenerating(false);
+      setGenerationDialog({ open: false });
     }
   };
 
@@ -94,6 +129,10 @@ export default function AdminHelpCategoriesPage() {
                             <DropdownMenuContent align="end">
                               <DropdownMenuItem asChild><Link href={`/admin/help/categories/${cat.id}/edit`}><Edit className="mr-2 h-4 w-4" />Edit</Link></DropdownMenuItem>
                               <DropdownMenuItem asChild><Link href={`/admin/help/new?categoryId=${cat.id}`}><BookPlus className="mr-2 h-4 w-4" />Add Article</Link></DropdownMenuItem>
+                              <DropdownMenuItem onSelect={() => handleGenerateClick(cat)}>
+                                <Sparkles className="mr-2 h-4 w-4" />
+                                Generate Articles (AI)
+                              </DropdownMenuItem>
                               <DropdownMenuSeparator />
                               <DropdownMenuItem className="text-destructive" onSelect={() => setDeleteAlert({ open: true, category: cat })}><Trash2 className="mr-2 h-4 w-4" />Delete</DropdownMenuItem>
                             </DropdownMenuContent>
@@ -118,6 +157,24 @@ export default function AdminHelpCategoriesPage() {
           <AlertDialogFooter>
             <AlertDialogCancel disabled={isDeleting}>Cancel</AlertDialogCancel>
             <AlertDialogAction onClick={handleDelete} disabled={isDeleting}>{isDeleting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}Delete</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+       <AlertDialog open={generationDialog.open} onOpenChange={(open) => !open && setGenerationDialog({ open: false })}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Generate AI Content?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will generate 3-5 new help articles for the category "{generationDialog.category?.name}".
+              The new articles will be added to the help center. This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={isGenerating}>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={handleGenerateArticles} disabled={isGenerating}>
+              {isGenerating && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              Generate
+            </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
