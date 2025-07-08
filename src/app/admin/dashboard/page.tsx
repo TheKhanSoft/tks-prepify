@@ -5,7 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Badge } from "@/components/ui/badge"
-import { FileText, Users, PlusCircle, ArrowUpRight, Loader2, Library, Bell, ClipboardCheck, ShieldCheck, ShieldAlert, Coins, Info, Star, Mail } from 'lucide-react';
+import { FileText, Users, PlusCircle, ArrowUpRight, Loader2, Library, Bell, ClipboardCheck, ShieldCheck, ShieldAlert, Coins, Info, Star, Mail, Database } from 'lucide-react';
 import { fetchCategories } from '@/lib/category-service';
 import { getCategoryPath } from '@/lib/category-helpers';
 import { fetchPapers } from '@/lib/paper-service';
@@ -86,49 +86,35 @@ export default function AdminDashboardPage() {
     totalUsers,
     newUsersThisWeek,
     totalPapers,
-    unpublishedPapers,
     totalQuestions,
-    totalQuestionCategories,
-    papersNeedingQuestions,
     totalTestAttempts,
     passedCount,
     failedCount,
-    totalPlans,
-    publishedPlans,
+    averageScore,
     openTickets,
-    priorityTickets,
   } = useMemo(() => {
     const oneWeekAgo = subDays(new Date(), 7);
     const newUsers = allUsers.filter(u => u.createdAt && new Date(u.createdAt) >= oneWeekAgo).length;
-
-    let totalQCategories = 0;
-    const countQCategories = (categories: QuestionCategory[]) => {
-      for (const category of categories) {
-          totalQCategories++;
-          if (category.subcategories) {
-              countQCategories(category.subcategories);
-          }
-      }
-    };
-    countQCategories(allQuestionCategories);
     
+    const completedAttempts = allTestAttempts.filter(a => a.status === 'completed');
+    const passed = completedAttempts.filter(a => a.passed).length;
+    const failed = completedAttempts.length - passed;
+    const avgScore = completedAttempts.length > 0 
+        ? (completedAttempts.reduce((acc, attempt) => acc + attempt.percentage, 0) / completedAttempts.length)
+        : 0;
+
     return {
       totalUsers: allUsers.length,
       newUsersThisWeek: newUsers,
       totalPapers: allPapers.length,
-      unpublishedPapers: allPapers.filter(p => !p.published).length,
       totalQuestions: allQuestions.length,
-      totalQuestionCategories: totalQCategories,
-      papersNeedingQuestions: allPapers.filter(p => (questionCounts[p.id] || 0) < p.questionCount).length,
       totalTestAttempts: allTestAttempts.length,
-      passedCount: allTestAttempts.filter(a => a.status === 'completed' && a.passed).length,
-      failedCount: allTestAttempts.filter(a => a.status === 'completed' && !a.passed).length,
-      totalPlans: allPlans.length,
-      publishedPlans: allPlans.filter(p => p.published).length,
+      passedCount: passed,
+      failedCount: failed,
+      averageScore: avgScore,
       openTickets: contactSubmissions.filter(s => s.status === 'open').length,
-      priorityTickets: contactSubmissions.filter(s => s.priority).length,
     };
-  }, [allUsers, allPapers, allQuestions, allQuestionCategories, questionCounts, allTestAttempts, allPlans, contactSubmissions]);
+  }, [allUsers, allPapers, allQuestions, allTestAttempts, contactSubmissions]);
 
 
   const papersPerCategory = useMemo(() => {
@@ -279,7 +265,7 @@ export default function AdminDashboardPage() {
             <CardContent>
               <div className="text-2xl font-bold">{totalPapers}</div>
               <p className="text-xs text-muted-foreground">
-                {unpublishedPapers > 0 ? `${unpublishedPapers} unpublished` : 'All papers are published'}
+                {allPapers.filter(p => !p.published).length} unpublished
               </p>
             </CardContent>
           </Card>
@@ -288,27 +274,59 @@ export default function AdminDashboardPage() {
           <Card className="hover:bg-muted/50 transition-colors">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium">Question Bank</CardTitle>
-              <Library className="h-4 w-4 text-muted-foreground" />
+              <Database className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold">{totalQuestions}</div>
-              <p className="text-xs text-muted-foreground">in {totalQuestionCategories} categories</p>
+              <p className="text-xs text-muted-foreground">Total questions in bank</p>
             </CardContent>
           </Card>
         </Link>
-        <Link href="/admin/papers">
-          <Card className="hover:bg-muted/50 transition-colors">
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Total Test Attempts</CardTitle>
+            <ClipboardCheck className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{totalTestAttempts}</div>
+            <p className="text-xs text-muted-foreground">All attempts started by users</p>
+          </CardContent>
+        </Card>
+
+        <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Action Required</CardTitle>
-              <Bell className="h-4 w-4 text-muted-foreground" />
+                <CardTitle className="text-sm font-medium">Passed Tests</CardTitle>
+                <ShieldCheck className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{papersNeedingQuestions}</div>
-              <p className="text-xs text-muted-foreground">Papers needing questions</p>
+                <div className="text-2xl font-bold">{passedCount}</div>
+                <p className="text-xs text-muted-foreground">
+                {totalTestAttempts > 0 ? `${((passedCount / allTestAttempts.filter(a => a.status === 'completed').length) * 100).toFixed(1)}% pass rate` : 'No completed tests'}
+                </p>
             </CardContent>
-          </Card>
-        </Link>
-        
+        </Card>
+        <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Failed Tests</CardTitle>
+                <ShieldAlert className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+                <div className="text-2xl font-bold">{failedCount}</div>
+                <p className="text-xs text-muted-foreground">
+                    {totalTestAttempts > 0 ? `${((failedCount / allTestAttempts.filter(a => a.status === 'completed').length) * 100).toFixed(1)}% fail rate` : 'No completed tests'}
+                </p>
+            </CardContent>
+        </Card>
+         <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Average Score</CardTitle>
+            <Star className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+            <div className="text-2xl font-bold">{averageScore.toFixed(1)}%</div>
+            <p className="text-xs text-muted-foreground">Across all completed tests</p>
+            </CardContent>
+        </Card>
         <Link href="/admin/messages">
             <Card className="hover:bg-muted/50 transition-colors">
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
@@ -320,40 +338,6 @@ export default function AdminDashboardPage() {
                 <p className="text-xs text-muted-foreground">Tickets needing a reply</p>
               </CardContent>
             </Card>
-        </Link>
-        <Link href="/admin/messages">
-            <Card className="hover:bg-muted/50 transition-colors">
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Priority Tickets</CardTitle>
-                <Star className="h-4 w-4 text-muted-foreground" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold">{priorityTickets}</div>
-                <p className="text-xs text-muted-foreground">High-priority tickets</p>
-              </CardContent>
-            </Card>
-        </Link>
-        <Card className="hover:bg-muted/50 transition-colors">
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total Test Attempts</CardTitle>
-            <ClipboardCheck className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{totalTestAttempts}</div>
-            <p className="text-xs text-muted-foreground">All attempts started by users</p>
-          </CardContent>
-        </Card>
-        <Link href="/admin/plans">
-          <Card className="hover:bg-muted/50 transition-colors">
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Pricing Plans</CardTitle>
-              <Coins className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{totalPlans}</div>
-              <p className="text-xs text-muted-foreground">{publishedPlans} plan(s) are published</p>
-            </CardContent>
-          </Card>
         </Link>
       </div>
 
@@ -549,3 +533,5 @@ export default function AdminDashboardPage() {
     </div>
   );
 }
+
+    
