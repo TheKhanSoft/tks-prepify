@@ -2,17 +2,18 @@
 'use client';
 
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
-import { BarChart3, ChevronRight, Loader2 } from 'lucide-react';
+import { ChevronRight, Loader2, BarChart3 } from 'lucide-react';
 import { useAuth } from "@/hooks/use-auth";
 import { fetchTestAttemptsForUser } from "@/lib/test-attempt-service";
 import type { TestAttempt } from "@/types";
-import { useEffect, useState, useMemo } from "react";
+import { useEffect, useState, useMemo, useCallback } from "react";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { format } from "date-fns";
 import { Badge } from "@/components/ui/badge";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import { useToast } from "@/hooks/use-toast";
 
 const StatusBadge = ({ attempt }: { attempt: TestAttempt }) => {
     if (attempt.status === 'completed') {
@@ -35,31 +36,34 @@ export default function ResultsPage() {
     const { user, loading: authLoading } = useAuth();
     const [attempts, setAttempts] = useState<TestAttempt[]>([]);
     const [loading, setLoading] = useState(true);
+    const { toast } = useToast();
 
-    const completedAttempts = useMemo(() => attempts.filter(a => a.status === 'completed'), [attempts]);
+    const loadAttempts = useCallback(async (userId: string) => {
+        setLoading(true);
+        try {
+            const fetchedAttempts = await fetchTestAttemptsForUser(userId);
+            setAttempts(fetchedAttempts);
+        } catch (error) {
+            console.error("Failed to load test history:", error);
+            toast({
+                title: "Error Loading History",
+                description: "Could not retrieve your test results. Please try refreshing the page.",
+                variant: "destructive",
+            });
+        } finally {
+            setLoading(false);
+        }
+    }, [toast]);
 
     useEffect(() => {
         if (authLoading) return;
         
-        if (!user) {
+        if (user) {
+            loadAttempts(user.uid);
+        } else {
             setLoading(false);
-            return;
         }
-
-        const loadAttempts = async () => {
-            setLoading(true);
-            try {
-                const fetchedAttempts = await fetchTestAttemptsForUser(user.uid);
-                setAttempts(fetchedAttempts);
-            } catch (error) {
-                console.error("Failed to load test history:", error);
-            } finally {
-                setLoading(false);
-            }
-        };
-
-        loadAttempts();
-    }, [user, authLoading]);
+    }, [user, authLoading, loadAttempts]);
 
     if (loading || authLoading) {
         return (
@@ -68,6 +72,8 @@ export default function ResultsPage() {
             </div>
         );
     }
+    
+    const completedAttemptsCount = attempts.filter(a => a.status === 'completed').length;
     
     return (
         <div className="space-y-6">
@@ -79,8 +85,7 @@ export default function ResultsPage() {
                 <CardHeader>
                     <CardTitle>Test History</CardTitle>
                     <CardDescription>
-                        You have taken {attempts.length} test{attempts.length !== 1 && 's'} in total.
-                        Completed: {completedAttempts.length}.
+                        You have taken {attempts.length} test{attempts.length !== 1 ? 's' : ''} in total. Completed: {completedAttemptsCount}.
                     </CardDescription>
                 </CardHeader>
                 <CardContent>
@@ -112,8 +117,10 @@ export default function ResultsPage() {
                                                     </Link>
                                                 </Button>
                                             ) : (
-                                                <Button variant="ghost" size="sm" disabled>
-                                                    View Details <ChevronRight className="h-4 w-4 ml-2" />
+                                                <Button asChild variant="secondary" size="sm">
+                                                    <Link href={`/tests/${attempt.testConfigSlug}/take`}>
+                                                        Resume Test
+                                                    </Link>
                                                 </Button>
                                             )}
                                         </TableCell>

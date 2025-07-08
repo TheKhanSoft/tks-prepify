@@ -201,33 +201,17 @@ export async function fetchTestAttemptsForUser(userId: string): Promise<TestAtte
     if (!userId) return [];
     
     const attemptsCol = collection(db, 'test_attempts');
-    // Query for the user's attempts and order them by start time descending.
-    // This requires a composite index in Firestore on (userId, startTime desc).
-    // Firestore will provide a link to create this index in the console if it's missing.
-    const q = query(
-        attemptsCol, 
-        where("userId", "==", userId),
-        orderBy('startTime', 'desc')
-    );
+    const q = query(attemptsCol, where("userId", "==", userId));
 
-    try {
-        const snapshot = await getDocs(q);
-        return snapshot.docs.map(docToTestAttempt);
-    } catch (error) {
-        console.error("Error fetching test attempts. This might be due to a missing Firestore index. Check the browser console for a link to create it.", error);
-        // Fallback to less efficient client-side filtering if the indexed query fails.
-        // This is not ideal for production but provides a graceful fallback.
-        const allSnapshot = await getDocs(collection(db, 'test_attempts'));
-        const userAttempts = allSnapshot.docs
-            .map(docToTestAttempt)
-            .filter(attempt => attempt.userId === userId);
-        
-        userAttempts.sort((a, b) => {
-            if (!a.startTime) return 1;
-            if (!b.startTime) return -1;
-            return new Date(b.startTime).getTime() - new Date(a.startTime).getTime();
-        });
-        
-        return userAttempts;
-    }
+    const snapshot = await getDocs(q);
+    const attempts = snapshot.docs.map(docToTestAttempt);
+
+    // Sort by start time descending in-memory to avoid index dependency
+    attempts.sort((a, b) => {
+        if (!a.startTime) return 1;
+        if (!b.startTime) return -1;
+        return new Date(b.startTime).getTime() - new Date(a.startTime).getTime();
+    });
+
+    return attempts;
 }
