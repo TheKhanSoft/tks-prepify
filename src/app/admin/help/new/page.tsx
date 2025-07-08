@@ -4,7 +4,7 @@
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
@@ -12,7 +12,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
 import { ArrowLeft, Loader2, Sparkles } from "lucide-react";
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, Suspense } from "react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { addHelpArticle, fetchHelpCategories } from "@/lib/help-service";
 import type { HelpCategory } from "@/types";
@@ -28,8 +28,9 @@ const articleFormSchema = z.object({
 
 type ArticleFormValues = z.infer<typeof articleFormSchema>;
 
-export default function NewHelpArticlePage() {
+function NewHelpArticlePageComponent() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { toast } = useToast();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [categories, setCategories] = useState<HelpCategory[]>([]);
@@ -37,8 +38,16 @@ export default function NewHelpArticlePage() {
   const [isGeneratingQuestion, setIsGeneratingQuestion] = useState(false);
   const [isGeneratingAnswer, setIsGeneratingAnswer] = useState(false);
 
+  const categoryIdParam = searchParams.get("categoryId");
+
   const form = useForm<ArticleFormValues>({
     resolver: zodResolver(articleFormSchema),
+    defaultValues: {
+      question: "",
+      answer: "",
+      categoryId: categoryIdParam || undefined,
+      order: 0,
+    }
   });
 
   useEffect(() => {
@@ -47,7 +56,7 @@ export default function NewHelpArticlePage() {
       try {
         const cats = await fetchHelpCategories();
         setCategories(cats);
-        if (cats.length > 0) {
+        if (!categoryIdParam && cats.length > 0) {
           form.setValue('categoryId', cats[0].id);
         }
       } catch (error) {
@@ -57,7 +66,7 @@ export default function NewHelpArticlePage() {
       }
     };
     loadCategories();
-  }, [toast, form]);
+  }, [toast, form, categoryIdParam]);
 
   async function handleEnhanceQuestion() {
     const question = form.getValues("question");
@@ -161,7 +170,7 @@ export default function NewHelpArticlePage() {
                 )}
               />
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <FormField control={form.control} name="categoryId" render={({ field }) => (<FormItem><FormLabel>Category</FormLabel><Select onValueChange={field.onChange} defaultValue={field.value} disabled={loading}><FormControl><SelectTrigger><SelectValue placeholder="Select a category" /></SelectTrigger></FormControl><SelectContent>{categories.map(cat => (<SelectItem key={cat.id} value={cat.id}>{cat.name}</SelectItem>))}</SelectContent></Select><FormMessage /></FormItem>)} />
+                <FormField control={form.control} name="categoryId" render={({ field }) => (<FormItem><FormLabel>Category</FormLabel><Select onValueChange={field.onChange} value={field.value} disabled={loading}><FormControl><SelectTrigger><SelectValue placeholder="Select a category" /></SelectTrigger></FormControl><SelectContent>{categories.map(cat => (<SelectItem key={cat.id} value={cat.id}>{cat.name}</SelectItem>))}</SelectContent></Select><FormMessage /></FormItem>)} />
                 <FormField control={form.control} name="order" render={({ field }) => (<FormItem><FormLabel>Display Order</FormLabel><FormControl><Input type="number" {...field} /></FormControl><FormDescription>A lower number will appear higher in the list.</FormDescription><FormMessage /></FormItem>)} />
               </div>
             </CardContent>
@@ -174,4 +183,16 @@ export default function NewHelpArticlePage() {
       </Form>
     </div>
   );
+}
+
+export default function NewHelpArticlePage() {
+    return (
+        <Suspense fallback={
+            <div className="flex justify-center items-center h-full min-h-[calc(100vh-20rem)]">
+                <Loader2 className="h-8 w-8 animate-spin text-primary" />
+            </div>
+        }>
+            <NewHelpArticlePageComponent />
+        </Suspense>
+    )
 }

@@ -9,7 +9,7 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { PlusCircle, MoreHorizontal, Edit, Trash2, Loader2, GripVertical } from "lucide-react";
+import { PlusCircle, MoreHorizontal, Edit, Trash2, Loader2, GripVertical, BookPlus } from "lucide-react";
 import { fetchHelpArticles, deleteHelpArticle, fetchHelpCategories } from "@/lib/help-service";
 import type { HelpArticle, HelpCategory } from "@/types";
 import { useToast } from "@/hooks/use-toast";
@@ -109,7 +109,7 @@ export default function AdminHelpCenterPage() {
             {loading ? (
                 <div className="flex justify-center items-center py-16"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>
             ) : (
-                <Accordion type="multiple" className="w-full">
+                <Accordion type="multiple" className="w-full space-y-4">
                     {[...categories, { id: 'uncategorized', name: 'Uncategorized' }].map(category => {
                         const currentArticles = category.id === 'uncategorized'
                             ? articlesByCategory.uncategorized
@@ -121,7 +121,15 @@ export default function AdminHelpCenterPage() {
                             <AccordionItem key={category.id} value={category.id}>
                                 <AccordionTrigger className="text-lg font-semibold">{category.name} ({currentArticles.length})</AccordionTrigger>
                                 <AccordionContent>
-                                    <div className="space-y-2 pl-4">
+                                    <div className="border-b pb-4 mb-4 flex justify-end">
+                                        <Button asChild variant="outline" size="sm">
+                                            <Link href={`/admin/help/new?categoryId=${category.id}`}>
+                                                <BookPlus className="mr-2 h-4 w-4" />
+                                                Add Article to {category.name}
+                                            </Link>
+                                        </Button>
+                                    </div>
+                                    <div className="space-y-2">
                                         {currentArticles.map(article => (
                                             <div key={article.id} className="flex items-center justify-between p-3 rounded-md border group">
                                                 <div className="flex items-center gap-2">

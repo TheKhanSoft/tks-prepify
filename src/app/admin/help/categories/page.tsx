@@ -5,11 +5,11 @@ import React, { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from "@/components/ui/dropdown-menu";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { PlusCircle, MoreHorizontal, Edit, Trash2, Loader2, ArrowLeft } from "lucide-react";
+import { PlusCircle, MoreHorizontal, Edit, Trash2, Loader2, ArrowLeft, BookPlus } from "lucide-react";
 import { fetchHelpCategories, deleteHelpCategory } from "@/lib/help-service";
 import type { HelpCategory } from "@/types";
 import { useToast } from "@/hooks/use-toast";
@@ -90,12 +90,12 @@ export default function AdminHelpCategoriesPage() {
                         <TableCell className="font-medium">{cat.name}</TableCell>
                         <TableCell className="text-right">
                         <DropdownMenu>
-                            <DropdownMenuTrigger asChild>
-                            <Button size="icon" variant="ghost"><MoreHorizontal className="h-4 w-4" /></Button>
-                            </DropdownMenuTrigger>
+                            <DropdownMenuTrigger asChild><Button size="icon" variant="ghost"><MoreHorizontal className="h-4 w-4" /></Button></DropdownMenuTrigger>
                             <DropdownMenuContent align="end">
-                            <DropdownMenuItem asChild><Link href={`/admin/help/categories/${cat.id}/edit`}><Edit className="mr-2 h-4 w-4" />Edit</Link></DropdownMenuItem>
-                            <DropdownMenuItem className="text-destructive" onSelect={() => setDeleteAlert({ open: true, category: cat })}><Trash2 className="mr-2 h-4 w-4" />Delete</DropdownMenuItem>
+                              <DropdownMenuItem asChild><Link href={`/admin/help/categories/${cat.id}/edit`}><Edit className="mr-2 h-4 w-4" />Edit</Link></DropdownMenuItem>
+                              <DropdownMenuItem asChild><Link href={`/admin/help/new?categoryId=${cat.id}`}><BookPlus className="mr-2 h-4 w-4" />Add Article</Link></DropdownMenuItem>
+                              <DropdownMenuSeparator />
+                              <DropdownMenuItem className="text-destructive" onSelect={() => setDeleteAlert({ open: true, category: cat })}><Trash2 className="mr-2 h-4 w-4" />Delete</DropdownMenuItem>
                             </DropdownMenuContent>
                         </DropdownMenu>
                         </TableCell>
