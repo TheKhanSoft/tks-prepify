@@ -1,9 +1,12 @@
 
 'use server';
 
-import { collection, addDoc, serverTimestamp, getDocs, query, orderBy, doc, updateDoc } from 'firebase/firestore';
+import { collection, addDoc, serverTimestamp, getDocs, query, orderBy, doc, updateDoc, DocumentData } from 'firebase/firestore';
 import { db } from './firebase';
 import type { ContactSubmission } from '@/types';
+import { getUserProfile } from './user-service';
+import { getPlanById } from './plan-service';
+import { checkAndRecordSupportRequest } from './support-request-service';
 
 type ContactFormData = {
   name: string;
@@ -13,18 +16,53 @@ type ContactFormData = {
   message: string;
 }
 
-export async function submitContactForm(data: ContactFormData) {
+export async function submitContactForm(data: ContactFormData, userId?: string | null) {
   try {
     const submissionsCollection = collection(db, 'contact_submissions');
-    await addDoc(submissionsCollection, {
+    
+    const initialData: any = {
       ...data,
-      createdAt: serverTimestamp(),
+      userId: userId || null,
+      priority: false,
       isRead: false,
-    });
+      createdAt: serverTimestamp(),
+    };
+    
+    const newSubmissionRef = await addDoc(submissionsCollection, initialData);
+
+    if (userId) {
+      const profile = await getUserProfile(userId);
+      if (profile?.planId) {
+        const plan = await getPlanById(profile.planId);
+        if (plan) {
+          const quotaCheck = await checkAndRecordSupportRequest(userId, newSubmissionRef.id, plan);
+          if (quotaCheck.success) {
+            await updateDoc(newSubmissionRef, { priority: true });
+          }
+        }
+      }
+    }
+
     return { success: true };
   } catch (error) {
     return { success: false, error: "Failed to submit message. Please try again later." };
   }
+}
+
+const docToContactSubmission = (doc: DocumentData): ContactSubmission => {
+    const data = doc.data();
+    return {
+        id: doc.id,
+        name: data.name,
+        email: data.email,
+        topic: data.topic,
+        subject: data.subject,
+        message: data.message,
+        createdAt: data.createdAt.toDate(),
+        isRead: data.isRead,
+        userId: data.userId,
+        priority: data.priority,
+    }
 }
 
 export async function fetchContactSubmissions(): Promise<ContactSubmission[]> {
@@ -33,19 +71,7 @@ export async function fetchContactSubmissions(): Promise<ContactSubmission[]> {
     const q = query(submissionsCol, orderBy('createdAt', 'desc'));
     const snapshot = await getDocs(q);
     
-    return snapshot.docs.map(doc => {
-      const data = doc.data();
-      return {
-        id: doc.id,
-        name: data.name,
-        email: data.email,
-        topic: data.topic,
-        subject: data.subject,
-        message: data.message,
-        createdAt: data.createdAt.toDate(), // convert Firestore Timestamp to JS Date
-        isRead: data.isRead,
-      } as ContactSubmission;
-    });
+    return snapshot.docs.map(docToContactSubmission);
   } catch (error) {
     return [];
   }

@@ -2,6 +2,7 @@
 "use client";
 
 import React, { useState, useEffect, useCallback } from "react";
+import Link from "next/link";
 import {
   Table,
   TableBody,
@@ -16,10 +17,11 @@ import {
   DialogHeader,
   DialogTitle,
   DialogDescription,
+  DialogFooter,
 } from "@/components/ui/dialog";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Loader2, Eye, Mail, MailOpen } from "lucide-react";
+import { Loader2, Eye, Mail, MailOpen, Star, User } from "lucide-react";
 import { fetchContactSubmissions, updateSubmissionStatus } from "@/lib/contact-service";
 import type { ContactSubmission } from "@/types";
 import { useToast } from "@/hooks/use-toast";
@@ -43,7 +45,7 @@ export default function AdminMessagesPage() {
     } finally {
       setLoading(false);
     }
-  }, [toast]);
+  }, []);
 
   useEffect(() => {
     loadSubmissions();
@@ -88,6 +90,7 @@ export default function AdminMessagesPage() {
               <TableHeader>
                 <TableRow>
                   <TableHead className="w-12"></TableHead>
+                  <TableHead>Priority</TableHead>
                   <TableHead>From</TableHead>
                   <TableHead>Topic</TableHead>
                   <TableHead>Subject</TableHead>
@@ -105,6 +108,9 @@ export default function AdminMessagesPage() {
                         ) : (
                           <Mail className="h-5 w-5 text-primary" />
                         )}
+                      </TableCell>
+                       <TableCell>
+                        {submission.priority && <Star className="h-5 w-5 text-amber-500 fill-amber-400" />}
                       </TableCell>
                       <TableCell>
                         <div>{submission.name}</div>
@@ -130,7 +136,7 @@ export default function AdminMessagesPage() {
                   ))
                 ) : (
                   <TableRow>
-                    <TableCell colSpan={6} className="h-24 text-center">
+                    <TableCell colSpan={7} className="h-24 text-center">
                       No messages found.
                     </TableCell>
                   </TableRow>
@@ -143,20 +149,49 @@ export default function AdminMessagesPage() {
       <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
         <DialogContent className="sm:max-w-2xl">
           <DialogHeader>
-            <DialogTitle>{selectedSubmission?.subject}</DialogTitle>
-             <DialogDescription>
-                <Badge variant="outline">{selectedSubmission?.topic}</Badge> - Received on{" "}
-                {selectedSubmission && format(new Date(selectedSubmission.createdAt), "PPP p")}
-            </DialogDescription>
+            <div className="flex justify-between items-start">
+              <div>
+                <DialogTitle>{selectedSubmission?.subject}</DialogTitle>
+                <DialogDescription>
+                    <Badge variant="outline">{selectedSubmission?.topic}</Badge> - Received on{" "}
+                    {selectedSubmission && format(new Date(selectedSubmission.createdAt), "PPP p")}
+                </DialogDescription>
+              </div>
+              {selectedSubmission?.priority && (
+                <Badge className="bg-amber-100 text-amber-800 border-amber-300 hover:bg-amber-200">
+                    <Star className="mr-2 h-4 w-4 fill-current"/>
+                    Priority Support
+                </Badge>
+              )}
+            </div>
           </DialogHeader>
           <div className="py-4 space-y-4">
             <div className="text-sm">
               <span className="font-semibold">From:</span> {selectedSubmission?.name} &lt;{selectedSubmission?.email}&gt;
             </div>
-            <div className="p-4 bg-muted/50 rounded-md border text-sm whitespace-pre-wrap">
+            <div className="p-4 bg-muted/50 rounded-md border text-sm whitespace-pre-wrap max-h-96 overflow-y-auto">
               {selectedSubmission?.message}
             </div>
           </div>
+          <DialogFooter className="sm:justify-between gap-2">
+            <div>
+              {selectedSubmission?.userId && (
+                <Button variant="outline" asChild>
+                  <Link href={`/admin/users/${selectedSubmission.userId}/subscription`}>
+                    <User className="mr-2 h-4 w-4"/> View User
+                  </Link>
+                </Button>
+              )}
+            </div>
+            <div className="flex gap-2">
+              <Button variant="secondary" asChild>
+                <a href={`mailto:${selectedSubmission?.email}?subject=Re: ${selectedSubmission?.subject}`}>
+                  <Mail className="mr-2 h-4 w-4"/> Reply via Email
+                </a>
+              </Button>
+              <Button onClick={() => setIsDialogOpen(false)}>Close</Button>
+            </div>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
     </>

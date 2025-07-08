@@ -67,16 +67,8 @@ function ContactForm() {
   async function onSubmit(data: ContactFormValues) {
     setIsSubmitting(true);
     try {
-      // Use auth data if available, otherwise use form data
-      const finalData = {
-        name: user?.displayName || data.name,
-        email: user?.email || data.email,
-        topic: data.topic,
-        subject: data.subject,
-        message: data.message,
-      };
+      const result = await submitContactForm(data, user?.uid);
 
-      const result = await submitContactForm(finalData);
       if (result.success) {
         toast({
           title: "Message Sent!",

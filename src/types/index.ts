@@ -204,7 +204,17 @@ export interface ContactSubmission {
   message: string;
   createdAt: Date;
   isRead: boolean;
+  userId?: string;
+  priority?: boolean;
 }
+
+export interface SupportRequest {
+  id: string;
+  userId: string;
+  submissionId: string;
+  createdAt: string; // ISO string
+}
+
 
 export interface Bookmark {
   id: string;
