@@ -1,7 +1,7 @@
 
 import { clsx, type ClassValue } from "clsx"
 import { twMerge } from "tailwind-merge"
-import type { DocumentData, Timestamp } from "firebase/firestore";
+import { type DocumentData, Timestamp } from "firebase/firestore";
 import type { Question } from "@/types";
 
 export function cn(...inputs: ClassValue[]) {
