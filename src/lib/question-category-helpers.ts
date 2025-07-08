@@ -16,6 +16,7 @@ function findCategoryById(categories: QuestionCategory[], id: string): QuestionC
 * Finds a question category by its ID from a given category tree.
 */
 export function getQuestionCategoryById(id: string, allCategories: QuestionCategory[]): QuestionCategory | undefined {
+  if (!id || !allCategories) return undefined;
   return findCategoryById(allCategories, id);
 }
 

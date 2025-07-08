@@ -2,7 +2,7 @@
 'use client';
 
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
-import { ChevronRight, Loader2, BarChart3, ShieldAlert, ListChecks, Check, Star } from 'lucide-react';
+import { ChevronRight, Loader2, BarChart3, ShieldAlert, ListChecks, Check, Star, ShieldCheck } from 'lucide-react';
 import { useAuth } from "@/hooks/use-auth";
 import { fetchTestAttemptsForUser } from "@/lib/test-attempt-service";
 import type { TestAttempt } from "@/types";
@@ -63,12 +63,14 @@ export default function ResultsPage() {
         loadAttempts();
     }, [user, authLoading]);
     
-    const { completedAttempts, averageScore } = useMemo(() => {
+    const { completedAttempts, averageScore, passRate } = useMemo(() => {
         const completed = attempts.filter(a => a.status === 'completed');
         const avg = completed.length > 0 
             ? (completed.reduce((acc, attempt) => acc + attempt.percentage, 0) / completed.length)
             : null;
-        return { completedAttempts: completed, averageScore: avg };
+        const passedCount = completed.filter(a => a.passed).length;
+        const rate = completed.length > 0 ? (passedCount / completed.length) * 100 : null;
+        return { completedAttempts: completed, averageScore: avg, passRate: rate };
     }, [attempts]);
     
     if (loading || authLoading) {
@@ -86,7 +88,7 @@ export default function ResultsPage() {
                 <p className="text-muted-foreground">A history of all the tests you've completed or started.</p>
             </div>
             
-            <div className="grid gap-4 md:grid-cols-3 mb-6">
+            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4 mb-6">
                 <Card>
                     <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                     <CardTitle className="text-sm font-medium">Total Attempts</CardTitle>
@@ -114,6 +116,15 @@ export default function ResultsPage() {
                      <div className="text-2xl font-bold">{averageScore !== null ? `${averageScore.toFixed(1)}%` : "N/A"}</div>
                     </CardContent>
                 </Card>
+                 <Card>
+                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                    <CardTitle className="text-sm font-medium">Pass Rate</CardTitle>
+                    <ShieldCheck className="h-4 w-4 text-muted-foreground" />
+                    </CardHeader>
+                    <CardContent>
+                     <div className="text-2xl font-bold">{passRate !== null ? `${passRate.toFixed(1)}%` : "N/A"}</div>
+                    </CardContent>
+                </Card>
             </div>
 
             <Card>
@@ -138,6 +149,7 @@ export default function ResultsPage() {
                                 <TableRow>
                                     <TableHead>Test Name</TableHead>
                                     <TableHead>Score</TableHead>
+                                    <TableHead>Percentage</TableHead>
                                     <TableHead>Status</TableHead>
                                     <TableHead>Date</TableHead>
                                     <TableHead><span className="sr-only">Actions</span></TableHead>
@@ -148,6 +160,7 @@ export default function ResultsPage() {
                                     <TableRow key={attempt.id}>
                                         <TableCell className="font-medium">{attempt.testConfigName}</TableCell>
                                         <TableCell>{attempt.status === 'completed' ? `${attempt.score.toFixed(2)} / ${attempt.totalMarks}`: 'N/A'}</TableCell>
+                                        <TableCell>{attempt.status === 'completed' ? `${attempt.percentage.toFixed(1)}%` : 'N/A'}</TableCell>
                                         <TableCell>
                                             <StatusBadge attempt={attempt} />
                                         </TableCell>
@@ -174,11 +187,11 @@ export default function ResultsPage() {
                     )}
 
                     {!error && attempts.length === 0 && (
-                        <div className="flex flex-col items-center justify-center text-center text-muted-foreground h-64 border-2 border-dashed rounded-lg">
-                            <BarChart3 className="h-12 w-12 mb-4" />
-                            <h3 className="text-lg font-semibold">No Results Yet</h3>
-                            <p className="mt-1">Complete a test to see your results appear here.</p>
-                            <Button asChild variant="link" className="mt-2">
+                        <div className="flex flex-col items-center justify-center text-center text-muted-foreground h-64 border-2 border-dashed rounded-lg bg-muted/50">
+                            <BarChart3 className="h-16 w-16 mb-4 text-primary/70" />
+                            <h3 className="text-xl font-semibold">No Results Yet</h3>
+                            <p className="mt-2 max-w-xs">It looks like you haven't taken any tests. Complete a test to see your detailed performance history appear here.</p>
+                             <Button asChild variant="default" className="mt-4">
                                 <Link href="/tests">Take a Test Now</Link>
                             </Button>
                         </div>
