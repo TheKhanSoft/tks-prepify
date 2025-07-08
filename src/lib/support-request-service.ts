@@ -84,15 +84,28 @@ export async function countSupportRequestsForPeriod(
     }
   }
 
+  // Fetch all support requests for the user (avoids composite index)
   const requestsQuery = query(
     collection(db, 'support_requests'),
-    where('userId', '==', userId),
-    where('createdAt', '>=', Timestamp.fromDate(startDate))
+    where('userId', '==', userId)
   );
 
   const snapshot = await getDocs(requestsQuery);
-  return { count: snapshot.size, resetDate };
+  if (snapshot.empty) {
+    return { count: 0, resetDate };
+  }
+
+  const allRequests = snapshot.docs.map(docToSupportRequest);
+
+  // Filter in memory based on the calculated start date
+  const requestsThisPeriod = allRequests.filter(request => {
+    const requestDate = new Date(request.createdAt);
+    return isAfter(requestDate, startDate) || requestDate.getTime() === startDate.getTime();
+  });
+
+  return { count: requestsThisPeriod.length, resetDate };
 }
+
 
 export async function checkAndRecordSupportRequest(
     userId: string,
