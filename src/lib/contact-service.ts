@@ -78,7 +78,7 @@ export async function addReplyToSubmission(submissionId: string, replyData: Repl
       }),
       status: newStatus,
       lastRepliedAt: serverTimestamp(),
-      isRead: true, // A reply always marks it as read for the admin side
+      isRead: newStatus === 'replied' ? false : true, // Mark as unread for the user if admin replies
     });
     return { success: true };
   } catch (error) {
@@ -168,10 +168,10 @@ export async function fetchSubmissionsForUser(userId: string): Promise<ContactSu
   }
 }
 
-export async function updateSubmissionStatus(id: string, status: ContactSubmissionStatus) {
+export async function updateSubmissionStatus(id: string, status: ContactSubmissionStatus, isRead: boolean) {
   try {
     const submissionRef = doc(db, 'contact_submissions', id);
-    await updateDoc(submissionRef, { status: status });
+    await updateDoc(submissionRef, { status, isRead });
     return { success: true };
   } catch (error) {
     return { success: false, error: "Failed to update status." };

@@ -11,7 +11,7 @@ import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter }
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { useToast } from '@/hooks/use-toast';
-import { format } from 'date-fns';
+import { formatDistanceToNow } from 'date-fns';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { cn } from '@/lib/utils';
@@ -51,6 +51,12 @@ export default function TicketDetailPage() {
         
         loadSubmission();
     }, [submissionId, user, authLoading, router, toast]);
+
+    useEffect(() => {
+        if (scrollAreaRef.current) {
+            scrollAreaRef.current.scrollTo({ top: scrollAreaRef.current.scrollHeight, behavior: 'smooth' });
+        }
+    }, [submission?.replies]);
 
     const handleReplySubmit = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -95,10 +101,10 @@ export default function TicketDetailPage() {
             <Card>
                 <CardHeader>
                     <CardTitle className="text-2xl">{submission.subject}</CardTitle>
-                    <CardDescription>Topic: {submission.topic} • Submitted on {format(new Date(submission.createdAt), "PPP")}</CardDescription>
+                    <CardDescription>Topic: {submission.topic} • Submitted {formatDistanceToNow(new Date(submission.createdAt), { addSuffix: true })}</CardDescription>
                 </CardHeader>
                 <CardContent>
-                    <ScrollArea className="h-[50vh] pr-4">
+                    <ScrollArea className="h-[50vh] pr-4" ref={scrollAreaRef}>
                         <div className="space-y-6">
                              {/* Initial Message */}
                             <div className="flex items-start gap-3 justify-end">
@@ -107,7 +113,7 @@ export default function TicketDetailPage() {
                                         <p className="text-sm font-semibold">{submission.name} (You)</p>
                                         <p className="text-sm whitespace-pre-wrap">{submission.message}</p>
                                     </div>
-                                    <p className="text-xs text-muted-foreground mt-1">{format(new Date(submission.createdAt), "p, PPP")}</p>
+                                    <p className="text-xs text-muted-foreground mt-1">{formatDistanceToNow(new Date(submission.createdAt), { addSuffix: true })}</p>
                                 </div>
                                  <Avatar className="h-8 w-8 border bg-foreground text-background">
                                     <AvatarFallback>{submission.name?.charAt(0)}</AvatarFallback>
@@ -129,7 +135,7 @@ export default function TicketDetailPage() {
                                             <p className="text-sm font-semibold">{reply.authorName}</p>
                                             <p className="text-sm whitespace-pre-wrap">{reply.message}</p>
                                         </div>
-                                        <p className="text-xs text-muted-foreground mt-1">{format(new Date(reply.createdAt), "p, PPP")}</p>
+                                        <p className="text-xs text-muted-foreground mt-1">{formatDistanceToNow(new Date(reply.createdAt), { addSuffix: true })}</p>
                                     </div>
                                      {isUserReply && (
                                         <Avatar className="h-8 w-8 border bg-foreground text-background">

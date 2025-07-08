@@ -74,7 +74,7 @@ export default function AdminMessagesPage() {
     setIsDialogOpen(true);
     if (!submission.isRead) {
       try {
-        await updateSubmissionStatus(submission.id, true);
+        await updateSubmissionStatus(submission.id, submission.status, true);
         setSubmissions(prev =>
           prev.map(s => (s.id === submission.id ? { ...s, isRead: true } : s))
         );
@@ -87,7 +87,7 @@ export default function AdminMessagesPage() {
     if (!selectedSubmission || selectedSubmission.status === newStatus) return;
     
     try {
-        await updateSubmissionStatus(selectedSubmission.id, newStatus);
+        await updateSubmissionStatus(selectedSubmission.id, newStatus, true);
         
         const updatedSubmission = { ...selectedSubmission, status: newStatus };
         setSelectedSubmission(updatedSubmission);
