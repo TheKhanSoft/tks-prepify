@@ -68,8 +68,8 @@ export async function addReplyToSubmission(submissionId: string, replyData: Repl
     }
     const submissionData = submissionSnap.data();
 
-    // If the person replying is not the original author of the ticket, they are an admin.
-    const newStatus: ContactSubmissionStatus = replyData.authorId === submissionData.userId ? 'open' : 'replied';
+    const isAdminReply = replyData.authorId !== submissionData.userId;
+    const newStatus: ContactSubmissionStatus = isAdminReply ? 'replied' : 'open';
 
     await updateDoc(submissionRef, {
       replies: arrayUnion({
@@ -78,7 +78,7 @@ export async function addReplyToSubmission(submissionId: string, replyData: Repl
       }),
       status: newStatus,
       lastRepliedAt: serverTimestamp(),
-      isRead: newStatus === 'replied' ? false : true, // Mark as unread for the user if admin replies
+      isRead: isAdminReply,
     });
     return { success: true };
   } catch (error) {

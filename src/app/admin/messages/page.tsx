@@ -23,7 +23,7 @@ import {
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Loader2, Eye, MailOpen, Star, User, MessageSquare, ChevronDown, CheckCircle, Info, XCircle, Wrench } from "lucide-react";
+import { Loader2, Eye, MailOpen, Star, User, MessageSquare, ChevronDown, CheckCircle, Info, XCircle, Wrench, Send } from "lucide-react";
 import { fetchContactSubmissions, updateSubmissionStatus, addReplyToSubmission } from "@/lib/contact-service";
 import type { ContactSubmission, MessageReply, ContactSubmissionStatus } from "@/types";
 import { useToast } from "@/hooks/use-toast";
@@ -325,7 +325,7 @@ export default function AdminMessagesPage() {
           <div className="flex flex-col gap-4">
              <ScrollArea className="h-96 pr-4 border-b pb-4">
                 <div className="space-y-6">
-                    {/* Original Message */}
+                    {/* User's Original Message */}
                     <div className="flex items-start gap-3">
                         <Avatar className="h-8 w-8 border">
                             <AvatarFallback>{selectedSubmission?.name?.charAt(0)}</AvatarFallback>
@@ -346,49 +346,51 @@ export default function AdminMessagesPage() {
                         const isAdminReply = reply.authorId !== selectedSubmission.userId;
                         return (
                         <div key={index} className={cn("flex items-start gap-3", isAdminReply && "justify-end")}>
-                            {isAdminReply && (
-                                <div className="flex-1 text-right">
-                                    <div className="rounded-lg bg-primary text-primary-foreground p-3 w-fit max-w-full inline-block text-left">
-                                        <p className="text-sm font-semibold">{reply.authorName} (You)</p>
-                                        <p className="text-sm whitespace-pre-wrap">{reply.message}</p>
-                                    </div>
-                                    <p className="text-xs text-muted-foreground mt-1">{formatDistanceToNow(new Date(reply.createdAt), { addSuffix: true })}</p>
-                                </div>
-                            )}
-                            <Avatar className="h-8 w-8 border bg-foreground text-background">
-                                <AvatarFallback>{reply.authorName?.charAt(0)}</AvatarFallback>
-                            </Avatar>
                             {!isAdminReply && (
-                                <div className="flex-1">
-                                    <div className="rounded-lg bg-muted p-3 w-fit max-w-full">
-                                        <p className="text-sm font-semibold">{reply.authorName}</p>
-                                        <p className="text-sm whitespace-pre-wrap">{reply.message}</p>
-                                    </div>
-                                    <p className="text-xs text-muted-foreground mt-1">{formatDistanceToNow(new Date(reply.createdAt), { addSuffix: true })}</p>
+                                <Avatar className="h-8 w-8 border">
+                                    <AvatarFallback>{reply.authorName?.charAt(0)}</AvatarFallback>
+                                </Avatar>
+                            )}
+                            <div className={cn("flex-1", isAdminReply && "text-right")}>
+                                <div className={cn("rounded-lg p-3 w-fit max-w-full inline-block text-left", isAdminReply ? "bg-primary text-primary-foreground" : "bg-muted")}>
+                                    <p className="text-sm font-semibold">{reply.authorName} {isAdminReply && '(You)'}</p>
+                                    <p className="text-sm whitespace-pre-wrap">{reply.message}</p>
                                 </div>
+                                <p className="text-xs text-muted-foreground mt-1">{formatDistanceToNow(new Date(reply.createdAt), { addSuffix: true })}</p>
+                            </div>
+                            {isAdminReply && (
+                                <Avatar className="h-8 w-8 border bg-foreground text-background">
+                                    <AvatarFallback>{reply.authorName?.charAt(0)}</AvatarFallback>
+                                </Avatar>
                             )}
                         </div>
                         )
                     })}
                 </div>
             </ScrollArea>
-             <form onSubmit={handleReplySubmit} className="space-y-2">
-                <Label htmlFor="reply-message" className="sr-only">Your Reply</Label>
-                <Textarea
-                    id="reply-message"
-                    placeholder="Type your reply here..."
-                    value={replyText}
-                    onChange={(e) => setReplyText(e.target.value)}
-                    disabled={isReplying || selectedSubmission?.status === 'closed'}
-                    rows={4}
-                />
-                <div className="flex justify-end">
-                    <Button type="submit" disabled={isReplying || !replyText.trim() || selectedSubmission?.status === 'closed'}>
-                    {isReplying && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                    Send Reply
-                    </Button>
+            {selectedSubmission?.status !== 'closed' ? (
+                 <form onSubmit={handleReplySubmit} className="space-y-2">
+                    <Label htmlFor="reply-message" className="sr-only">Your Reply</Label>
+                    <div className="flex items-start gap-2">
+                        <Textarea
+                            id="reply-message"
+                            placeholder="Type your reply here..."
+                            value={replyText}
+                            onChange={(e) => setReplyText(e.target.value)}
+                            disabled={isReplying}
+                            rows={3}
+                        />
+                        <Button type="submit" disabled={isReplying || !replyText.trim()} size="icon">
+                            {isReplying ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
+                            <span className="sr-only">Send Reply</span>
+                        </Button>
+                    </div>
+                </form>
+            ) : (
+                <div className="text-center text-sm text-muted-foreground p-4 bg-muted rounded-lg">
+                    This ticket has been closed.
                 </div>
-            </form>
+            )}
           </div>
           <DialogFooter className="sm:justify-start">
             {selectedSubmission?.userId && (
