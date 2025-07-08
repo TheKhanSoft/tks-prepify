@@ -198,7 +198,7 @@ export default function SubscriptionPage() {
                                              <p className="text-xs text-muted-foreground mt-1 capitalize">Does not reset</p>
                                         ) : resetDate ? (
                                             <p className="text-xs text-muted-foreground mt-1 capitalize">
-                                                Resets on {format(resetDate, 'PPP')}
+                                                Resets on {format(resetDate, 'PPP HH:mm:ss')}
                                             </p>
                                         ) : (
                                             <p className="text-xs text-muted-foreground mt-1 capitalize">Resets {feature.period}</p>
@@ -214,7 +214,7 @@ export default function SubscriptionPage() {
                  <CardFooter className="border-t pt-4 mt-6">
                     {userProfile.planExpiryDate ? (
                         <p className="text-sm text-muted-foreground">
-                            Your plan will renew on <strong>{format(new Date(userProfile.planExpiryDate), 'PPP')}</strong>.
+                            Your plan will renew on <strong>{format(new Date(userProfile.planExpiryDate), 'PPP HH:mm:ss')}</strong>.
                         </p>
                     ) : (
                         <p className="text-sm text-muted-foreground">
@@ -247,8 +247,8 @@ export default function SubscriptionPage() {
                                         <TableCell>
                                             <Badge variant={ph.status === 'active' ? 'default' : 'secondary'} className={cn(ph.status === 'active' && 'bg-green-600 hover:bg-green-700')}>{ph.status.charAt(0).toUpperCase() + ph.status.slice(1)}</Badge>
                                         </TableCell>
-                                        <TableCell>{format(new Date(ph.subscriptionDate), 'PPP')}</TableCell>
-                                        <TableCell>{ph.endDate ? format(new Date(ph.endDate), 'PPP') : 'N/A'}</TableCell>
+                                        <TableCell>{format(new Date(ph.subscriptionDate), 'PPP HH:mm:ss')}</TableCell>
+                                        <TableCell>{ph.endDate ? format(new Date(ph.endDate), 'PPP HH:mm:ss') : 'N/A'}</TableCell>
                                     </TableRow>
                                 ))
                             ) : (
