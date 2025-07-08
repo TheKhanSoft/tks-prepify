@@ -224,8 +224,8 @@ export default function DynamicTestResultsPage() {
                           </div>
                         </AccordionTrigger>
                         <AccordionContent className="space-y-4">
-                          <p>Your answer: <Badge variant={question.isCorrect ? "default" : "destructive"}>{userAnswerText || "Not Answered"}</Badge></p>
-                          {!question.isCorrect && <p>Correct answer: <Badge className="bg-green-600 hover:bg-green-700">{correctAnswerText}</Badge></p>}
+                          <div>Your answer: <Badge variant={question.isCorrect ? "default" : "destructive"}>{userAnswerText || "Not Answered"}</Badge></div>
+                          {!question.isCorrect && <div>Correct answer: <Badge className="bg-green-600 hover:bg-green-700">{correctAnswerText}</Badge></div>}
                           {question.explanation && <p className="text-muted-foreground"><span className="font-semibold">Explanation:</span> {question.explanation}</p>}
                           {!question.isCorrect && (
                             <div className="p-4 bg-secondary/50 rounded-lg">
