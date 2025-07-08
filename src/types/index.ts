@@ -240,7 +240,7 @@ export interface TestAttempt {
   testConfigId: string;
   testConfigName: string; // Denormalized for easy display
   testConfigSlug?: string;
-  startTime: string; // ISO string
+  startTime: string | null; // ISO string
   endTime: string | null; // ISO string
   status: 'in-progress' | 'completed';
   score: number;

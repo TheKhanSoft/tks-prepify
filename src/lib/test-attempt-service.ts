@@ -136,7 +136,7 @@ function docToTestAttempt(doc: DocumentData): TestAttempt {
     testConfigId: data.testConfigId,
     testConfigName: data.testConfigName,
     testConfigSlug: data.testConfigSlug,
-    startTime: serializeDate(data.startTime)!,
+    startTime: serializeDate(data.startTime),
     endTime: serializeDate(data.endTime),
     status: data.status,
     score: data.score,
@@ -196,26 +196,38 @@ export async function getTestAttemptById(attemptId: string, userId: string): Pro
 
 /**
  * Fetches all test attempts for a given user, regardless of status.
- * This function fetches all attempts and filters in memory to avoid needing a composite index.
  */
 export async function fetchTestAttemptsForUser(userId: string): Promise<TestAttempt[]> {
     if (!userId) return [];
     
     const attemptsCol = collection(db, 'test_attempts');
-    // Fetch all documents. This is less efficient but avoids indexing issues.
-    // For a production app with millions of attempts, an index would be necessary.
-    const snapshot = await getDocs(attemptsCol);
+    // Query for the user's attempts and order them by start time descending.
+    // This requires a composite index in Firestore on (userId, startTime desc).
+    // Firestore will provide a link to create this index in the console if it's missing.
+    const q = query(
+        attemptsCol, 
+        where("userId", "==", userId),
+        orderBy('startTime', 'desc')
+    );
 
-    const userAttempts = snapshot.docs
-        .map(docToTestAttempt)
-        .filter(attempt => attempt.userId === userId);
-
-    // Sort by start time descending to show most recent tests first.
-    userAttempts.sort((a, b) => {
-        if (!a.startTime) return 1;
-        if (!b.startTime) return -1;
-        return new Date(b.startTime).getTime() - new Date(a.startTime).getTime();
-    });
-
-    return userAttempts;
+    try {
+        const snapshot = await getDocs(q);
+        return snapshot.docs.map(docToTestAttempt);
+    } catch (error) {
+        console.error("Error fetching test attempts. This might be due to a missing Firestore index. Check the browser console for a link to create it.", error);
+        // Fallback to less efficient client-side filtering if the indexed query fails.
+        // This is not ideal for production but provides a graceful fallback.
+        const allSnapshot = await getDocs(collection(db, 'test_attempts'));
+        const userAttempts = allSnapshot.docs
+            .map(docToTestAttempt)
+            .filter(attempt => attempt.userId === userId);
+        
+        userAttempts.sort((a, b) => {
+            if (!a.startTime) return 1;
+            if (!b.startTime) return -1;
+            return new Date(b.startTime).getTime() - new Date(a.startTime).getTime();
+        });
+        
+        return userAttempts;
+    }
 }
