@@ -1,6 +1,7 @@
 
 import { getPageBySlug } from '@/lib/page-service';
 import { Metadata } from 'next';
+import ReactMarkdown from 'react-markdown';
 
 export const revalidate = 3600; // Revalidate every hour
 
@@ -18,8 +19,8 @@ export default async function PrivacyPolicyPage() {
   return (
     <div className="space-y-4">
       <h1 className="text-4xl font-bold font-headline">{page.title}</h1>
-      <div className="text-muted-foreground leading-relaxed whitespace-pre-wrap">
-        {page.content}
+      <div className="prose dark:prose-invert max-w-none">
+        <ReactMarkdown>{page.content}</ReactMarkdown>
       </div>
     </div>
   );

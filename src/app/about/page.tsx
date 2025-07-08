@@ -3,6 +3,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Card, CardContent } from "@/components/ui/card";
 import { fetchSettings } from "@/lib/settings-service";
 import type { Metadata } from 'next';
+import ReactMarkdown from 'react-markdown';
 
 export const revalidate = 3600; // Revalidate every hour
 
@@ -22,23 +23,23 @@ export default async function AboutPage() {
     <div className="container mx-auto px-6 sm:px-10 lg:px-16 py-12 md:py-16">
       <div className="text-center mb-16">
         <h1 className="text-4xl md:text-5xl font-bold font-headline">{settings.aboutTitle}</h1>
-        <p className="text-lg text-muted-foreground mt-4 max-w-3xl mx-auto">
-          {settings.aboutSubtitle}
-        </p>
+        <div className="prose prose-lg dark:prose-invert text-muted-foreground mt-4 max-w-3xl mx-auto">
+          <ReactMarkdown>{settings.aboutSubtitle || ''}</ReactMarkdown>
+        </div>
       </div>
 
       <div className="grid md:grid-cols-2 gap-12 items-center mb-20">
-        <div>
+        <div className="prose dark:prose-invert">
           <h2 className="text-3xl font-bold mb-4">Our Mission</h2>
-          <p className="text-muted-foreground leading-relaxed">
-            {settings.aboutMission}
-          </p>
+          <ReactMarkdown className="text-muted-foreground leading-relaxed">
+            {settings.aboutMission || ''}
+          </ReactMarkdown>
         </div>
-        <div>
+        <div className="prose dark:prose-invert">
           <h2 className="text-3xl font-bold mb-4">Our Vision</h2>
-          <p className="text-muted-foreground leading-relaxed">
-            {settings.aboutVision}
-          </p>
+          <ReactMarkdown className="text-muted-foreground leading-relaxed">
+            {settings.aboutVision || ''}
+          </ReactMarkdown>
         </div>
       </div>
 

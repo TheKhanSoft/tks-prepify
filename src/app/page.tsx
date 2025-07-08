@@ -10,6 +10,7 @@ import { ArrowRight, FileText, Folder } from 'lucide-react';
 import Image from 'next/image';
 import type { Category } from '@/types';
 import { PaperCard } from '@/components/common/PaperCard';
+import ReactMarkdown from 'react-markdown';
 
 // Helper function to recursively find all featured categories from the tree
 function getAllFeaturedCategories(categories: Category[]): Category[] {
@@ -45,9 +46,9 @@ export default async function Home() {
             <h1 className="text-4xl md:text-5xl font-bold font-headline leading-tight">
               {settings.heroTitlePrefix} <span className="text-primary">{settings.heroTitleHighlight}</span> {settings.heroTitleSuffix}
             </h1>
-            <p className="text-lg text-muted-foreground">
-              {settings.heroSubtitle}
-            </p>
+            <div className="prose prose-lg dark:prose-invert max-w-none text-muted-foreground">
+              <ReactMarkdown>{settings.heroSubtitle || ''}</ReactMarkdown>
+            </div>
             <div className="flex gap-4">
               <Button size="lg" asChild>
                 <Link href={settings.heroButton1Link || '#'}>{settings.heroButton1Text}</Link>

@@ -16,6 +16,7 @@ import { Form, FormControl, FormField, FormItem, FormMessage } from "@/component
 import { useToast } from "@/hooks/use-toast";
 import { submitContactForm } from "@/lib/contact-service";
 import type { Settings } from "@/types";
+import ReactMarkdown from 'react-markdown';
 
 const contactFormSchema = z.object({
   name: z.string().min(2, { message: "Name must be at least 2 characters." }),
@@ -148,9 +149,9 @@ export default function ContactPage() {
     <div className="container mx-auto px-6 sm:px-10 lg:px-16 py-12 md:py-16">
       <div className="text-center mb-16">
         <h1 className="text-4xl md:text-5xl font-bold font-headline">{settings.contactTitle}</h1>
-        <p className="text-lg text-muted-foreground mt-4 max-w-3xl mx-auto">
-          {settings.contactSubtitle}
-        </p>
+        <div className="prose prose-lg dark:prose-invert text-muted-foreground mt-4 max-w-3xl mx-auto">
+          <ReactMarkdown>{settings.contactSubtitle || ''}</ReactMarkdown>
+        </div>
       </div>
 
       <div className="grid md:grid-cols-2 gap-12">
