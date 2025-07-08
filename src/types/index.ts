@@ -233,6 +233,7 @@ export interface QuestionAttempt {
   userAnswer?: string | string[] | null;
   isCorrect: boolean;
   timeSpent?: number;
+  questionCategoryId?: string;
 }
 
 export interface TestAttempt {

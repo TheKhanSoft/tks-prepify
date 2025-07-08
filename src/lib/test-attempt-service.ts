@@ -122,6 +122,7 @@ export async function submitTestAttempt(
       options: q.options || [],
       correctAnswer: q.correctAnswer,
       explanation: q.explanation || '',
+      questionCategoryId: q.questionCategoryId || null,
       userAnswer: userAnswer || null,
       isCorrect,
       timeSpent: userAnswerEntry?.timeSpent || 0,
@@ -163,6 +164,7 @@ function docToQuestionAttempt(doc: DocumentData): QuestionAttempt {
         userAnswer: data.userAnswer,
         isCorrect: data.isCorrect ?? false,
         timeSpent: data.timeSpent ?? 0,
+        questionCategoryId: data.questionCategoryId,
     }
 }
 
@@ -214,7 +216,7 @@ export async function fetchTestAttemptsForUser(userId: string): Promise<TestAtte
     if (!userId) return [];
     
     const attemptsCol = collection(db, 'test_attempts');
-    const q = query(attemptsCol, where("userId", "==", userId), orderBy("startTime", "desc"));
+    const q = query(attemptsCol, where("userId", "==", userId));
 
     const snapshot = await getDocs(q);
     const attempts: TestAttempt[] = [];
@@ -224,6 +226,13 @@ export async function fetchTestAttemptsForUser(userId: string): Promise<TestAtte
         } catch (e) {
             console.error("Failed to parse a test attempt document:", doc.id, e);
         }
+    });
+    
+    // Sort the results in-memory after fetching
+    attempts.sort((a, b) => {
+        const dateA = a.startTime ? new Date(a.startTime).getTime() : 0;
+        const dateB = b.startTime ? new Date(b.startTime).getTime() : 0;
+        return dateB - dateA;
     });
 
     return attempts;

@@ -4,7 +4,7 @@
 import { useEffect, useState, useMemo, useCallback } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import { Book, CheckCircle2, Lightbulb, Loader2, XCircle, ShieldAlert, Timer, CheckSquare, BarChart, Clock } from 'lucide-react';
-import type { QuestionAttempt, TestAttempt } from '@/types';
+import type { QuestionAttempt, TestAttempt, QuestionCategory } from '@/types';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
@@ -19,6 +19,8 @@ import { useAuth } from '@/hooks/use-auth';
 import { useToast } from '@/hooks/use-toast';
 import { Separator } from '@/components/ui/separator';
 import { format, formatDistanceStrict } from 'date-fns';
+import { fetchQuestionCategories } from '@/lib/question-category-service';
+import { Progress } from '@/components/ui/progress';
 
 type FeedbackState = { [questionId: string]: { loading: boolean; feedback?: string; suggestions?: string } };
 
@@ -38,6 +40,7 @@ export default function DynamicTestResultsPage() {
   const attemptId = params.testId as string;
 
   const [attempt, setAttempt] = useState<TestAttempt | null>(null);
+  const [questionCategories, setQuestionCategories] = useState<QuestionCategory[]>([]);
   const [feedback, setFeedback] = useState<FeedbackState>({});
   const [recommendations, setRecommendations] = useState({ loading: false, content: '' });
   const [loading, setLoading] = useState(true);
@@ -54,7 +57,12 @@ export default function DynamicTestResultsPage() {
     let retryCount = 0;
     const fetchAttempt = async () => {
         try {
-            const attemptData = await getTestAttemptById(attemptId, user.uid);
+            const [attemptData, categoriesData] = await Promise.all([
+              getTestAttemptById(attemptId, user.uid),
+              fetchQuestionCategories()
+            ]);
+            
+            setQuestionCategories(categoriesData);
             
             if (attemptData && attemptData.status === 'completed' && attemptData.questionAttempts && attemptData.questionAttempts.length > 0) {
                 setAttempt(attemptData);
@@ -148,6 +156,41 @@ export default function DynamicTestResultsPage() {
     };
   }, [attempt]);
 
+  const categoryPerformance = useMemo(() => {
+    if (!attempt?.questionAttempts || !questionCategories.length) return [];
+    
+    const categoryMap = new Map<string, { name: string; correct: number; total: number }>();
+    
+    const getCategoryName = (id: string, categories: QuestionCategory[]): string | null => {
+        for (const cat of categories) {
+            if (cat.id === id) return cat.name;
+            if (cat.subcategories) {
+                const found = getCategoryName(id, cat.subcategories);
+                if (found) return found;
+            }
+        }
+        return null;
+    };
+
+    attempt.questionAttempts.forEach(qa => {
+        const categoryId = qa.questionCategoryId || 'uncategorized';
+        if (!categoryMap.has(categoryId)) {
+            const name = categoryId === 'uncategorized' ? 'Uncategorized' : getCategoryName(categoryId, questionCategories) || 'Unknown Category';
+            categoryMap.set(categoryId, { name, correct: 0, total: 0 });
+        }
+        const categoryData = categoryMap.get(categoryId)!;
+        categoryData.total += 1;
+        if (qa.isCorrect) {
+            categoryData.correct += 1;
+        }
+    });
+
+    return Array.from(categoryMap.values()).map(data => ({
+        ...data,
+        percentage: data.total > 0 ? (data.correct / data.total) * 100 : 0,
+    })).sort((a,b) => a.name.localeCompare(b.name));
+  }, [attempt, questionCategories]);
+
   if (loading) {
     return (
         <div className="flex justify-center items-center h-screen flex-col gap-4">
@@ -174,54 +217,76 @@ export default function DynamicTestResultsPage() {
   }
 
   if (!attempt) {
-    return null; // Should be handled by error state
+    return null;
   }
 
   return (
     <div className="container mx-auto px-6 sm:px-10 lg:px-16 py-8 md:py-12">
-      <Card>
+      <Card className="mb-8">
         <CardHeader>
           <CardTitle className="text-3xl font-bold font-headline">Test Results: {attempt.testConfigName}</CardTitle>
           <CardDescription>Here&apos;s a breakdown of your performance.</CardDescription>
         </CardHeader>
-        <CardContent className="grid md:grid-cols-3 gap-8">
-          <Card className="md:col-span-1 bg-secondary/50">
-            <CardHeader className="items-center">
-              <CardTitle>Summary</CardTitle>
-              <Badge className={cn(passed ? 'bg-green-600' : 'bg-destructive', "text-lg")}>{passed ? 'PASSED' : 'FAILED'}</Badge>
-            </CardHeader>
-            <CardContent className="space-y-4 text-center">
-                <div>
-                    <div className="text-6xl font-bold text-primary">{score.toFixed(2)} <span className="text-3xl text-muted-foreground">/ {totalMarks}</span></div>
-                    <div className="text-2xl font-semibold">{percentage.toFixed(2)}%</div>
-                </div>
-                <ChartContainer config={chartConfig} className="w-full h-32">
-                    <RechartsBarChart accessibilityLayer data={chartData} layout="vertical" margin={{ left: 10, right: 10 }}>
-                    <XAxis type="number" hide />
-                    <YAxis dataKey="name" type="category" tickLine={false} tick={false} axisLine={false} />
-                    <ChartTooltip content={<ChartTooltipContent />} />
-                    <Bar dataKey="correct" stackId="a" fill="var(--color-correct)" radius={[4, 0, 0, 4]} />
-                    <Bar dataKey="incorrect" stackId="a" fill="var(--color-incorrect)" radius={[0, 4, 4, 0]} />
-                    </RechartsBarChart>
-                </ChartContainer>
-                <Separator />
-                <div className="text-left space-y-3 text-sm">
-                    <div className="flex justify-between items-center"><span className="flex items-center gap-2 text-muted-foreground"><Clock className="h-4 w-4"/>Started</span> <span>{attempt.startTime ? format(new Date(attempt.startTime), 'PPP p') : 'N/A'}</span></div>
-                    <div className="flex justify-between items-center"><span className="flex items-center gap-2 text-muted-foreground"><CheckCircle2 className="h-4 w-4"/>Finished</span> <span>{attempt.endTime ? format(new Date(attempt.endTime), 'PPP p') : 'N/A'}</span></div>
-                    <div className="flex justify-between items-center"><span className="flex items-center gap-2 text-muted-foreground"><Timer className="h-4 w-4"/>Time Taken</span> <span>{timeTaken}</span></div>
-                    <div className="flex justify-between items-center"><span className="flex items-center gap-2 text-muted-foreground"><CheckSquare className="h-4 w-4"/>Attempted</span> <span>{attemptedQuestions}</span></div>
-                    <div className="flex justify-between items-center"><span className="flex items-center gap-2 text-muted-foreground"><BarChart className="h-4 w-4 -rotate-90"/>Fastest Answer</span> <span>{minTime}</span></div>
-                    <div className="flex justify-between items-center"><span className="flex items-center gap-2 text-muted-foreground"><BarChart className="h-4 w-4 rotate-90"/>Slowest Answer</span> <span>{maxTime}</span></div>
-                </div>
-            </CardContent>
-          </Card>
-          <div className="md:col-span-2 space-y-6">
+      </Card>
+
+      <div className="grid lg:grid-cols-3 gap-8">
+          <div className="lg:col-span-1 space-y-8">
+             <Card className="bg-secondary/50">
+                <CardHeader className="items-center">
+                  <CardTitle>Summary</CardTitle>
+                  <Badge className={cn(passed ? 'bg-green-600 hover:bg-green-700' : 'bg-destructive hover:bg-destructive/90', "text-lg")}>{passed ? 'PASSED' : 'FAILED'}</Badge>
+                </CardHeader>
+                <CardContent className="space-y-4 text-center">
+                    <div>
+                        <div className="text-6xl font-bold text-primary">{score.toFixed(2)} <span className="text-3xl text-muted-foreground">/ {totalMarks}</span></div>
+                        <div className="text-2xl font-semibold">{percentage.toFixed(2)}%</div>
+                    </div>
+                    <ChartContainer config={chartConfig} className="w-full h-32">
+                        <RechartsBarChart accessibilityLayer data={chartData} layout="vertical" margin={{ left: 10, right: 10 }}>
+                        <XAxis type="number" hide />
+                        <YAxis dataKey="name" type="category" tickLine={false} tick={false} axisLine={false} />
+                        <ChartTooltip content={<ChartTooltipContent />} />
+                        <Bar dataKey="correct" stackId="a" fill="var(--color-correct)" radius={[4, 0, 0, 4]} />
+                        <Bar dataKey="incorrect" stackId="a" fill="var(--color-incorrect)" radius={[0, 4, 4, 0]} />
+                        </RechartsBarChart>
+                    </ChartContainer>
+                    <Separator />
+                    <div className="text-left space-y-3 text-sm">
+                        <div className="flex justify-between items-center"><span className="flex items-center gap-2 text-muted-foreground"><Clock className="h-4 w-4"/>Started</span> <span>{attempt.startTime ? format(new Date(attempt.startTime), 'PPP p') : 'N/A'}</span></div>
+                        <div className="flex justify-between items-center"><span className="flex items-center gap-2 text-muted-foreground"><CheckCircle2 className="h-4 w-4"/>Finished</span> <span>{attempt.endTime ? format(new Date(attempt.endTime), 'PPP p') : 'N/A'}</span></div>
+                        <div className="flex justify-between items-center"><span className="flex items-center gap-2 text-muted-foreground"><Timer className="h-4 w-4"/>Time Taken</span> <span>{timeTaken}</span></div>
+                        <div className="flex justify-between items-center"><span className="flex items-center gap-2 text-muted-foreground"><CheckSquare className="h-4 w-4"/>Attempted</span> <span>{attemptedQuestions}</span></div>
+                        <div className="flex justify-between items-center"><span className="flex items-center gap-2 text-muted-foreground"><BarChart className="h-4 w-4 -rotate-90"/>Fastest Answer</span> <span>{minTime}</span></div>
+                        <div className="flex justify-between items-center"><span className="flex items-center gap-2 text-muted-foreground"><BarChart className="h-4 w-4 rotate-90"/>Slowest Answer</span> <span>{maxTime}</span></div>
+                    </div>
+                </CardContent>
+            </Card>
+
+            {categoryPerformance.length > 0 && (
+                <Card>
+                    <CardHeader><CardTitle>Performance by Category</CardTitle></CardHeader>
+                    <CardContent className="space-y-4">
+                    {categoryPerformance.map(cat => (
+                        <div key={cat.name}>
+                        <div className="flex justify-between items-center mb-1">
+                            <p className="font-medium text-sm">{cat.name}</p>
+                            <p className="text-xs text-muted-foreground">
+                            <span className="font-semibold text-foreground">{cat.correct}</span> / {cat.total}
+                            </p>
+                        </div>
+                        <Progress value={cat.percentage} aria-label={`${cat.name} performance`} />
+                        </div>
+                    ))}
+                    </CardContent>
+                </Card>
+            )}
+
             <Card>
               <CardHeader className="flex-row items-center justify-between">
-                <CardTitle>Resource Recommendations</CardTitle>
+                <CardTitle>AI Recommendations</CardTitle>
                 <Button onClick={handleGetRecommendations} disabled={recommendations.loading}>
                   {recommendations.loading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Book className="mr-2 h-4 w-4" />}
-                  Get Resources
+                  Suggest Resources
                 </Button>
               </CardHeader>
               {recommendations.content && (
@@ -230,8 +295,11 @@ export default function DynamicTestResultsPage() {
                 </CardContent>
               )}
             </Card>
+
+          </div>
+          <div className="lg:col-span-2 space-y-6">
             <Card>
-              <CardHeader><CardTitle>Detailed Review</CardTitle></CardHeader>
+              <CardHeader><CardTitle>Detailed Question Review</CardTitle></CardHeader>
               <CardContent>
                 <Accordion type="single" collapsible className="w-full">
                   {attempt.questionAttempts?.map((question) => {
@@ -241,28 +309,26 @@ export default function DynamicTestResultsPage() {
 
                     return (
                       <AccordionItem key={question.questionId} value={`item-${question.questionId}`}>
-                        <AccordionTrigger className="text-left">
-                          <div className="flex items-center gap-4">
-                            {question.isCorrect ? <CheckCircle2 className="h-5 w-5 flex-shrink-0 text-green-500" /> : <XCircle className="h-5 w-5 flex-shrink-0 text-destructive" />}
+                        <AccordionTrigger className="text-left hover:no-underline">
+                          <div className="flex items-start gap-4">
+                            {question.isCorrect ? <CheckCircle2 className="h-5 w-5 flex-shrink-0 text-green-500 mt-1" /> : <XCircle className="h-5 w-5 flex-shrink-0 text-destructive mt-1" />}
                             <span>Question {question.order}: {question.questionText}</span>
                           </div>
                         </AccordionTrigger>
                         <AccordionContent className="space-y-4 pl-10">
-                          <div>Your answer: <Badge variant={question.isCorrect ? "default" : "destructive"}>{userAnswerText}</Badge></div>
+                          <div>Your answer: <Badge variant={question.isCorrect ? "default" : "destructive"} className={cn(question.isCorrect && 'bg-green-600 hover:bg-green-700')}>{userAnswerText}</Badge></div>
                           {!question.isCorrect && <div>Correct answer: <Badge className="bg-green-600 hover:bg-green-700">{correctAnswerText}</Badge></div>}
-                          {question.explanation && <div className="text-muted-foreground"><span className="font-semibold">Explanation:</span> {question.explanation}</div>}
+                          {question.explanation && <div className="text-muted-foreground pt-2 border-t mt-4"><span className="font-semibold text-foreground">Explanation:</span> {question.explanation}</div>}
                           {!question.isCorrect && (
-                            <div className="p-4 bg-secondary/50 rounded-lg">
-                              <Button size="sm" onClick={() => handleGetFeedback(question)} disabled={questionFeedback?.loading || loading}>
+                            <div className="p-4 bg-muted/50 rounded-lg mt-4">
+                              <Button variant="ghost" className="text-primary hover:text-primary hover:bg-primary/10" size="sm" onClick={() => handleGetFeedback(question)} disabled={questionFeedback?.loading || loading}>
                                 {questionFeedback?.loading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Lightbulb className="mr-2 h-4 w-4" />}
                                 Get AI Feedback
                               </Button>
                               {questionFeedback && !questionFeedback.loading && (
-                                <div className="mt-4 prose prose-sm max-w-none">
-                                  {questionFeedback.feedback && <h4>Feedback</h4>}
-                                  {questionFeedback.feedback && <p>{questionFeedback.feedback}</p>}
-                                  {questionFeedback.suggestions && <h4>Suggestions</h4>}
-                                  {questionFeedback.suggestions && <p>{questionFeedback.suggestions}</p>}
+                                <div className="mt-4 prose prose-sm max-w-none text-muted-foreground space-y-2">
+                                  {questionFeedback.feedback && <div><p className="font-semibold text-foreground">Feedback</p><p>{questionFeedback.feedback}</p></div>}
+                                  {questionFeedback.suggestions && <div><p className="font-semibold text-foreground">Suggestions</p><p>{questionFeedback.suggestions}</p></div>}
                                 </div>
                               )}
                             </div>
@@ -275,8 +341,7 @@ export default function DynamicTestResultsPage() {
               </CardContent>
             </Card>
           </div>
-        </CardContent>
-      </Card>
+        </div>
     </div>
   );
 }
