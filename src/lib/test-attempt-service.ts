@@ -17,7 +17,7 @@ import {
   DocumentData,
 } from 'firebase/firestore';
 import { db } from './firebase';
-import type { TestConfig, PaperQuestion, QuestionAttempt, TestAttempt } from '@/types';
+import type { TestConfig, PaperQuestion, QuestionAttempt, TestAttempt, UserAnswer } from '@/types';
 import { serializeDate } from './utils';
 
 type AnswersState = { [questionId: string]: string | string[] };
@@ -162,18 +162,26 @@ function docToQuestionAttempt(doc: DocumentData): QuestionAttempt {
 }
 
 /**
- * Fetches a single test attempt and its associated question attempts.
+ * Fetches a single test attempt and its associated question attempts, ensuring the user is authorized to view it.
  */
-export async function getTestAttemptById(attemptId: string): Promise<TestAttempt | null> {
-    if (!attemptId) return null;
+export async function getTestAttemptById(attemptId: string, userId: string): Promise<TestAttempt | null> {
+    if (!attemptId || !userId) return null;
+
     const attemptDocRef = doc(db, 'test_attempts', attemptId);
     const attemptDoc = await getDoc(attemptDocRef);
 
     if (!attemptDoc.exists()) {
+        console.warn(`Attempt ${attemptId} not found.`);
         return null;
     }
 
     const testAttempt = docToTestAttempt(attemptDoc);
+
+    // Authorization check
+    if (testAttempt.userId !== userId) {
+        console.warn(`User ${userId} is not authorized to view attempt ${attemptId}.`);
+        return null;
+    }
 
     const questionsColRef = collection(db, 'test_attempts', attemptId, 'questions');
     const questionsSnapshot = await getDocs(questionsColRef);
@@ -188,24 +196,26 @@ export async function getTestAttemptById(attemptId: string): Promise<TestAttempt
 
 /**
  * Fetches all test attempts for a given user, regardless of status.
+ * This function fetches all attempts and filters in memory to avoid needing a composite index.
  */
 export async function fetchTestAttemptsForUser(userId: string): Promise<TestAttempt[]> {
     if (!userId) return [];
     
     const attemptsCol = collection(db, 'test_attempts');
-    const q = query(
-        attemptsCol,
-        where('userId', '==', userId)
-    );
-    const snapshot = await getDocs(q);
-    const attempts = snapshot.docs.map(docToTestAttempt);
+    // Fetch all documents. This is less efficient but avoids indexing issues.
+    // For a production app with millions of attempts, an index would be necessary.
+    const snapshot = await getDocs(attemptsCol);
+
+    const userAttempts = snapshot.docs
+        .map(docToTestAttempt)
+        .filter(attempt => attempt.userId === userId);
 
     // Sort by start time descending to show most recent tests first.
-    attempts.sort((a, b) => {
+    userAttempts.sort((a, b) => {
         if (!a.startTime) return 1;
         if (!b.startTime) return -1;
         return new Date(b.startTime).getTime() - new Date(a.startTime).getTime();
     });
 
-    return attempts;
+    return userAttempts;
 }

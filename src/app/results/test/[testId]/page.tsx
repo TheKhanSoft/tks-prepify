@@ -1,10 +1,10 @@
 
 "use client";
 
-import { useEffect, useState, useMemo } from 'react';
+import { useEffect, useState, useMemo, useCallback } from 'react';
 import { useRouter, useParams } from 'next/navigation';
-import { Book, CheckCircle2, Lightbulb, Loader2, XCircle } from 'lucide-react';
-import type { QuestionAttempt, TestAttempt, Category } from '@/types';
+import { Book, CheckCircle2, Lightbulb, Loader2, XCircle, ShieldAlert } from 'lucide-react';
+import type { QuestionAttempt, TestAttempt } from '@/types';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
@@ -13,10 +13,10 @@ import { getPersonalizedFeedback } from '@/ai/flows/personalized-feedback';
 import { recommendResources } from '@/ai/flows/resource-recommendation';
 import { ChartContainer, ChartTooltip, ChartTooltipContent, ChartConfig } from "@/components/ui/chart";
 import { Bar, BarChart as RechartsBarChart, XAxis, YAxis } from "recharts";
-import { fetchQuestionCategories } from '@/lib/question-category-service';
-import { getQuestionCategoryById } from '@/lib/question-category-helpers';
 import { cn } from '@/lib/utils';
 import { getTestAttemptById } from '@/lib/test-attempt-service';
+import { useAuth } from '@/hooks/use-auth';
+import { useToast } from '@/hooks/use-toast';
 
 type FeedbackState = { [questionId: string]: { loading: boolean; feedback?: string; suggestions?: string } };
 
@@ -25,40 +25,54 @@ const chartConfig = {
   incorrect: { label: "Incorrect", color: "hsl(var(--destructive))" },
 } satisfies ChartConfig;
 
+const RETRY_DELAY = 1500; // 1.5 seconds
+const MAX_RETRIES = 3;
+
 export default function DynamicTestResultsPage() {
   const router = useRouter();
   const params = useParams();
+  const { toast } = useToast();
+  const { user, loading: authLoading } = useAuth();
   const attemptId = params.testId as string;
 
   const [attempt, setAttempt] = useState<TestAttempt | null>(null);
   const [feedback, setFeedback] = useState<FeedbackState>({});
   const [recommendations, setRecommendations] = useState({ loading: false, content: '' });
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  const fetchAttemptWithRetry = useCallback(async (userId: string, retries = MAX_RETRIES) => {
+    try {
+      const attemptData = await getTestAttemptById(attemptId, userId);
+      if (attemptData) {
+        setAttempt(attemptData);
+        setError(null);
+        setLoading(false);
+      } else if (retries > 0) {
+        setTimeout(() => fetchAttemptWithRetry(userId, retries - 1), RETRY_DELAY);
+      } else {
+        setError("Could not load your test results. It might still be processing, or you may not have permission to view this page. Please try refreshing in a moment.");
+        setLoading(false);
+      }
+    } catch (e) {
+      console.error(e);
+      setError("An unexpected error occurred while fetching your results.");
+      setLoading(false);
+    }
+  }, [attemptId]);
 
   useEffect(() => {
-    if (!attemptId) {
-        router.push('/tests');
-        return;
+    if (authLoading) return;
+    if (!user) {
+      toast({ title: "Unauthorized", description: "You must be logged in to view results.", variant: "destructive" });
+      router.push(`/login?redirect=/results/test/${attemptId}`);
+      return;
     }
+    if (attemptId && user) {
+      fetchAttemptWithRetry(user.uid);
+    }
+  }, [attemptId, user, authLoading, router, toast, fetchAttemptWithRetry]);
 
-    const loadData = async () => {
-        setLoading(true);
-        try {
-            const attemptData = await getTestAttemptById(attemptId);
-            if (!attemptData) {
-                throw new Error("Test result not found.");
-            }
-            setAttempt(attemptData);
-        } catch (e) {
-            console.error(e);
-            router.push('/tests');
-        } finally {
-            setLoading(false);
-        }
-    }
-    loadData();
-  }, [attemptId, router]);
-  
   const handleGetFeedback = async (question: QuestionAttempt) => {
     if (!attempt || loading) return;
     setFeedback(prev => ({ ...prev, [question.questionId]: { loading: true } }));
@@ -116,8 +130,28 @@ export default function DynamicTestResultsPage() {
     };
   }, [attempt]);
 
-  if (loading || !attempt) {
+  if (loading) {
     return <div className="flex justify-center items-center h-screen"><Loader2 className="h-8 w-8 animate-spin" /></div>;
+  }
+  
+  if (error) {
+     return (
+        <div className="container mx-auto px-6 sm:px-10 lg:px-16 py-20 text-center">
+             <Card className="max-w-md mx-auto">
+                <CardHeader>
+                    <CardTitle className="flex items-center justify-center gap-2"><ShieldAlert className="h-6 w-6 text-destructive" /> Error Loading Results</CardTitle>
+                </CardHeader>
+                <CardContent>
+                    <p className="text-muted-foreground">{error}</p>
+                    <Button onClick={() => router.push('/account/results')} className="mt-6">View My Results History</Button>
+                </CardContent>
+             </Card>
+        </div>
+     );
+  }
+
+  if (!attempt) {
+    return null; // Should be handled by error state
   }
 
   return (

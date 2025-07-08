@@ -6,7 +6,7 @@ import { BarChart3, ChevronRight, Loader2 } from 'lucide-react';
 import { useAuth } from "@/hooks/use-auth";
 import { fetchTestAttemptsForUser } from "@/lib/test-attempt-service";
 import type { TestAttempt } from "@/types";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { format } from "date-fns";
 import { Badge } from "@/components/ui/badge";
@@ -17,15 +17,18 @@ import { cn } from "@/lib/utils";
 const StatusBadge = ({ attempt }: { attempt: TestAttempt }) => {
     if (attempt.status === 'completed') {
         return (
-            <Badge variant={attempt.passed ? "default" : "destructive"} className={cn(attempt.passed && "bg-green-600 hover:bg-green-700")}>
+            <Badge variant={attempt.passed ? "default" : "destructive"} className={cn(
+                'capitalize',
+                attempt.passed ? "bg-green-600 hover:bg-green-700" : "bg-destructive hover:bg-destructive/90"
+            )}>
                 {attempt.passed ? "Passed" : "Failed"}
             </Badge>
         );
     }
     if (attempt.status === 'in-progress') {
-        return <Badge variant="secondary">In Progress</Badge>;
+        return <Badge variant="secondary" className="capitalize">In Progress</Badge>;
     }
-    return <Badge variant="outline">{attempt.status}</Badge>;
+    return <Badge variant="outline" className="capitalize">{attempt.status}</Badge>;
 };
 
 export default function ResultsPage() {
@@ -33,15 +36,29 @@ export default function ResultsPage() {
     const [attempts, setAttempts] = useState<TestAttempt[]>([]);
     const [loading, setLoading] = useState(true);
 
+    const completedAttempts = useMemo(() => attempts.filter(a => a.status === 'completed'), [attempts]);
+
     useEffect(() => {
-        if (user) {
-            setLoading(true);
-            fetchTestAttemptsForUser(user.uid)
-                .then(setAttempts)
-                .finally(() => setLoading(false));
-        } else if (!authLoading) {
+        if (authLoading) return;
+        
+        if (!user) {
             setLoading(false);
+            return;
         }
+
+        const loadAttempts = async () => {
+            setLoading(true);
+            try {
+                const fetchedAttempts = await fetchTestAttemptsForUser(user.uid);
+                setAttempts(fetchedAttempts);
+            } catch (error) {
+                console.error("Failed to load test history:", error);
+            } finally {
+                setLoading(false);
+            }
+        };
+
+        loadAttempts();
     }, [user, authLoading]);
 
     if (loading || authLoading) {
@@ -61,7 +78,10 @@ export default function ResultsPage() {
             <Card>
                 <CardHeader>
                     <CardTitle>Test History</CardTitle>
-                    <CardDescription>Your past test scores and results will be listed here.</CardDescription>
+                    <CardDescription>
+                        You have taken {attempts.length} test{attempts.length !== 1 && 's'} in total.
+                        Completed: {completedAttempts.length}.
+                    </CardDescription>
                 </CardHeader>
                 <CardContent>
                     {attempts.length > 0 ? (
@@ -71,7 +91,7 @@ export default function ResultsPage() {
                                     <TableHead>Test Name</TableHead>
                                     <TableHead>Score</TableHead>
                                     <TableHead>Status</TableHead>
-                                    <TableHead>Taken On</TableHead>
+                                    <TableHead>Date</TableHead>
                                     <TableHead><span className="sr-only">Actions</span></TableHead>
                                 </TableRow>
                             </TableHeader>
@@ -106,6 +126,9 @@ export default function ResultsPage() {
                             <BarChart3 className="h-12 w-12 mb-4" />
                             <h3 className="text-lg font-semibold">No Results Yet</h3>
                             <p className="mt-1">Complete a test to see your results appear here.</p>
+                            <Button asChild variant="link" className="mt-2">
+                                <Link href="/tests">Take a Test Now</Link>
+                            </Button>
                         </div>
                     )}
                 </CardContent>
