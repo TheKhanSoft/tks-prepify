@@ -5,7 +5,7 @@ import { ReactNode, useState, useEffect } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { useAuth } from '@/hooks/use-auth';
-import { Loader2, LayoutDashboard, User, BarChart3, Bookmark, Home, BookOpen, LogOut, CreditCard } from 'lucide-react';
+import { Loader2, LayoutDashboard, User, BarChart3, Bookmark, Home, BookOpen, LogOut, CreditCard, LifeBuoy } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import type { Settings } from '@/types';
@@ -20,6 +20,7 @@ const accountNavLinks = [
   { href: '/account/subscription', label: 'Subscription', icon: CreditCard },
   { href: '/account/results', label: 'My Results', icon: BarChart3 },
   { href: '/account/saved-papers', label: 'Saved Papers', icon: Bookmark },
+  { href: '/account/support', label: 'Support Tickets', icon: LifeBuoy },
 ];
 
 export default function AccountLayout({ children }: { children: ReactNode }) {
@@ -67,7 +68,7 @@ export default function AccountLayout({ children }: { children: ReactNode }) {
           {accountNavLinks.map((link) => (
             <Link key={link.href} href={link.href}>
               <Button
-                variant={pathname === link.href ? 'secondary' : 'ghost'}
+                variant={pathname.startsWith(link.href) ? 'secondary' : 'ghost'}
                 className="w-full justify-start gap-2"
               >
                 <link.icon className="h-4 w-4" />

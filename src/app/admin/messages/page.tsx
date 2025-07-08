@@ -20,13 +20,14 @@ import {
   DialogFooter,
   DialogClose,
 } from "@/components/ui/dialog";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Loader2, Eye, Mail, MailOpen, Star, User, MessageSquare } from "lucide-react";
+import { Loader2, Eye, Mail, MailOpen, Star, User, MessageSquare, ChevronDown, CheckCircle, Info, XCircle } from "lucide-react";
 import { fetchContactSubmissions, updateSubmissionStatus, addReplyToSubmission } from "@/lib/contact-service";
-import type { ContactSubmission, MessageReply } from "@/types";
+import type { ContactSubmission, MessageReply, ContactSubmissionStatus } from "@/types";
 import { useToast } from "@/hooks/use-toast";
-import { format } from "date-fns";
+import { formatDistanceToNow } from "date-fns";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/hooks/use-auth";
@@ -34,6 +35,13 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
+
+const statusConfig: { [key in ContactSubmissionStatus]: { icon: React.FC<any>; color: string; label: string } } = {
+    open: { icon: Info, color: 'text-blue-500', label: 'Open' },
+    replied: { icon: CheckCircle, color: 'text-amber-500', label: 'Replied' },
+    closed: { icon: XCircle, color: 'text-gray-500', label: 'Closed' },
+};
+
 
 export default function AdminMessagesPage() {
   const { toast } = useToast();
@@ -75,6 +83,22 @@ export default function AdminMessagesPage() {
     }
   };
 
+  const handleChangeStatus = async (newStatus: ContactSubmissionStatus) => {
+    if (!selectedSubmission || selectedSubmission.status === newStatus) return;
+    
+    try {
+        await updateSubmissionStatus(selectedSubmission.id, newStatus);
+        
+        const updatedSubmission = { ...selectedSubmission, status: newStatus };
+        setSelectedSubmission(updatedSubmission);
+        setSubmissions(prev => prev.map(s => s.id === updatedSubmission.id ? updatedSubmission : s));
+
+        toast({ title: "Status Updated", description: `Ticket marked as ${newStatus}.` });
+    } catch (error) {
+        toast({ title: "Error", description: "Failed to update status.", variant: "destructive" });
+    }
+  }
+
   const handleReplySubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!replyText.trim() || !selectedSubmission || !user) return;
@@ -97,17 +121,16 @@ export default function AdminMessagesPage() {
           createdAt: new Date(),
         };
 
-        const updatedSubmission = {
+        const updatedSubmission: ContactSubmission = {
             ...selectedSubmission,
+            status: 'replied',
+            lastRepliedAt: new Date(),
             isRead: true, // Replying marks it as read
             replies: [...(selectedSubmission.replies || []), newReply],
         };
         setSelectedSubmission(updatedSubmission);
         
-        // Update main list as well
-        setSubmissions(prev =>
-          prev.map(s => (s.id === updatedSubmission.id ? updatedSubmission : s))
-        );
+        setSubmissions(prev => prev.map(s => (s.id === updatedSubmission.id ? updatedSubmission : s)));
 
         setReplyText("");
         toast({ title: "Reply Sent" });
@@ -147,55 +170,59 @@ export default function AdminMessagesPage() {
               <TableHeader>
                 <TableRow>
                   <TableHead className="w-12"></TableHead>
-                  <TableHead>Priority</TableHead>
                   <TableHead>From</TableHead>
                   <TableHead>Topic</TableHead>
                   <TableHead>Subject</TableHead>
-                  <TableHead>Received</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead>Last Updated</TableHead>
                   <TableHead className="text-right">Actions</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {submissions.length > 0 ? (
-                  submissions.map((submission) => (
-                    <TableRow key={submission.id} className={cn(!submission.isRead && "font-bold")}>
-                      <TableCell>
-                        <div className="flex items-center gap-2">
-                           {submission.isRead ? (
-                            <MailOpen className="h-5 w-5 text-muted-foreground" />
+                  submissions.map((submission) => {
+                    const statusInfo = statusConfig[submission.status];
+                    return (
+                        <TableRow key={submission.id} className={cn(!submission.isRead && "font-bold")}>
+                        <TableCell>
+                            <div className="flex items-center gap-2">
+                            {submission.priority && <Star className="h-5 w-5 text-amber-500 fill-amber-400" title="Priority Support" />}
+                            {submission.replies && submission.replies.length > 0 ? (
+                                <MessageSquare className="h-5 w-5 text-muted-foreground" title="Has replies" />
                             ) : (
-                            <Mail className="h-5 w-5 text-primary" />
+                                <MailOpen className="h-5 w-5 text-muted-foreground" />
                             )}
-                            {submission.replies && submission.replies.length > 0 && (
-                                <MessageSquare className="h-4 w-4 text-muted-foreground" />
-                            )}
-                        </div>
-                      </TableCell>
-                       <TableCell>
-                        {submission.priority && <Star className="h-5 w-5 text-amber-500 fill-amber-400" />}
-                      </TableCell>
-                      <TableCell>
-                        <div>{submission.name}</div>
-                        <div className="text-xs text-muted-foreground font-normal">{submission.email}</div>
-                      </TableCell>
-                      <TableCell>
-                        <Badge variant="secondary">{submission.topic}</Badge>
-                      </TableCell>
-                      <TableCell>{submission.subject}</TableCell>
-                      <TableCell>
-                        {format(new Date(submission.createdAt), "PPP p")}
-                      </TableCell>
-                      <TableCell className="text-right">
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => handleViewMessage(submission)}
-                        >
-                          <Eye className="mr-2 h-4 w-4" /> View
-                        </Button>
-                      </TableCell>
-                    </TableRow>
-                  ))
+                            </div>
+                        </TableCell>
+                        <TableCell>
+                            <div>{submission.name}</div>
+                            <div className="text-xs text-muted-foreground font-normal">{submission.email}</div>
+                        </TableCell>
+                        <TableCell>
+                            <Badge variant="secondary">{submission.topic}</Badge>
+                        </TableCell>
+                        <TableCell>{submission.subject}</TableCell>
+                        <TableCell>
+                            <Badge variant="outline" className={cn('capitalize', statusInfo.color, `border-${statusInfo.color.replace('text-', '')}/50`)}>
+                                <statusInfo.icon className={cn('mr-2 h-4 w-4', statusInfo.color)} />
+                                {statusInfo.label}
+                            </Badge>
+                        </TableCell>
+                        <TableCell>
+                           {formatDistanceToNow(new Date(submission.lastRepliedAt || submission.createdAt), { addSuffix: true })}
+                        </TableCell>
+                        <TableCell className="text-right">
+                            <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => handleViewMessage(submission)}
+                            >
+                            <Eye className="mr-2 h-4 w-4" /> View
+                            </Button>
+                        </TableCell>
+                        </TableRow>
+                    )
+                  })
                 ) : (
                   <TableRow>
                     <TableCell colSpan={7} className="h-24 text-center">
@@ -215,22 +242,26 @@ export default function AdminMessagesPage() {
             setReplyText("");
         }
       }}>
-        <DialogContent className="sm:max-w-2xl">
+        <DialogContent className="sm:max-w-3xl">
           <DialogHeader>
             <div className="flex justify-between items-start">
               <div>
                 <DialogTitle>{selectedSubmission?.subject}</DialogTitle>
                 <DialogDescription>
-                    <Badge variant="outline">{selectedSubmission?.topic}</Badge> - Received on{" "}
-                    {selectedSubmission && format(new Date(selectedSubmission.createdAt), "PPP p")}
+                    <Badge variant="outline">{selectedSubmission?.topic}</Badge> - Ticket from {selectedSubmission?.name}
                 </DialogDescription>
               </div>
-              {selectedSubmission?.priority && (
-                <Badge className="bg-amber-100 text-amber-800 border-amber-300 hover:bg-amber-200">
-                    <Star className="mr-2 h-4 w-4 fill-current"/>
-                    Priority Support
-                </Badge>
-              )}
+              <div className="flex items-center gap-2">
+                {selectedSubmission?.priority && (<Badge className="bg-amber-100 text-amber-800 border-amber-300 hover:bg-amber-200"><Star className="mr-2 h-4 w-4 fill-current"/>Priority</Badge>)}
+                <DropdownMenu>
+                    <DropdownMenuTrigger asChild><Button variant="outline">Status: {selectedSubmission?.status} <ChevronDown className="ml-2 h-4 w-4"/></Button></DropdownMenuTrigger>
+                    <DropdownMenuContent>
+                        <DropdownMenuItem onClick={() => handleChangeStatus('open')}>Mark as Open</DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => handleChangeStatus('replied')}>Mark as Replied</DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => handleChangeStatus('closed')}>Mark as Closed</DropdownMenuItem>
+                    </DropdownMenuContent>
+                </DropdownMenu>
+              </div>
             </div>
           </DialogHeader>
           <div className="flex flex-col gap-4">
@@ -247,28 +278,40 @@ export default function AdminMessagesPage() {
                                 <p className="text-sm whitespace-pre-wrap">{selectedSubmission?.message}</p>
                             </div>
                             <p className="text-xs text-muted-foreground mt-1">
-                                {selectedSubmission && format(new Date(selectedSubmission.createdAt), "p")}
+                                {selectedSubmission && formatDistanceToNow(new Date(selectedSubmission.createdAt), { addSuffix: true })}
                             </p>
                         </div>
                     </div>
 
                     {/* Replies */}
-                    {selectedSubmission?.replies?.map((reply, index) => (
-                    <div key={index} className="flex items-start gap-3 justify-end">
-                        <div className="flex-1 text-right">
-                            <div className="rounded-lg bg-primary text-primary-foreground p-3 w-fit max-w-full inline-block text-left">
-                                <p className="text-sm font-semibold">{reply.authorName} (You)</p>
-                                <p className="text-sm whitespace-pre-wrap">{reply.message}</p>
-                            </div>
-                            <p className="text-xs text-muted-foreground mt-1">
-                                {format(new Date(reply.createdAt), "p")}
-                            </p>
+                    {selectedSubmission?.replies?.map((reply, index) => {
+                        const isAdminReply = reply.authorId !== selectedSubmission.userId;
+                        return (
+                        <div key={index} className={cn("flex items-start gap-3", isAdminReply && "justify-end")}>
+                            {isAdminReply && (
+                                <div className="flex-1 text-right">
+                                    <div className="rounded-lg bg-primary text-primary-foreground p-3 w-fit max-w-full inline-block text-left">
+                                        <p className="text-sm font-semibold">{reply.authorName} (You)</p>
+                                        <p className="text-sm whitespace-pre-wrap">{reply.message}</p>
+                                    </div>
+                                    <p className="text-xs text-muted-foreground mt-1">{formatDistanceToNow(new Date(reply.createdAt), { addSuffix: true })}</p>
+                                </div>
+                            )}
+                            <Avatar className="h-8 w-8 border bg-foreground text-background">
+                                <AvatarFallback>{reply.authorName?.charAt(0)}</AvatarFallback>
+                            </Avatar>
+                            {!isAdminReply && (
+                                <div className="flex-1">
+                                    <div className="rounded-lg bg-muted p-3 w-fit max-w-full">
+                                        <p className="text-sm font-semibold">{reply.authorName}</p>
+                                        <p className="text-sm whitespace-pre-wrap">{reply.message}</p>
+                                    </div>
+                                    <p className="text-xs text-muted-foreground mt-1">{formatDistanceToNow(new Date(reply.createdAt), { addSuffix: true })}</p>
+                                </div>
+                            )}
                         </div>
-                        <Avatar className="h-8 w-8 border bg-foreground text-background">
-                            <AvatarFallback>{reply.authorName?.charAt(0)}</AvatarFallback>
-                        </Avatar>
-                    </div>
-                    ))}
+                        )
+                    })}
                 </div>
             </ScrollArea>
              <form onSubmit={handleReplySubmit} className="space-y-2">
@@ -278,11 +321,11 @@ export default function AdminMessagesPage() {
                     placeholder="Type your reply here..."
                     value={replyText}
                     onChange={(e) => setReplyText(e.target.value)}
-                    disabled={isReplying}
+                    disabled={isReplying || selectedSubmission?.status === 'closed'}
                     rows={4}
                 />
                 <div className="flex justify-end">
-                    <Button type="submit" disabled={isReplying || !replyText.trim()}>
+                    <Button type="submit" disabled={isReplying || !replyText.trim() || selectedSubmission?.status === 'closed'}>
                     {isReplying && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                     Send Reply
                     </Button>

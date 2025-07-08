@@ -158,43 +158,6 @@ export interface Plan {
   pricingOptions: PricingOption[];
 }
 
-export interface Settings {
-    siteName: string;
-    siteDescription: string;
-    defaultQuestionCount: number;
-    defaultDuration: number;
-    defaultQuestionsPerPage: number;
-    defaultPlanId?: string;
-    // Homepage Hero Section
-    heroTitlePrefix?: string;
-    heroTitleHighlight?: string;
-    heroTitleSuffix?: string;
-    heroSubtitle?: string;
-    heroButton1Text?: string;
-    heroButton1Link?: string;
-    heroButton2Text?: string;
-    heroButton2Link?: string;
-    heroImage?: string;
-    // Social Links
-    socialLinks: SocialLink[];
-    // About Page
-    aboutTitle?: string;
-    aboutSubtitle?: string;
-    aboutMission?: string;
-    aboutVision?: string;
-    aboutTeamTitle?: string;
-    teamMembers?: TeamMember[];
-    // Contact Page
-    contactTitle?: string;
-    contactSubtitle?: string;
-    contactEmail?: string;
-    contactPhone?: string;
-    contactAddress?: string;
-    // Download settings
-    pdfWatermarkEnabled?: boolean;
-    pdfWatermarkText?: string;
-}
-
 export interface MessageReply {
   id: string;
   authorId: string;
@@ -202,6 +165,8 @@ export interface MessageReply {
   message: string;
   createdAt: Date;
 }
+
+export type ContactSubmissionStatus = 'open' | 'replied' | 'closed';
 
 export interface ContactSubmission {
   id: string;
@@ -215,6 +180,8 @@ export interface ContactSubmission {
   userId?: string;
   priority?: boolean;
   replies?: MessageReply[];
+  status: ContactSubmissionStatus;
+  lastRepliedAt?: Date | null;
 }
 
 export interface SupportRequest {

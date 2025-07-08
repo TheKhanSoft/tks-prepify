@@ -1,12 +1,13 @@
 
 'use server';
 
-import { collection, addDoc, serverTimestamp, getDocs, query, orderBy, doc, updateDoc, DocumentData, arrayUnion } from 'firebase/firestore';
+import { collection, addDoc, serverTimestamp, getDocs, query, orderBy, doc, updateDoc, DocumentData, arrayUnion, getDoc, where } from 'firebase/firestore';
 import { db } from './firebase';
-import type { ContactSubmission, MessageReply } from '@/types';
+import type { ContactSubmission, MessageReply, ContactSubmissionStatus } from '@/types';
 import { getUserProfile } from './user-service';
 import { getPlanById } from './plan-service';
 import { checkAndRecordSupportRequest } from './support-request-service';
+import { serializeDate } from './utils';
 
 type ContactFormData = {
   name: string;
@@ -25,7 +26,9 @@ export async function submitContactForm(data: ContactFormData, userId?: string |
       userId: userId || null,
       priority: false,
       isRead: false,
+      status: 'open',
       createdAt: serverTimestamp(),
+      lastRepliedAt: serverTimestamp(),
       replies: [],
     };
     
@@ -59,13 +62,23 @@ export interface ReplyData {
 export async function addReplyToSubmission(submissionId: string, replyData: ReplyData) {
   try {
     const submissionRef = doc(db, 'contact_submissions', submissionId);
-    // Add the new reply and mark the submission as read in one operation.
+    const submissionSnap = await getDoc(submissionRef);
+    if (!submissionSnap.exists()) {
+        throw new Error("Submission not found.");
+    }
+    const submissionData = submissionSnap.data();
+
+    // If the person replying is not the original author of the ticket, they are an admin.
+    const newStatus: ContactSubmissionStatus = replyData.authorId === submissionData.userId ? 'open' : 'replied';
+
     await updateDoc(submissionRef, {
       replies: arrayUnion({
         ...replyData,
-        createdAt: new Date(), // Use standard Date object instead of serverTimestamp() in arrayUnion
+        createdAt: new Date(),
       }),
-      isRead: true,
+      status: newStatus,
+      lastRepliedAt: serverTimestamp(),
+      isRead: true, // A reply always marks it as read for the admin side
     });
     return { success: true };
   } catch (error) {
@@ -91,17 +104,19 @@ const docToContactSubmission = (doc: DocumentData): ContactSubmission => {
         subject: data.subject,
         message: data.message,
         createdAt: data.createdAt.toDate(),
+        lastRepliedAt: data.lastRepliedAt ? data.lastRepliedAt.toDate() : data.createdAt.toDate(),
         isRead: data.isRead,
         userId: data.userId,
         priority: data.priority,
         replies: replies,
+        status: data.status || 'open',
     }
 }
 
 export async function fetchContactSubmissions(): Promise<ContactSubmission[]> {
   try {
     const submissionsCol = collection(db, 'contact_submissions');
-    const q = query(submissionsCol, orderBy('createdAt', 'desc'));
+    const q = query(submissionsCol, orderBy('lastRepliedAt', 'desc'));
     const snapshot = await getDocs(q);
     
     return snapshot.docs.map(docToContactSubmission);
@@ -110,10 +125,40 @@ export async function fetchContactSubmissions(): Promise<ContactSubmission[]> {
   }
 }
 
-export async function updateSubmissionStatus(id: string, isRead: boolean) {
+export async function getSubmissionById(submissionId: string, userId?: string): Promise<ContactSubmission | null> {
+    const submissionRef = doc(db, 'contact_submissions', submissionId);
+    const submissionDoc = await getDoc(submissionRef);
+
+    if (!submissionDoc.exists()) {
+        return null;
+    }
+    
+    const submission = docToContactSubmission(submissionDoc);
+    
+    // If a userId is provided, ensure this submission belongs to them.
+    if (userId && submission.userId !== userId) {
+        return null;
+    }
+    
+    return submission;
+}
+
+
+export async function fetchSubmissionsForUser(userId: string): Promise<ContactSubmission[]> {
+  try {
+    const submissionsCol = collection(db, 'contact_submissions');
+    const q = query(submissionsCol, where('userId', '==', userId), orderBy('lastRepliedAt', 'desc'));
+    const snapshot = await getDocs(q);
+    return snapshot.docs.map(docToContactSubmission);
+  } catch(e) {
+    return [];
+  }
+}
+
+export async function updateSubmissionStatus(id: string, status: ContactSubmissionStatus) {
   try {
     const submissionRef = doc(db, 'contact_submissions', id);
-    await updateDoc(submissionRef, { isRead });
+    await updateDoc(submissionRef, { status: status });
     return { success: true };
   } catch (error) {
     return { success: false, error: "Failed to update status." };
