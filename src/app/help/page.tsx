@@ -1,4 +1,3 @@
-
 'use client';
 
 import React, { useState, useEffect, useMemo } from 'react';
@@ -9,7 +8,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Search, BookQuestion, LifeBuoy } from 'lucide-react';
+import { Search, HelpCircle, LifeBuoy } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import { cn } from '@/lib/utils';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -126,7 +125,7 @@ export default function HelpPage() {
                     {filteredArticles.length === 0 && !loading && (
                         <Card className="text-center py-16">
                             <CardContent>
-                                <BookQuestion className="h-12 w-12 mx-auto text-muted-foreground" />
+                                <HelpCircle className="h-12 w-12 mx-auto text-muted-foreground" />
                                 <h3 className="text-xl font-semibold mt-4">No Articles Found</h3>
                                 <p className="text-muted-foreground mt-2">Try adjusting your search or selecting a different category.</p>
                             </CardContent>
