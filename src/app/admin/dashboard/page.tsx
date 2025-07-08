@@ -496,7 +496,7 @@ export default function AdminDashboardPage() {
         <Card>
             <CardHeader className="flex flex-row items-center justify-between gap-4">
                 <div>
-                    <CardTitle>Active & Expiring Subscriptions</CardTitle>
+                    <CardTitle>Active &amp; Expiring Subscriptions</CardTitle>
                     <CardDescription>
                         {activeSubscribers.length} total active subscribers.
                     </CardDescription>
