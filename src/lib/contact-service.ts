@@ -116,10 +116,16 @@ const docToContactSubmission = (doc: DocumentData): ContactSubmission => {
 export async function fetchContactSubmissions(): Promise<ContactSubmission[]> {
   try {
     const submissionsCol = collection(db, 'contact_submissions');
-    const q = query(submissionsCol, orderBy('lastRepliedAt', 'desc'));
+    // Removed orderBy to sort in memory and avoid index issues.
+    const q = query(submissionsCol);
     const snapshot = await getDocs(q);
     
-    return snapshot.docs.map(docToContactSubmission);
+    const submissions = snapshot.docs.map(docToContactSubmission);
+    
+    // Sort in-memory
+    submissions.sort((a,b) => new Date(b.lastRepliedAt!).getTime() - new Date(a.lastRepliedAt!).getTime());
+
+    return submissions;
   } catch (error) {
     return [];
   }
@@ -147,9 +153,16 @@ export async function getSubmissionById(submissionId: string, userId?: string): 
 export async function fetchSubmissionsForUser(userId: string): Promise<ContactSubmission[]> {
   try {
     const submissionsCol = collection(db, 'contact_submissions');
-    const q = query(submissionsCol, where('userId', '==', userId), orderBy('lastRepliedAt', 'desc'));
+    // Remove orderBy to avoid needing a composite index
+    const q = query(submissionsCol, where('userId', '==', userId));
     const snapshot = await getDocs(q);
-    return snapshot.docs.map(docToContactSubmission);
+    
+    const submissions = snapshot.docs.map(docToContactSubmission);
+    
+    // Sort in-memory
+    submissions.sort((a,b) => new Date(b.lastRepliedAt!).getTime() - new Date(a.lastRepliedAt!).getTime());
+
+    return submissions;
   } catch(e) {
     return [];
   }
