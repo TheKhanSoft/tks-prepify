@@ -21,36 +21,27 @@ import { useAuth } from "@/hooks/use-auth";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { cn } from "@/lib/utils";
 
+// Schema for form validation
 const contactFormSchema = z.object({
-  name: z.string().optional(),
-  email: z.string().optional(),
-  topic: z.string({ required_error: "Please select a topic." }),
+  name: z.string().min(2, { message: "Name must be at least 2 characters." }),
+  email: z.string().email({ message: "Please enter a valid email address." }),
+  topic: z.string({ required_error: "Please select a topic." }).min(1, "Please select a topic."),
   subject: z.string().min(5, { message: "Subject must be at least 5 characters." }),
   message: z.string().min(10, { message: "Message must be at least 10 characters." }),
-}).refine((data) => {
-    if(!data.name) return false;
-    return true;
-}, {
-    message: "Name must be at least 2 characters.",
-    path: ["name"],
-}).refine((data) => {
-    if(!data.email) return false;
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    return emailRegex.test(data.email);
-}, {
-    message: "Please enter a valid email address.",
-    path: ["email"],
 });
-
 
 type ContactFormValues = z.infer<typeof contactFormSchema>;
 
+// Expanded list of topics
 const contactTopics = [
     "General Inquiry",
     "Report a Bug",
     "Request a Paper",
     "Issue with my Account",
     "Issue with a Test/Result",
+    "Issue with Downloading Paper",
+    "Issue with Generating Test",
+    "Irrelevant Paper Category",
     "Feedback & Suggestions",
     "Other"
 ];
@@ -65,19 +56,21 @@ function ContactForm() {
     defaultValues: { name: "", email: "", subject: "", message: "", topic: "" },
   });
   
+  // Pre-fill form for logged-in users
   useEffect(() => {
       if (user) {
-          form.setValue("name", user.displayName || "");
-          form.setValue("email", user.email || "");
+          form.setValue("name", user.displayName || "", { shouldValidate: true });
+          form.setValue("email", user.email || "", { shouldValidate: true });
       }
   }, [user, form]);
 
   async function onSubmit(data: ContactFormValues) {
     setIsSubmitting(true);
     try {
-       const finalData = {
-        name: user?.displayName || data.name!,
-        email: user?.email || data.email!,
+      // Use auth data if available, otherwise use form data
+      const finalData = {
+        name: user?.displayName || data.name,
+        email: user?.email || data.email,
         topic: data.topic,
         subject: data.subject,
         message: data.message,
@@ -89,7 +82,13 @@ function ContactForm() {
           title: "Message Sent!",
           description: "Thank you for contacting us. We'll get back to you shortly.",
         });
-        form.reset({ subject: "", message: "", topic: "" });
+        // Reset only fields user can edit
+        form.reset({
+            ...form.getValues(),
+            subject: "",
+            message: "",
+            topic: ""
+        });
       } else {
         throw new Error(result.error);
       }
@@ -107,25 +106,29 @@ function ContactForm() {
   return (
     <Form {...form}>
       <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
-        <div className={cn("grid gap-6", !user && "md:grid-cols-2")}>
-            {!user && (
-                <>
-                <FormField
-                    control={form.control}
-                    name="name"
-                    render={({ field }) => (
-                        <FormItem><Label>Full Name</Label><FormControl><Input placeholder="John Doe" {...field} value={field.value || ''} /></FormControl><FormMessage /></FormItem>
-                    )}
-                />
-                <FormField
-                    control={form.control}
-                    name="email"
-                    render={({ field }) => (
-                        <FormItem><Label>Email Address</Label><FormControl><Input type="email" placeholder="john.doe@example.com" {...field} value={field.value || ''} /></FormControl><FormMessage /></FormItem>
-                    )}
-                />
-                </>
-            )}
+        <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
+            <FormField
+                control={form.control}
+                name="name"
+                render={({ field }) => (
+                    <FormItem>
+                        <Label>Full Name</Label>
+                        <FormControl><Input placeholder="John Doe" {...field} disabled={!!user} /></FormControl>
+                        <FormMessage />
+                    </FormItem>
+                )}
+            />
+            <FormField
+                control={form.control}
+                name="email"
+                render={({ field }) => (
+                    <FormItem>
+                        <Label>Email Address</Label>
+                        <FormControl><Input type="email" placeholder="john.doe@example.com" {...field} disabled={!!user} /></FormControl>
+                        <FormMessage />
+                    </FormItem>
+                )}
+            />
         </div>
         <FormField
             control={form.control}
@@ -133,7 +136,7 @@ function ContactForm() {
             render={({ field }) => (
                 <FormItem>
                 <Label>Topic</Label>
-                <Select onValueChange={field.onChange} defaultValue={field.value}>
+                <Select onValueChange={field.onChange} defaultValue={field.value} value={field.value}>
                     <FormControl><SelectTrigger><SelectValue placeholder="Select a topic..." /></SelectTrigger></FormControl>
                     <SelectContent>{contactTopics.map(topic => <SelectItem key={topic} value={topic}>{topic}</SelectItem>)}</SelectContent>
                 </Select>
@@ -152,12 +155,12 @@ function ContactForm() {
           control={form.control}
           name="message"
           render={({ field }) => (
-            <FormItem><Label>Message</Label><FormControl><Textarea placeholder="Your message..." rows={5} {...field} /></FormControl><FormMessage /></FormItem>
+            <FormItem><Label>Message</Label><FormControl><Textarea placeholder="Please provide as much detail as possible..." rows={5} {...field} /></FormControl><FormMessage /></FormItem>
           )}
         />
-        <Button type="submit" className="w-full" disabled={isSubmitting}>
+        <Button type="submit" className="w-full" size="lg" disabled={isSubmitting}>
           {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-          Submit Message
+          Send Message
         </Button>
       </form>
     </Form>
@@ -195,40 +198,56 @@ export default function ContactPage() {
         </div>
       </div>
 
-      <div className="grid md:grid-cols-2 gap-12">
-        <Card>
-          <CardHeader>
-            <CardTitle>Send us a message</CardTitle>
-            <CardDescription>Fill out the form and we'll get back to you as soon as possible.</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <ContactForm />
-          </CardContent>
-        </Card>
-
-        <div className="space-y-8">
+      <div className="grid md:grid-cols-5 gap-12">
+        <div className="md:col-span-3">
+            <Card>
+                <CardHeader>
+                    <CardTitle>Send us a message</CardTitle>
+                    <CardDescription>Fill out the form and we'll get back to you as soon as possible.</CardDescription>
+                </CardHeader>
+                <CardContent>
+                    <ContactForm />
+                </CardContent>
+            </Card>
+        </div>
+        <div className="md:col-span-2 space-y-6">
             <h3 className="text-2xl font-bold">Our Contact Information</h3>
-            <div className="space-y-4 text-lg">
+            <div className="space-y-4">
                 {settings.contactEmail && (
-                    <div className="flex items-center gap-4">
-                        <Mail className="h-6 w-6 text-primary" />
-                        <span className="text-muted-foreground">{settings.contactEmail}</span>
-                    </div>
+                    <a href={`mailto:${settings.contactEmail}`} className="flex items-start gap-4 rounded-lg border p-4 hover:bg-muted/50 transition-colors group">
+                        <div className="flex-shrink-0 rounded-full bg-primary/10 p-3 group-hover:bg-primary/20 transition-colors">
+                            <Mail className="h-6 w-6 text-primary" />
+                        </div>
+                        <div>
+                            <h4 className="font-semibold">Email</h4>
+                            <p className="text-muted-foreground break-all">{settings.contactEmail}</p>
+                        </div>
+                    </a>
                 )}
                  {settings.contactPhone && (
-                    <div className="flex items-center gap-4">
-                        <Phone className="h-6 w-6 text-primary" />
-                        <span className="text-muted-foreground">{settings.contactPhone}</span>
-                    </div>
+                     <a href={`tel:${settings.contactPhone}`} className="flex items-start gap-4 rounded-lg border p-4 hover:bg-muted/50 transition-colors group">
+                        <div className="flex-shrink-0 rounded-full bg-primary/10 p-3 group-hover:bg-primary/20 transition-colors">
+                            <Phone className="h-6 w-6 text-primary" />
+                        </div>
+                        <div>
+                            <h4 className="font-semibold">Phone</h4>
+                            <p className="text-muted-foreground">{settings.contactPhone}</p>
+                        </div>
+                    </a>
                  )}
                  {settings.contactAddress && (
-                    <div className="flex items-center gap-4">
-                        <MapPin className="h-6 w-6 text-primary" />
-                        <span className="text-muted-foreground">{settings.contactAddress}</span>
+                    <div className="flex items-start gap-4 rounded-lg border p-4">
+                        <div className="flex-shrink-0 rounded-full bg-primary/10 p-3">
+                            <MapPin className="h-6 w-6 text-primary" />
+                        </div>
+                        <div>
+                            <h4 className="font-semibold">Address</h4>
+                            <p className="text-muted-foreground">{settings.contactAddress}</p>
+                        </div>
                     </div>
                  )}
             </div>
-             <p className="text-muted-foreground">
+             <p className="text-muted-foreground pt-4">
                 You can also reach out to us on our social media channels. We're active and ready to help!
             </p>
         </div>
