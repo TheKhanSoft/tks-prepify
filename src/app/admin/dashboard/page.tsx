@@ -7,7 +7,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Badge } from "@/components/ui/badge"
 import { FileText, Users, PlusCircle, ArrowUpRight, Loader2, Library, Bell, ClipboardCheck } from 'lucide-react';
 import { fetchCategories } from '@/lib/category-service';
-import { getCategoryPath, getDescendantCategoryIds } from '@/lib/category-helpers';
+import { getCategoryPath } from '@/lib/category-helpers';
 import { fetchPapers } from '@/lib/paper-service';
 import { fetchAllQuestions, fetchAllPaperQuestionLinks } from '@/lib/question-service';
 import { fetchQuestionCategories } from '@/lib/question-category-service';
@@ -20,7 +20,7 @@ import { Bar, BarChart, ResponsiveContainer, XAxis, YAxis, Tooltip } from "recha
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { cn } from '@/lib/utils';
-import { format, subDays, formatDistanceToNow } from 'date-fns';
+import { subDays, formatDistanceToNow } from 'date-fns';
 
 export default function AdminDashboardPage() {
   const [allCategories, setAllCategories] = useState<Category[]>([]);
@@ -110,6 +110,33 @@ export default function AdminDashboardPage() {
     if (allPapers.length === 0 || allCategories.length === 0) return [];
     
     const topLevelCategories = allCategories.filter(c => !c.parentId);
+
+    const getDescendantCategoryIds = (startId: string, allCategories: Category[]): string[] => {
+        const ids: string[] = [];
+        const findCategoryById = (categories: Category[], id: string): Category | undefined => {
+            for (const category of categories) {
+                if (category.id === id) return category;
+                if (category.subcategories) {
+                    const found = findCategoryById(category.subcategories, id);
+                    if (found) return found;
+                }
+            }
+            return undefined;
+        }
+
+        const startCategory = findCategoryById(allCategories, startId);
+        if (!startCategory) return [];
+
+        const queue: Category[] = [startCategory];
+        while (queue.length > 0) {
+            const current = queue.shift()!;
+            ids.push(current.id);
+            if (current.subcategories) {
+                queue.push(...current.subcategories);
+            }
+        }
+        return ids;
+    };
 
     return topLevelCategories.map(category => {
         const descendantIds = getDescendantCategoryIds(category.id, allCategories);
@@ -328,7 +355,7 @@ export default function AdminDashboardPage() {
                   <CardDescription>The latest tests completed by users.</CardDescription>
                 </div>
                 <Button asChild size="sm" className="ml-auto gap-1">
-                  <Link href="#">
+                  <Link href="/admin/users">
                     View All
                     <ArrowUpRight className="h-4 w-4" />
                   </Link>
