@@ -7,7 +7,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Badge } from "@/components/ui/badge"
 import { FileText, Users, PlusCircle, ArrowUpRight, Loader2, Library, Bell } from 'lucide-react';
 import { fetchCategories } from '@/lib/category-service';
-import { getCategoryPath } from '@/lib/category-helpers';
+import { getCategoryPath, getDescendantCategoryIds } from '@/lib/category-helpers';
 import { fetchPapers } from '@/lib/paper-service';
 import { fetchAllQuestions, fetchAllPaperQuestionLinks } from '@/lib/question-service';
 import { fetchQuestionCategories } from '@/lib/question-category-service';
