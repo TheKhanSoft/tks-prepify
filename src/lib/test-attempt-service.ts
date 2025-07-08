@@ -242,11 +242,11 @@ export async function fetchTestAttemptsForUser(userId: string): Promise<TestAtte
 export async function fetchAllTestAttempts(limitCount?: number): Promise<TestAttempt[]> {
     const attemptsCol = collection(db, 'test_attempts');
     
+    // Query only for completed tests to reduce the amount of data fetched.
+    // We will sort in memory to avoid needing a composite index.
     const q = query(
         attemptsCol, 
-        where('status', '==', 'completed'), 
-        orderBy('endTime', 'desc'), 
-        limit(limitCount || 5)
+        where('status', '==', 'completed')
     );
 
     const snapshot = await getDocs(q);
@@ -259,5 +259,14 @@ export async function fetchAllTestAttempts(limitCount?: number): Promise<TestAtt
         }
     });
     
-    return attempts;
+    // Sort in-memory to get the most recent ones first
+    attempts.sort((a, b) => {
+        const dateA = a.endTime ? new Date(a.endTime).getTime() : 0;
+        const dateB = b.endTime ? new Date(b.endTime).getTime() : 0;
+        return dateB - dateA;
+    });
+
+    // Apply limit after sorting
+    const finalLimit = limitCount || 5;
+    return attempts.slice(0, finalLimit);
 }
