@@ -33,7 +33,7 @@ const changePlanFormSchema = z.object({
 
 const editHistoryFormSchema = z.object({
   endDate: z.date().optional().nullable(),
-  status: z.enum(['active', 'pending', 'suspended', 'expired', 'cancelled']),
+  status: z.enum(['active', 'pending', 'suspended', 'expired', 'migrated', 'cancelled']),
   remarks: z.string().optional(),
 });
 
@@ -136,7 +136,7 @@ export default function ManageSubscriptionPage() {
   const handleEditClick = (record: UserPlan) => {
     setEditingHistoryRecord(record);
     editHistoryForm.reset({
-        status: record.status as 'active' | 'pending' | 'suspended' | 'expired' | 'cancelled',
+        status: record.status as 'active' | 'pending' | 'suspended' | 'expired' | 'migrated' | 'cancelled',
         endDate: record.endDate ? new Date(record.endDate) : null,
         remarks: record.remarks || '',
     });
@@ -192,7 +192,7 @@ export default function ManageSubscriptionPage() {
             <DialogHeader><DialogTitle>Edit Subscription Record</DialogTitle><DialogDescription>Modify the details for the "{editingHistoryRecord?.planName}" plan subscription.</DialogDescription></DialogHeader>
              <Form {...editHistoryForm}>
                 <form id="edit-history-form" onSubmit={editHistoryForm.handleSubmit(onEditHistorySubmit)} className="space-y-6 py-4">
-                     <FormField control={editHistoryForm.control} name="status" render={({ field }) => (<FormItem><FormLabel>Status</FormLabel><Select onValueChange={field.onChange} defaultValue={field.value}><FormControl><SelectTrigger><SelectValue placeholder="Select a status" /></SelectTrigger></FormControl><SelectContent><SelectItem value="active">Active</SelectItem><SelectItem value="pending">Pending</SelectItem><SelectItem value="suspended">Suspended</SelectItem><SelectItem value="expired">Expired</SelectItem><SelectItem value="cancelled">Cancelled</SelectItem></SelectContent></Select><FormMessage /></FormItem>)} />
+                     <FormField control={editHistoryForm.control} name="status" render={({ field }) => (<FormItem><FormLabel>Status</FormLabel><Select onValueChange={field.onChange} defaultValue={field.value}><FormControl><SelectTrigger><SelectValue placeholder="Select a status" /></SelectTrigger></FormControl><SelectContent><SelectItem value="active">Active</SelectItem><SelectItem value="pending">Pending</SelectItem><SelectItem value="suspended">Suspended</SelectItem><SelectItem value="expired">Expired</SelectItem><SelectItem value="migrated">Migrated</SelectItem><SelectItem value="cancelled">Cancelled</SelectItem></SelectContent></Select><FormMessage /></FormItem>)} />
                      <FormField control={editHistoryForm.control} name="endDate" render={({ field }) => (<FormItem className="flex flex-col"><FormLabel>End Date</FormLabel><Popover><PopoverTrigger asChild><FormControl><Button variant={"outline"} className={cn("w-[240px] pl-3 text-left font-normal", !field.value && "text-muted-foreground")}><CalendarIcon className="mr-2 h-4 w-4" />{field.value ? format(field.value, "PPP") : <span>Pick a date</span>}</Button></FormControl></PopoverTrigger><PopoverContent className="w-auto p-0" align="start"><Calendar mode="single" selected={field.value || undefined} onSelect={field.onChange} initialFocus /></PopoverContent></Popover><FormDescription>When the plan ends/ended. Optional.</FormDescription><FormMessage /></FormItem>)} />
                      <FormField control={editHistoryForm.control} name="remarks" render={({ field }) => (<FormItem><FormLabel>Remarks</FormLabel><FormControl><Textarea {...field} /></FormControl><FormMessage /></FormItem>)} />
                 </form>
