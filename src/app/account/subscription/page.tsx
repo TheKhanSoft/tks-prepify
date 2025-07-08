@@ -56,7 +56,7 @@ export default function SubscriptionPage() {
                     setPlan(currentPlan || null);
                 }
             } catch (error) {
-                console.error("Failed to load initial subscription data:", error);
+                // console.error("Failed to load initial subscription data:", error);
             } finally {
                 setLoading(false);
             }
@@ -101,7 +101,6 @@ export default function SubscriptionPage() {
     
                 setUsage(usageData);
             } catch (error) {
-                console.error("Failed to load usage statistics:", error);
                 toast({
                     title: "Could not load usage data",
                     description: "There was an error fetching your current usage statistics. Please try refreshing the page.",

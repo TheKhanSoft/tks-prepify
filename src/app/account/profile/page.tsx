@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useAuth } from '@/hooks/use-auth';
@@ -69,7 +70,6 @@ export default function AccountProfilePage() {
             passwordForm.reset();
             toast({ title: "Success", description: "Your password has been changed." });
         } catch (error: any) {
-            console.error(error);
             let description = "Could not change your password. Please try again.";
             if(error.code === 'auth/requires-recent-login') {
                 description = "This operation is sensitive and requires recent authentication. Please log out and log back in before changing your password.";

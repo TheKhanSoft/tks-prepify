@@ -87,7 +87,6 @@ export default function AdminHelpCategoriesPage() {
         throw new Error("AI did not return any new articles.");
       }
     } catch (error: any) {
-      console.error(error);
       toast({
         title: "Generation Failed",
         description: error.message || "Could not generate articles for this category.",

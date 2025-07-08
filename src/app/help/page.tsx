@@ -1,3 +1,4 @@
+
 'use client';
 
 import React, { useState, useEffect, useMemo } from 'react';
@@ -31,7 +32,7 @@ export default function HelpPage() {
                 setCategories(cats);
                 setArticles(arts);
             } catch (error) {
-                console.error("Failed to load help center data:", error);
+                // console.error("Failed to load help center data:", error);
             } finally {
                 setLoading(false);
             }

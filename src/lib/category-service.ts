@@ -97,7 +97,6 @@ export async function fetchCategories(): Promise<Category[]> {
 
     return tree;
   } catch (error) {
-      console.error("Error fetching categories:", error);
       // Return empty array on error to prevent page crash
       return [];
   }

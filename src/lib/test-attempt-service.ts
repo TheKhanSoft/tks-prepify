@@ -191,7 +191,6 @@ export async function getTestAttemptById(attemptId: string, userId: string): Pro
     const attemptDoc = await getDoc(attemptDocRef);
 
     if (!attemptDoc.exists()) {
-        console.warn(`Attempt ${attemptId} not found.`);
         return null;
     }
 
@@ -199,7 +198,6 @@ export async function getTestAttemptById(attemptId: string, userId: string): Pro
 
     // Authorization check
     if (testAttempt.userId !== userId) {
-        console.warn(`User ${userId} is not authorized to view attempt ${attemptId}.`);
         return null;
     }
 
@@ -211,7 +209,7 @@ export async function getTestAttemptById(attemptId: string, userId: string): Pro
         try {
             questionAttempts.push(docToQuestionAttempt(doc));
         } catch (e) {
-            console.error("Failed to parse a question attempt document:", doc.id, e);
+            // console.error("Failed to parse a question attempt document:", doc.id, e);
         }
     });
     
@@ -237,7 +235,7 @@ export async function fetchTestAttemptsForUser(userId: string): Promise<TestAtte
         try {
             attempts.push(docToTestAttempt(doc));
         } catch (e) {
-            console.error("Failed to parse a test attempt document:", doc.id, e);
+            // console.error("Failed to parse a test attempt document:", doc.id, e);
         }
     });
     
@@ -267,7 +265,7 @@ export async function fetchAllTestAttempts(limitCount?: number): Promise<TestAtt
         try {
             attempts.push(docToTestAttempt(doc));
         } catch (e) {
-            console.error("Failed to parse a test attempt document:", doc.id, e);
+            // console.error("Failed to parse a test attempt document:", doc.id, e);
         }
     });
     
@@ -295,7 +293,7 @@ export async function fetchAllTestAttemptsForAdmin(): Promise<TestAttempt[]> {
         try {
             attempts.push(docToTestAttempt(doc));
         } catch (e) {
-            console.error("Failed to parse a test attempt document:", doc.id, e);
+            // console.error("Failed to parse a test attempt document:", doc.id, e);
         }
     });
     return attempts;

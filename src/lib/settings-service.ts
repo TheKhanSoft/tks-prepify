@@ -68,7 +68,7 @@ export const fetchSettings = cache(async (): Promise<Settings> => {
             };
         }
     } catch (error) {
-        console.error("Error fetching settings:", error);
+        // console.error("Error fetching settings:", error);
     }
     // Return default settings if document doesn't exist or on error
     return defaultSettings;

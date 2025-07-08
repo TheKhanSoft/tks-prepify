@@ -69,7 +69,6 @@ export default function DynamicTestResultsPage() {
                  setError("Could not load your test results. The data may still be processing, or you may not have permission to view this page. Please try refreshing in a moment.");
             }
         } catch (e) {
-            console.error(e);
             setLoading(false);
             setError("An unexpected error occurred while fetching your results.");
         }
@@ -96,7 +95,6 @@ export default function DynamicTestResultsPage() {
       });
       setFeedback(prev => ({ ...prev, [question.questionId]: { loading: false, ...aiFeedback } }));
     } catch (error) {
-      console.error("Failed to get feedback:", error);
       setFeedback(prev => ({ ...prev, [question.questionId]: { loading: false, feedback: "Could not load feedback.", suggestions: "" } }));
     }
   };
@@ -116,7 +114,6 @@ export default function DynamicTestResultsPage() {
         });
         setRecommendations({ loading: false, content: res.recommendedResources });
     } catch(error) {
-        console.error("Failed to get recommendations:", error);
         setRecommendations({ loading: false, content: 'Could not load recommendations.' });
     }
   };

@@ -1,5 +1,4 @@
 
-
 'use server';
 
 import { doc, setDoc, serverTimestamp, getDoc, collection, getDocs, updateDoc, DocumentData, Timestamp, writeBatch, query, where, orderBy } from 'firebase/firestore';
@@ -74,7 +73,6 @@ export async function createUserProfile(user: UserProfileData, planId?: string) 
   try {
     await batch.commit();
   } catch (error) {
-    console.error("Error creating user profile and plan history: ", error);
     throw new Error("Could not create user profile in database.");
   }
 }

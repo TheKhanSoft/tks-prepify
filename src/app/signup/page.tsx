@@ -73,7 +73,6 @@ export default function SignupPage() {
       const userCredential = await signInWithPopup(auth, provider);
       await handleSuccessfulSignup(userCredential.user);
     } catch (error: any) {
-      console.error(error);
       toast({ title: "Sign Up Failed", description: error.message, variant: "destructive" });
     } finally {
       setGoogleLoading(false);
@@ -91,7 +90,6 @@ export default function SignupPage() {
       await handleSuccessfulSignup(userCredential.user);
 
     } catch (error: any) {
-      console.error(error);
       let errorMessage = "An unknown error occurred.";
       if (error.code === 'auth/email-already-in-use') {
         errorMessage = "This email is already in use. Please login instead.";

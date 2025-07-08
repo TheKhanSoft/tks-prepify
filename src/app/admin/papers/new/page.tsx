@@ -135,7 +135,6 @@ export default function NewPaperPage() {
         form.setValue("description", result.description, { shouldValidate: true });
         toast({ title: "Description Generated", description: "AI has created a description for you." });
     } catch (error) {
-        console.error("Error generating description:", error);
         toast({ title: "Generation Failed", description: "Could not generate a description.", variant: "destructive" });
     } finally {
         setIsGeneratingDesc(false);
@@ -173,7 +172,6 @@ export default function NewPaperPage() {
         form.setValue("metaDescription", result.metaDescription, { shouldValidate: true });
         toast({ title: "SEO Details Generated", description: "AI has filled in the SEO fields for you." });
     } catch (error) {
-        console.error("Error generating SEO details:", error);
         toast({ title: "Generation Failed", description: "Could not generate SEO details.", variant: "destructive" });
     } finally {
         setIsGeneratingSeo(false);
@@ -212,7 +210,6 @@ export default function NewPaperPage() {
         router.push("/admin/papers");
         router.refresh();
     } catch (error) {
-        console.error("Error creating paper:", error);
         toast({ title: "Error", description: "Failed to create the paper.", variant: "destructive" });
     } finally {
         setIsSubmitting(false);

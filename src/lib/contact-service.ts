@@ -22,7 +22,6 @@ export async function submitContactForm(data: ContactFormData) {
     });
     return { success: true };
   } catch (error) {
-    console.error("Error submitting contact form: ", error);
     return { success: false, error: "Failed to submit message. Please try again later." };
   }
 }
@@ -46,7 +45,6 @@ export async function fetchContactSubmissions(): Promise<ContactSubmission[]> {
       } as ContactSubmission;
     });
   } catch (error) {
-    console.error("Error fetching contact submissions:", error);
     return [];
   }
 }
@@ -57,7 +55,6 @@ export async function updateSubmissionStatus(id: string, isRead: boolean) {
     await updateDoc(submissionRef, { isRead });
     return { success: true };
   } catch (error) {
-    console.error("Error updating submission status: ", error);
     return { success: false, error: "Failed to update status." };
   }
 }

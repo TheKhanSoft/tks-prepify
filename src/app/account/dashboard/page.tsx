@@ -41,7 +41,7 @@ export default function AccountDashboardPage() {
                         setPlan(currentPlan || null);
                     }
                 } catch (error) {
-                    console.error("Failed to load user data:", error);
+                    // console.error("Failed to load user data:", error);
                 } finally {
                     setLoading(false);
                 }

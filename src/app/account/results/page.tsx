@@ -53,7 +53,6 @@ export default function ResultsPage() {
                 const fetchedAttempts = await fetchTestAttemptsForUser(user.uid);
                 setAttempts(fetchedAttempts);
             } catch (err) {
-                console.error("Failed to load test history:", err);
                 setError("Could not retrieve your test results. Please try refreshing the page.");
             } finally {
                 setLoading(false);

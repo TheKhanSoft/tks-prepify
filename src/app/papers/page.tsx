@@ -33,7 +33,7 @@ export default function AllPapersPage() {
             setAllCategories(cats);
             setAllPapers(papersData);
         } catch (error) {
-            console.error("Failed to load data:", error);
+            // console.error("Failed to load data:", error);
         } finally {
             setLoading(false);
         }

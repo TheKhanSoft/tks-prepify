@@ -38,7 +38,6 @@ export async function fetchPapers(): Promise<Paper[]> {
         const papers = await Promise.all(paperSnapshot.docs.map(doc => docToPaper(doc)));
         return papers;
     } catch (error) {
-        console.error("Error fetching papers:", error);
         // Return empty array on error to prevent page crash
         return [];
     }
@@ -59,7 +58,6 @@ export async function getPaperById(id: string): Promise<Paper | null> {
             return null;
         }
     } catch (error) {
-        console.error(`Error fetching paper by ID (${id}):`, error);
         return null;
     }
 }
@@ -81,7 +79,6 @@ export async function getPaperBySlug(slug: string): Promise<Paper | null> {
             return null;
         }
     } catch (error) {
-        console.error(`Error fetching paper by slug (${slug}):`, error);
         return null;
     }
 }

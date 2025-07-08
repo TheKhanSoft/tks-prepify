@@ -62,7 +62,6 @@ export default function SolvedPaperPage() {
                 setPaper(null);
             }
         } catch (error) {
-            console.error("Failed to fetch paper:", error);
             setPaper(null);
         } finally {
             setLoading(false);
@@ -128,7 +127,6 @@ export default function SolvedPaperPage() {
             description: 'Could not process your request. Please try again.',
             variant: 'destructive',
         });
-        console.error(error);
     } finally {
         setIsTogglingBookmark(false);
     }
@@ -177,7 +175,6 @@ export default function SolvedPaperPage() {
         });
         await generatePdf(paper, questions, settings);
     } catch (error: any) {
-        console.error("PDF generation or permission check failed:", error);
         toast({
             title: 'Download Failed',
             description: error.message || 'Could not generate the PDF. Please try again.',

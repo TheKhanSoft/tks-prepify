@@ -53,7 +53,6 @@ export default function LoginPage() {
       const redirectUrl = searchParams.get('redirect');
       router.push(redirectUrl || '/account/dashboard');
     } catch (error: any) {
-      console.error(error);
       toast({ title: "Login Failed", description: error.message, variant: "destructive" });
     } finally {
       setGoogleLoading(false);
@@ -68,7 +67,6 @@ export default function LoginPage() {
       const redirectUrl = searchParams.get('redirect');
       router.push(redirectUrl || '/account/dashboard');
     } catch (error: any) {
-      console.error(error);
       let errorMessage = "An unknown error occurred.";
       if (error.code === 'auth/user-not-found' || error.code === 'auth/wrong-password' || error.code === 'auth/invalid-credential') {
         errorMessage = "Invalid email or password. Please try again.";

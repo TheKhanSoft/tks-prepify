@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -29,7 +30,7 @@ export default function SavedPapersPage() {
                     setSavedPapers(papers);
                     setAllCategories(categories);
                 } catch (error) {
-                    console.error("Failed to load saved papers:", error);
+                    // console.error("Failed to load saved papers:", error);
                 }
             }
             setLoading(false);

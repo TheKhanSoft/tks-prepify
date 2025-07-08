@@ -69,7 +69,6 @@ export default function EditUserPage() {
       router.push("/admin/users");
       router.refresh();
     } catch (error) {
-      console.error(error);
       toast({ title: "Error", description: "Failed to update user's name.", variant: "destructive" });
     } finally {
       setIsSubmitting(false);

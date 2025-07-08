@@ -84,7 +84,6 @@ export default function AdminPapersPage() {
         setQuestionCounts(counts);
 
     } catch (error) {
-        console.error("Failed to load data:", error);
         toast({ title: "Error", description: "Could not load papers or categories.", variant: "destructive" });
     } finally {
         setLoading(false);
@@ -126,7 +125,6 @@ export default function AdminPapersPage() {
         router.refresh();
 
     } catch (error) {
-        console.error(`Failed to update ${field} status:`, error);
         toast({
             title: "Error",
             description: "Failed to update paper. Please try again.",
@@ -150,7 +148,6 @@ export default function AdminPapersPage() {
         await loadData(); // Refetch data
         router.refresh();
     } catch (error) {
-        console.error("Error deleting paper:", error);
         toast({
             title: "Error",
             description: "Failed to delete the paper. Please try again.",

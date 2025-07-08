@@ -69,7 +69,7 @@ export default function AdminDashboardPage() {
         setQuestionCounts(counts);
 
     } catch(error) {
-        console.error("Failed to load dashboard data:", error);
+        // console.error("Failed to load dashboard data:", error);
     } finally {
         setLoading(false);
     }
