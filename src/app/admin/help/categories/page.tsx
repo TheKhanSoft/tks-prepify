@@ -10,8 +10,8 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { PlusCircle, MoreHorizontal, Edit, Trash2, Loader2, ArrowLeft, BookPlus, Sparkles } from "lucide-react";
-import { fetchHelpCategories, deleteHelpCategory, addMultipleHelpArticles } from "@/lib/help-service";
-import type { HelpCategory } from "@/types";
+import { fetchHelpCategories, deleteHelpCategory, addMultipleHelpArticles, fetchHelpArticles } from "@/lib/help-service";
+import type { HelpCategory, HelpArticle } from "@/types";
 import { useToast } from "@/hooks/use-toast";
 import { generateHelpArticles } from "@/ai/flows/generate-help-articles-flow";
 
@@ -19,26 +19,31 @@ export default function AdminHelpCategoriesPage() {
   const router = useRouter();
   const { toast } = useToast();
   const [categories, setCategories] = useState<HelpCategory[]>([]);
+  const [articles, setArticles] = useState<HelpArticle[]>([]);
   const [loading, setLoading] = useState(true);
   const [isDeleting, setIsDeleting] = useState(false);
   const [isGenerating, setIsGenerating] = useState(false);
   const [deleteAlert, setDeleteAlert] = useState<{ open: boolean, category?: HelpCategory }>({ open: false });
   const [generationDialog, setGenerationDialog] = useState<{ open: boolean, category?: HelpCategory }>({ open: false });
 
-  const loadCategories = useCallback(async () => {
+  const loadData = useCallback(async () => {
     setLoading(true);
     try {
-      const cats = await fetchHelpCategories();
+      const [cats, arts] = await Promise.all([
+          fetchHelpCategories(),
+          fetchHelpArticles()
+      ]);
       setCategories(cats);
+      setArticles(arts);
     } catch (error) {
-      toast({ title: "Error", description: "Failed to load categories.", variant: "destructive" });
+      toast({ title: "Error", description: "Failed to load categories or articles.", variant: "destructive" });
     }
     setLoading(false);
   }, [toast]);
 
   useEffect(() => {
-    loadCategories();
-  }, [loadCategories]);
+    loadData();
+  }, [loadData]);
 
   const handleDelete = async () => {
     if (!deleteAlert.category) return;
@@ -46,7 +51,7 @@ export default function AdminHelpCategoriesPage() {
     try {
       await deleteHelpCategory(deleteAlert.category.id);
       toast({ title: "Category Deleted", description: `"${deleteAlert.category.name}" has been deleted.` });
-      await loadCategories();
+      await loadData();
     } catch (error: any) {
       toast({ title: "Deletion Failed", description: error.message, variant: "destructive" });
     } finally {
@@ -63,7 +68,14 @@ export default function AdminHelpCategoriesPage() {
     if (!generationDialog.category) return;
     setIsGenerating(true);
     try {
-      const result = await generateHelpArticles({ categoryName: generationDialog.category.name });
+      const existingArticlesForCategory = articles.filter(a => a.categoryId === generationDialog.category!.id);
+      const existingQuestions = existingArticlesForCategory.map(a => a.question);
+
+      const result = await generateHelpArticles({
+        categoryName: generationDialog.category.name,
+        existingQuestions,
+      });
+
       if (result && result.articles && result.articles.length > 0) {
         await addMultipleHelpArticles(result.articles, generationDialog.category.id);
         toast({
@@ -72,7 +84,7 @@ export default function AdminHelpCategoriesPage() {
         });
         router.push('/admin/help');
       } else {
-        throw new Error("AI did not return any articles.");
+        throw new Error("AI did not return any new articles.");
       }
     } catch (error: any) {
       console.error(error);
@@ -165,7 +177,7 @@ export default function AdminHelpCategoriesPage() {
           <AlertDialogHeader>
             <AlertDialogTitle>Generate AI Content?</AlertDialogTitle>
             <AlertDialogDescription>
-              This will generate 3-5 new help articles for the category "{generationDialog.category?.name}".
+              This will generate new help articles for the category "{generationDialog.category?.name}".
               The new articles will be added to the help center. This action cannot be undone.
             </AlertDialogDescription>
           </AlertDialogHeader>

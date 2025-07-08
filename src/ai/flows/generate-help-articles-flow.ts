@@ -13,6 +13,7 @@ import {z} from 'genkit';
 
 const GenerateHelpArticlesInputSchema = z.object({
   categoryName: z.string().describe('The name of the help center category.'),
+  existingQuestions: z.array(z.string()).optional().describe('A list of existing questions in this category to avoid duplication.'),
 });
 export type GenerateHelpArticlesInput = z.infer<typeof GenerateHelpArticlesInputSchema>;
 
@@ -44,7 +45,14 @@ The answers should be clear, concise, and formatted in Markdown for readability 
 
 Category: {{{categoryName}}}
 
-Generate the most relevant questions and answers a user would have about this topic on the TKS Prepify platform.`,
+{{#if existingQuestions}}
+The following questions already exist for this category. Do NOT generate questions that are the same as or very similar to these:
+{{#each existingQuestions}}
+- {{{this}}}
+{{/each}}
+{{/if}}
+
+Generate NEW, relevant questions and answers a user would have about this topic on the TKS Prepify platform, avoiding duplication of the existing questions provided above.`,
 });
 
 const generateHelpArticlesFlow = ai.defineFlow(
