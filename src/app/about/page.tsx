@@ -8,10 +8,9 @@ export const revalidate = 3600; // Revalidate every hour
 
 export async function generateMetadata(): Promise<Metadata> {
   const settings = await fetchSettings();
-  const title = settings.aboutTitle || `About Us | ${settings.siteName}`;
   const description = settings.aboutSubtitle || `Learn more about ${settings.siteName} and our mission to help students succeed.`;
   return {
-    title,
+    title: settings.aboutTitle || 'About Us',
     description,
   };
 }

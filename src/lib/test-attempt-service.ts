@@ -17,10 +17,11 @@ import {
   DocumentData,
 } from 'firebase/firestore';
 import { db } from './firebase';
-import type { TestConfig, PaperQuestion, QuestionAttempt, TestAttempt, UserAnswer } from '@/types';
+import type { TestConfig, PaperQuestion, QuestionAttempt, TestAttempt } from '@/types';
 import { serializeDate } from './utils';
 
-type AnswersState = { [questionId: string]: string | string[] };
+type AnswerEntry = { answer?: string | string[]; timeSpent: number };
+type AnswersState = { [questionId: string]: AnswerEntry };
 
 /**
  * Creates a new test attempt record in Firestore when a user starts a test.
@@ -62,7 +63,8 @@ export async function submitTestAttempt(
   // --- Calculate Score ---
   let score = 0;
   questions.forEach(q => {
-    const userAnswer = answers[q.id];
+    const userAnswerEntry = answers[q.id];
+    const userAnswer = userAnswerEntry?.answer;
     let isCorrect = false;
 
     if (userAnswer !== undefined && userAnswer !== null && (!Array.isArray(userAnswer) || userAnswer.length > 0)) {
@@ -98,7 +100,8 @@ export async function submitTestAttempt(
 
   // --- Create Question Attempt Subcollection Documents ---
   questions.forEach(q => {
-    const userAnswer = answers[q.id];
+    const userAnswerEntry = answers[q.id];
+    const userAnswer = userAnswerEntry?.answer;
     let isCorrect = false;
     if (userAnswer !== undefined && userAnswer !== null && (!Array.isArray(userAnswer) || userAnswer.length > 0)) {
         if (q.type === 'mcq') {
@@ -121,6 +124,7 @@ export async function submitTestAttempt(
       explanation: q.explanation || '',
       userAnswer: userAnswer || null,
       isCorrect,
+      timeSpent: userAnswerEntry?.timeSpent || 0,
     });
   });
 
@@ -158,6 +162,7 @@ function docToQuestionAttempt(doc: DocumentData): QuestionAttempt {
         explanation: data.explanation,
         userAnswer: data.userAnswer,
         isCorrect: data.isCorrect ?? false,
+        timeSpent: data.timeSpent ?? 0,
     }
 }
 
@@ -209,7 +214,7 @@ export async function fetchTestAttemptsForUser(userId: string): Promise<TestAtte
     if (!userId) return [];
     
     const attemptsCol = collection(db, 'test_attempts');
-    const q = query(attemptsCol, where("userId", "==", userId));
+    const q = query(attemptsCol, where("userId", "==", userId), orderBy("startTime", "desc"));
 
     const snapshot = await getDocs(q);
     const attempts: TestAttempt[] = [];
@@ -219,13 +224,6 @@ export async function fetchTestAttemptsForUser(userId: string): Promise<TestAtte
         } catch (e) {
             console.error("Failed to parse a test attempt document:", doc.id, e);
         }
-    });
-
-    // Sort by start time descending in-memory to avoid index dependency
-    attempts.sort((a, b) => {
-        if (!a.startTime) return 1;
-        if (!b.startTime) return -1;
-        return new Date(b.startTime).getTime() - new Date(a.startTime).getTime();
     });
 
     return attempts;

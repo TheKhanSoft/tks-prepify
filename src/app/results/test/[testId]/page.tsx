@@ -3,7 +3,7 @@
 
 import { useEffect, useState, useMemo, useCallback } from 'react';
 import { useRouter, useParams } from 'next/navigation';
-import { Book, CheckCircle2, Lightbulb, Loader2, XCircle, ShieldAlert } from 'lucide-react';
+import { Book, CheckCircle2, Lightbulb, Loader2, XCircle, ShieldAlert, Timer, CheckSquare, BarChart, Clock } from 'lucide-react';
 import type { QuestionAttempt, TestAttempt } from '@/types';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -17,6 +17,8 @@ import { cn } from '@/lib/utils';
 import { getTestAttemptById } from '@/lib/test-attempt-service';
 import { useAuth } from '@/hooks/use-auth';
 import { useToast } from '@/hooks/use-toast';
+import { Separator } from '@/components/ui/separator';
+import { format, formatDistanceStrict } from 'date-fns';
 
 type FeedbackState = { [questionId: string]: { loading: boolean; feedback?: string; suggestions?: string } };
 
@@ -54,8 +56,6 @@ export default function DynamicTestResultsPage() {
         try {
             const attemptData = await getTestAttemptById(attemptId, user.uid);
             
-            // The data might exist but the subcollection writes might be lagging.
-            // We check for `questionAttempts` to be populated.
             if (attemptData && attemptData.status === 'completed' && attemptData.questionAttempts && attemptData.questionAttempts.length > 0) {
                 setAttempt(attemptData);
                 setLoading(false);
@@ -83,12 +83,12 @@ export default function DynamicTestResultsPage() {
     setFeedback(prev => ({ ...prev, [question.questionId]: { loading: true } }));
     
     const correctAnswerText = Array.isArray(question.correctAnswer) ? question.correctAnswer.join(', ') : question.correctAnswer;
-    const userAnswerText = Array.isArray(question.userAnswer) ? question.userAnswer.join(', ') : question.userAnswer;
+    const userAnswerText = Array.isArray(question.userAnswer) ? question.userAnswer.join(', ') : (question.userAnswer || "No answer provided.");
     
     try {
       const aiFeedback = await getPersonalizedFeedback({
         question: question.questionText,
-        userAnswer: userAnswerText || "No answer provided.",
+        userAnswer: userAnswerText,
         correctAnswer: correctAnswerText,
         category: 'General',
         subcategory: 'General',
@@ -120,11 +120,20 @@ export default function DynamicTestResultsPage() {
     }
   };
 
-  const { chartData, score, totalMarks, percentage, passed } = useMemo(() => {
-    if (!attempt || !attempt.questionAttempts) return { chartData: [], score: 0, totalMarks: 0, percentage: 0, passed: false };
+  const { chartData, score, totalMarks, percentage, passed, timeTaken, attemptedQuestions, minTime, maxTime } = useMemo(() => {
+    if (!attempt || !attempt.questionAttempts) return { chartData: [], score: 0, totalMarks: 0, percentage: 0, passed: false, timeTaken: 'N/A', attemptedQuestions: '0 / 0', minTime: '0s', maxTime: '0s' };
     
     const correctCount = attempt.questionAttempts.filter(a => a.isCorrect).length;
     const incorrectCount = attempt.questionAttempts.length - correctCount;
+
+    const timeTakenInSeconds = attempt.endTime && attempt.startTime ? Math.round((new Date(attempt.endTime).getTime() - new Date(attempt.startTime).getTime()) / 1000) : 0;
+    const timeTakenFormatted = timeTakenInSeconds > 0 ? formatDistanceStrict(0, timeTakenInSeconds * 1000) : 'N/A';
+    
+    const attemptedQuestionsCount = attempt.questionAttempts.filter(a => a.userAnswer !== null && a.userAnswer !== undefined && (typeof a.userAnswer !== 'string' || a.userAnswer.trim() !== '') && (!Array.isArray(a.userAnswer) || a.userAnswer.length > 0)).length;
+    
+    const questionTimes = attempt.questionAttempts.map(a => a.timeSpent || 0).filter(t => t > 0);
+    const minTimeSpent = questionTimes.length > 0 ? Math.min(...questionTimes) : 0;
+    const maxTimeSpent = questionTimes.length > 0 ? Math.max(...questionTimes) : 0;
     
     return {
         chartData: [{ name: "Performance", correct: correctCount, incorrect: incorrectCount }],
@@ -132,6 +141,10 @@ export default function DynamicTestResultsPage() {
         totalMarks: attempt.totalMarks,
         percentage: attempt.percentage,
         passed: attempt.passed,
+        timeTaken: timeTakenFormatted,
+        attemptedQuestions: `${attemptedQuestionsCount} / ${attempt.questionAttempts.length}`,
+        minTime: `${minTimeSpent}s`,
+        maxTime: `${maxTimeSpent}s`,
     };
   }, [attempt]);
 
@@ -178,17 +191,28 @@ export default function DynamicTestResultsPage() {
               <Badge className={cn(passed ? 'bg-green-600' : 'bg-destructive', "text-lg")}>{passed ? 'PASSED' : 'FAILED'}</Badge>
             </CardHeader>
             <CardContent className="space-y-4 text-center">
-              <div className="text-6xl font-bold text-primary">{score.toFixed(2)} <span className="text-3xl text-muted-foreground">/ {totalMarks}</span></div>
-              <div className="text-2xl font-semibold">{percentage.toFixed(2)}%</div>
-              <ChartContainer config={chartConfig} className="w-full h-40">
-                <RechartsBarChart accessibilityLayer data={chartData} layout="vertical" margin={{ left: 10 }}>
-                  <XAxis type="number" hide />
-                  <YAxis dataKey="name" type="category" tickLine={false} tick={false} axisLine={false} />
-                  <ChartTooltip content={<ChartTooltipContent />} />
-                  <Bar dataKey="correct" stackId="a" fill="var(--color-correct)" radius={[4, 4, 4, 4]} />
-                  <Bar dataKey="incorrect" stackId="a" fill="var(--color-incorrect)" radius={[4, 4, 4, 4]} />
-                </RechartsBarChart>
-              </ChartContainer>
+                <div>
+                    <div className="text-6xl font-bold text-primary">{score.toFixed(2)} <span className="text-3xl text-muted-foreground">/ {totalMarks}</span></div>
+                    <div className="text-2xl font-semibold">{percentage.toFixed(2)}%</div>
+                </div>
+                <ChartContainer config={chartConfig} className="w-full h-32">
+                    <RechartsBarChart accessibilityLayer data={chartData} layout="vertical" margin={{ left: 10, right: 10 }}>
+                    <XAxis type="number" hide />
+                    <YAxis dataKey="name" type="category" tickLine={false} tick={false} axisLine={false} />
+                    <ChartTooltip content={<ChartTooltipContent />} />
+                    <Bar dataKey="correct" stackId="a" fill="var(--color-correct)" radius={[4, 0, 0, 4]} />
+                    <Bar dataKey="incorrect" stackId="a" fill="var(--color-incorrect)" radius={[0, 4, 4, 0]} />
+                    </RechartsBarChart>
+                </ChartContainer>
+                <Separator />
+                <div className="text-left space-y-3 text-sm">
+                    <div className="flex justify-between items-center"><span className="flex items-center gap-2 text-muted-foreground"><Clock className="h-4 w-4"/>Started</span> <span>{attempt.startTime ? format(new Date(attempt.startTime), 'PPP p') : 'N/A'}</span></div>
+                    <div className="flex justify-between items-center"><span className="flex items-center gap-2 text-muted-foreground"><CheckCircle2 className="h-4 w-4"/>Finished</span> <span>{attempt.endTime ? format(new Date(attempt.endTime), 'PPP p') : 'N/A'}</span></div>
+                    <div className="flex justify-between items-center"><span className="flex items-center gap-2 text-muted-foreground"><Timer className="h-4 w-4"/>Time Taken</span> <span>{timeTaken}</span></div>
+                    <div className="flex justify-between items-center"><span className="flex items-center gap-2 text-muted-foreground"><CheckSquare className="h-4 w-4"/>Attempted</span> <span>{attemptedQuestions}</span></div>
+                    <div className="flex justify-between items-center"><span className="flex items-center gap-2 text-muted-foreground"><BarChart className="h-4 w-4 -rotate-90"/>Fastest Answer</span> <span>{minTime}</span></div>
+                    <div className="flex justify-between items-center"><span className="flex items-center gap-2 text-muted-foreground"><BarChart className="h-4 w-4 rotate-90"/>Slowest Answer</span> <span>{maxTime}</span></div>
+                </div>
             </CardContent>
           </Card>
           <div className="md:col-span-2 space-y-6">
@@ -213,20 +237,20 @@ export default function DynamicTestResultsPage() {
                   {attempt.questionAttempts?.map((question) => {
                     const questionFeedback = feedback[question.questionId];
                     const correctAnswerText = Array.isArray(question.correctAnswer) ? question.correctAnswer.join(', ') : question.correctAnswer;
-                    const userAnswerText = Array.isArray(question.userAnswer) ? question.userAnswer.join(', ') : question.userAnswer;
+                    const userAnswerText = Array.isArray(question.userAnswer) ? question.userAnswer.join(', ') : (question.userAnswer || "Not Answered");
 
                     return (
                       <AccordionItem key={question.questionId} value={`item-${question.questionId}`}>
                         <AccordionTrigger className="text-left">
                           <div className="flex items-center gap-4">
-                            {question.isCorrect ? <CheckCircle2 className="h-4 w-4 flex-shrink-0 text-green-500" /> : <XCircle className="h-4 w-4 flex-shrink-0 text-destructive" />}
+                            {question.isCorrect ? <CheckCircle2 className="h-5 w-5 flex-shrink-0 text-green-500" /> : <XCircle className="h-5 w-5 flex-shrink-0 text-destructive" />}
                             <span>Question {question.order}: {question.questionText}</span>
                           </div>
                         </AccordionTrigger>
-                        <AccordionContent className="space-y-4">
-                          <div>Your answer: <Badge variant={question.isCorrect ? "default" : "destructive"}>{userAnswerText || "Not Answered"}</Badge></div>
+                        <AccordionContent className="space-y-4 pl-10">
+                          <div>Your answer: <Badge variant={question.isCorrect ? "default" : "destructive"}>{userAnswerText}</Badge></div>
                           {!question.isCorrect && <div>Correct answer: <Badge className="bg-green-600 hover:bg-green-700">{correctAnswerText}</Badge></div>}
-                          {question.explanation && <p className="text-muted-foreground"><span className="font-semibold">Explanation:</span> {question.explanation}</p>}
+                          {question.explanation && <div className="text-muted-foreground"><span className="font-semibold">Explanation:</span> {question.explanation}</div>}
                           {!question.isCorrect && (
                             <div className="p-4 bg-secondary/50 rounded-lg">
                               <Button size="sm" onClick={() => handleGetFeedback(question)} disabled={questionFeedback?.loading || loading}>

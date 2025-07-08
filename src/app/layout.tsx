@@ -35,7 +35,7 @@ export default async function RootLayout({
       </head>
       <body className="font-body antialiased" suppressHydrationWarning={true}>
         <AuthProvider>
-          <LayoutProvider key="layout-provider" header={<Header settings={settings} />} footer={<Footer settings={settings} />}>
+          <LayoutProvider key="layout-provider" header={<Header key="header" settings={settings} />} footer={<Footer key="footer" settings={settings} />}>
             {children}
           </LayoutProvider>
           <Toaster key="toaster" />

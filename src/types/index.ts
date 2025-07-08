@@ -230,8 +230,9 @@ export interface QuestionAttempt {
   options?: string[];
   correctAnswer: string | string[];
   explanation?: string;
-  userAnswer?: string | string[];
+  userAnswer?: string | string[] | null;
   isCorrect: boolean;
+  timeSpent?: number;
 }
 
 export interface TestAttempt {

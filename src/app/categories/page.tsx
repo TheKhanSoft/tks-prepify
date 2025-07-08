@@ -5,6 +5,12 @@ import { fetchPapers } from '@/lib/paper-service';
 import { fetchCategories } from '@/lib/category-service';
 import { getDescendantCategoryIds } from '@/lib/category-helpers';
 import { ArrowRight, Folder, FileText } from 'lucide-react';
+import type { Metadata } from 'next';
+
+export const metadata: Metadata = {
+  title: 'All Categories',
+  description: 'Find question papers tailored to your subjects of interest.',
+};
 
 export default async function CategoriesPage() {
   const [allTopLevelCategories, allPapers] = await Promise.all([
