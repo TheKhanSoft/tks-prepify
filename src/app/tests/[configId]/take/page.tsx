@@ -1,7 +1,7 @@
 
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { generateTest } from '@/lib/test-config-service';
 import type { TestConfig, PaperQuestion, UserAnswer } from '@/types';
@@ -30,12 +30,12 @@ export default function TakeTestPage() {
     const [questions, setQuestions] = useState<PaperQuestion[]>([]);
     const [loading, setLoading] = useState(true);
     const [attemptId, setAttemptId] = useState<string | null>(null);
-    const [testStarted, setTestStarted] = useState(false);
     const [isSubmitting, setIsSubmitting] = useState(false);
     
     const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
     const [answers, setAnswers] = useState<AnswersState>({});
     const [timeLeft, setTimeLeft] = useState(0);
+    const effectRan = useRef(false); // To prevent double execution in Strict Mode
 
     const handleSubmit = useCallback(async () => {
         if (!config || questions.length === 0 || !attemptId || isSubmitting) return;
@@ -56,10 +56,14 @@ export default function TakeTestPage() {
     }, [answers, config, questions, attemptId, router, toast, isSubmitting]);
 
     useEffect(() => {
-        if (!slug || !user || testStarted) return;
+        // In dev, React 18+ Strict Mode runs effects twice.
+        // This ref ensures the test is only generated and started once.
+        if (effectRan.current === true) {
+            return;
+        }
 
         const loadTest = async () => {
-            setTestStarted(true);
+            if (!slug || !user) return;
             setLoading(true);
             try {
                 const { config: fetchedConfig, questions: fetchedQuestions } = await generateTest(slug);
@@ -81,8 +85,15 @@ export default function TakeTestPage() {
                 setLoading(false);
             }
         };
+
         loadTest();
-    }, [slug, user, testStarted, router, toast]);
+
+        // Cleanup function sets the ref to true.
+        // On re-mount, the effect will not run the test generation again.
+        return () => {
+            effectRan.current = true;
+        };
+    }, [slug, user, router, toast]);
 
     useEffect(() => {
         if (timeLeft <= 0 && !loading && questions.length > 0 && !isSubmitting) {
