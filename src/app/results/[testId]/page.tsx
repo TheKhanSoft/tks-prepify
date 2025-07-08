@@ -2,238 +2,345 @@
 "use client";
 
 import { useEffect, useState, useMemo } from 'react';
-import { useRouter, useParams } from 'next/navigation';
-import { BarChart, Book, CheckCircle2, Lightbulb, Loader2, XCircle } from 'lucide-react';
-import { fetchQuestionsForPaper, PaperQuestion } from '@/lib/question-service';
-import { fetchPapers } from '@/lib/paper-service';
-import { fetchCategories } from '@/lib/category-service';
-import { getCategoryPath } from '@/lib/category-helpers';
-import type { UserAnswer, TestResult, Category } from '@/types';
+import { useRouter, useParams, usePathname } from 'next/navigation';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
-import { Badge } from '@/components/ui/badge';
-import { getPersonalizedFeedback } from '@/ai/flows/personalized-feedback';
-import { recommendResources } from '@/ai/flows/resource-recommendation';
-import { ChartContainer, ChartTooltip, ChartTooltipContent, ChartConfig } from "@/components/ui/chart";
-import { Bar, BarChart as RechartsBarChart, XAxis, YAxis } from "recharts";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
+import { ArrowLeft, ArrowRight, CheckCircle2, Lightbulb, Loader2, Bookmark, Download } from 'lucide-react';
+import { Separator } from '@/components/ui/separator';
+import { cn } from '@/lib/utils';
+import { getPaperBySlug } from '@/lib/paper-service';
+import { fetchQuestionsForPaper, type PaperQuestion } from '@/lib/question-service';
+import type { Paper, Settings } from '@/types';
+import { fetchSettings } from '@/lib/settings-service';
+import { useAuth } from '@/hooks/use-auth';
+import { useToast } from '@/hooks/use-toast';
+import { getBookmarkForPaper, toggleBookmark } from '@/lib/bookmark-service';
+import { getUserProfile } from '@/lib/user-service';
+import { getPlanById } from '@/lib/plan-service';
+import { generatePdf } from '@/lib/pdf-generator';
+import { checkAndRecordDownload } from '@/lib/download-service';
 
-type FeedbackState = { [questionId: string]: { loading: boolean; feedback?: string; suggestions?: string } };
-
-const chartConfig = {
-  correct: { label: "Correct", color: "hsl(var(--chart-2))" },
-  incorrect: { label: "Incorrect", color: "hsl(var(--destructive))" },
-} satisfies ChartConfig;
-
-export default function ResultsPage() {
+export default function SolvedPaperPage() {
   const router = useRouter();
   const params = useParams();
-  const [result, setResult] = useState<TestResult | null>(null);
+  const pathname = usePathname();
+  const slug = params.testId as string;
+  
+  const [paper, setPaper] = useState<Paper | null>(null);
   const [questions, setQuestions] = useState<PaperQuestion[]>([]);
-  const [feedback, setFeedback] = useState<FeedbackState>({});
-  const [recommendations, setRecommendations] = useState({ loading: false, content: '' });
-  const [allCategories, setAllCategories] = useState<Category[]>([]);
+  const [settings, setSettings] = useState<Settings | null>(null);
   const [loading, setLoading] = useState(true);
+  const [isDownloading, setIsDownloading] = useState(false);
+
+  // New state for bookmarking
+  const { user, loading: authLoading } = useAuth();
+  const { toast } = useToast();
+  const [isBookmarked, setIsBookmarked] = useState(false);
+  const [isTogglingBookmark, setIsTogglingBookmark] = useState(false);
+  const [isLoadingBookmark, setIsLoadingBookmark] = useState(true);
+
+  const [currentPage, setCurrentPage] = useState(1);
+  const questionsPerPage = paper?.questionsPerPage || settings?.defaultQuestionsPerPage || 2;
 
   useEffect(() => {
     const loadData = async () => {
+        if (!slug) return;
         setLoading(true);
         try {
-            const [cats, papers] = await Promise.all([fetchCategories(), fetchPapers()]);
-            setAllCategories(cats);
+            const [fetchedPaper, fetchedSettings] = await Promise.all([
+                getPaperBySlug(slug),
+                fetchSettings(),
+            ]);
 
-            const storedResults = localStorage.getItem('latestTestResults');
-            if (storedResults) {
-                const { paperId, answers: userAnswersArray } = JSON.parse(storedResults);
-                const paper = papers.find(p => p.id === paperId);
-                if (!paper) {
-                    throw new Error("Paper not found");
-                }
-
-                const fetchedQuestions = await fetchQuestionsForPaper(paperId);
+            setSettings(fetchedSettings);
+            
+            if (fetchedPaper && fetchedPaper.published) {
+                setPaper(fetchedPaper);
+                const fetchedQuestions = await fetchQuestionsForPaper(fetchedPaper.id);
                 setQuestions(fetchedQuestions);
-
-                if (fetchedQuestions.length > 0) {
-                    let score = 0;
-                    const processedAnswers: UserAnswer[] = fetchedQuestions.map((q) => {
-                    const userAnswer = userAnswersArray.find((a: any) => a.questionId === q.id)?.selectedOption;
-                    const isCorrect = Array.isArray(q.correctAnswer) 
-                        ? q.correctAnswer.includes(userAnswer)
-                        : q.correctAnswer === userAnswer;
-                        
-                    if (isCorrect) score++;
-                    return {
-                        questionId: q.id,
-                        selectedOption: userAnswer,
-                        isCorrect,
-                        timeSpent: 0, // Simplified for this example
-                    };
-                    });
-
-                    setResult({
-                    id: params.testId as string,
-                    paper,
-                    answers: processedAnswers,
-                    score,
-                    totalTimeSpent: 0, // Simplified
-                    completedAt: new Date(),
-                    });
-                }
             } else {
-                router.push('/papers');
+                setPaper(null);
             }
-        } catch(e) {
-            console.error(e);
-            router.push('/papers');
+        } catch (error) {
+            console.error("Failed to fetch paper:", error);
+            setPaper(null);
         } finally {
             setLoading(false);
         }
-    }
+    };
     loadData();
-  }, [params.testId, router]);
+  }, [slug]);
 
+  // New effect for fetching bookmark status
+  useEffect(() => {
+    if (authLoading || !paper) return;
 
-  const handleGetFeedback = async (question: PaperQuestion, userAnswer: string) => {
-    if (!result || loading) return;
-    setFeedback(prev => ({ ...prev, [question.id]: { loading: true } }));
+    if (user) {
+        setIsLoadingBookmark(true);
+        getBookmarkForPaper(user.uid, paper.id)
+            .then((bookmark) => {
+                setIsBookmarked(!!bookmark);
+            })
+            .finally(() => {
+                setIsLoadingBookmark(false);
+            });
+    } else {
+        setIsLoadingBookmark(false);
+    }
+  }, [user, paper, authLoading]);
 
-    const path = getCategoryPath(result.paper.categoryId, allCategories);
-    const categoryName = path?.[0]?.name || 'General';
-    const subCategoryName = path && path.length > 0 ? path[path.length - 1].name : 'General';
-    const correctAnswerText = Array.isArray(question.correctAnswer) ? question.correctAnswer.join(', ') : question.correctAnswer;
+  // New handlers for buttons
+  const handleBookmarkClick = async () => {
+    if (!paper) return;
+    if (!user) {
+      toast({
+        title: 'Login Required',
+        description: 'You must be logged in to save papers.',
+        variant: 'destructive',
+      });
+      router.push(`/login?redirect=${pathname}`);
+      return;
+    }
+
+    setIsTogglingBookmark(true);
+    try {
+        const profile = await getUserProfile(user.uid);
+        if (!profile || !profile.planId) throw new Error('Could not load user profile or plan.');
+
+        const plan = await getPlanById(profile.planId);
+        if (!plan) throw new Error('Could not load subscription plan.');
+
+        const result = await toggleBookmark(user.uid, paper.id, plan);
+
+        if (result.success) {
+            setIsBookmarked(result.bookmarked);
+            toast({ title: result.message });
+        } else {
+            toast({
+                title: 'Action Failed',
+                description: result.message,
+                variant: 'destructive',
+            });
+        }
+    } catch (error) {
+        toast({
+            title: 'An Error Occurred',
+            description: 'Could not process your request. Please try again.',
+            variant: 'destructive',
+        });
+        console.error(error);
+    } finally {
+        setIsTogglingBookmark(false);
+    }
+  };
+
+  const handleDownloadClick = async () => {
+    if (!paper || questions.length === 0 || !settings) return;
+    
+    // 1. Check for user login
+    if (!user) {
+      toast({
+        title: 'Login Required',
+        description: 'You must be logged in to download papers.',
+        variant: 'destructive',
+      });
+      router.push(`/login?redirect=${pathname}`);
+      return;
+    }
+
+    setIsDownloading(true);
     
     try {
-      const aiFeedback = await getPersonalizedFeedback({
-        question: question.questionText,
-        userAnswer: userAnswer || "No answer provided.",
-        correctAnswer: correctAnswerText,
-        category: categoryName,
-        subcategory: subCategoryName,
-      });
-      setFeedback(prev => ({ ...prev, [question.id]: { loading: false, ...aiFeedback } }));
-    } catch (error) {
-      console.error("Failed to get feedback:", error);
-      setFeedback(prev => ({ ...prev, [question.id]: { loading: false, feedback: "Could not load feedback.", suggestions: "" } }));
-    }
-  };
+        // 2. Check permissions/quota
+        const profile = await getUserProfile(user.uid);
+        if (!profile || !profile.planId) throw new Error('Could not load user profile or plan.');
 
-  const handleGetRecommendations = async () => {
-    if (!result) return;
-    setRecommendations({ loading: true, content: '' });
-    const weakAreas = result.answers
-      .filter(a => !a.isCorrect)
-      .map(a => questions.find(q => q.id === a.questionId)?.questionText)
-      .join(', ');
+        const plan = await getPlanById(profile.planId);
+        if (!plan) throw new Error('Could not load subscription plan.');
 
-    try {
-        const res = await recommendResources({
-            performanceData: `Score: ${result.score}/${result.paper.questionCount}`,
-            weakAreas: weakAreas || "No specific weak areas identified, general review recommended.",
+        const downloadCheck = await checkAndRecordDownload(user.uid, paper.id, plan);
+
+        if (!downloadCheck.success) {
+            toast({
+                title: 'Download Limit Reached',
+                description: downloadCheck.message,
+                variant: 'destructive',
+            });
+            setIsDownloading(false);
+            return;
+        }
+
+        // 3. Generate PDF if permission is granted
+        toast({
+            title: 'Generating PDF...',
+            description: 'This may take a moment. Your download will start shortly.',
         });
-        setRecommendations({ loading: false, content: res.recommendedResources });
-    } catch(error) {
-        console.error("Failed to get recommendations:", error);
-        setRecommendations({ loading: false, content: 'Could not load recommendations.' });
+        await generatePdf(paper, questions, settings);
+    } catch (error: any) {
+        console.error("PDF generation or permission check failed:", error);
+        toast({
+            title: 'Download Failed',
+            description: error.message || 'Could not generate the PDF. Please try again.',
+            variant: 'destructive',
+        });
+    } finally {
+        setIsDownloading(false);
     }
   };
 
-  const chartData = useMemo(() => {
-    if (!result) return [];
-    const correctCount = result.score;
-    const incorrectCount = result.paper.questionCount - result.score;
-    return [{ name: "Performance", correct: correctCount, incorrect: incorrectCount }];
-  }, [result]);
 
-  if (loading || !result) {
-    return <div className="flex justify-center items-center h-screen"><Loader2 className="h-8 w-8 animate-spin" /></div>;
+  if (loading) {
+    return (
+        <div className="container mx-auto text-center py-20 flex justify-center items-center h-screen">
+            <Loader2 className="h-8 w-8 animate-spin mx-auto" />
+        </div>
+    );
   }
+
+  if (!paper) {
+    return (
+      <div className="container mx-auto text-center py-20">
+        <h1 className="text-2xl font-bold">Paper Not Found</h1>
+        <p>This question paper could not be found or is not available.</p>
+        <Button onClick={() => router.push('/papers')} className="mt-4">Go to Papers</Button>
+      </div>
+    );
+  }
+  
+  if (questions.length === 0) {
+     return (
+      <div className="container mx-auto text-center py-20">
+        <h1 className="text-2xl font-bold">No Questions Found</h1>
+        <p>There are no questions available for this paper yet.</p>
+        <Button onClick={() => router.push('/papers')} className="mt-4">Go to Papers</Button>
+      </div>
+    );
+  }
+
+  const totalPages = Math.ceil(questions.length / questionsPerPage);
+  const startIndex = (currentPage - 1) * questionsPerPage;
+  const endIndex = startIndex + questionsPerPage;
+  const currentQuestions = questions.slice(startIndex, endIndex);
+
+  const goToNextPage = () => setCurrentPage((prev) => Math.min(prev + 1, totalPages));
+  const goToPreviousPage = () => setCurrentPage((prev) => Math.max(prev - 1, 1));
 
   return (
     <div className="container mx-auto px-6 sm:px-10 lg:px-16 py-8 md:py-12">
+      <div className="flex justify-between items-center mb-4">
+        <Button variant="outline" onClick={() => router.back()}>
+          <ArrowLeft className="mr-2 h-4 w-4" />
+          Back
+        </Button>
+        <div className="flex gap-4">
+            <Button onClick={handleBookmarkClick} disabled={isLoadingBookmark || isTogglingBookmark}>
+                {isTogglingBookmark ? (
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                ) : (
+                    <Bookmark className={cn("mr-2 h-4 w-4", isBookmarked && "fill-current")} />
+                )}
+                {isBookmarked ? 'Saved' : 'Save Paper'}
+            </Button>
+            <Button variant="outline" onClick={handleDownloadClick} disabled={isDownloading}>
+                {isDownloading ? (
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                ) : (
+                    <Download className="mr-2 h-4 w-4" />
+                )}
+                Download
+            </Button>
+        </div>
+      </div>
+
+      <div className="mb-8">
+        <h1 className="text-4xl font-bold font-headline">{paper.title}</h1>
+        <p className="text-lg text-muted-foreground mt-2">{paper.description}</p>
+      </div>
+      
       <Card>
         <CardHeader>
-          <CardTitle className="text-3xl font-bold font-headline">Test Results: {result.paper.title}</CardTitle>
-          <CardDescription>Here&apos;s a breakdown of your performance.</CardDescription>
+          <CardTitle>Questions & Answers</CardTitle>
+          <CardDescription>Review the questions and their correct answers below.</CardDescription>
         </CardHeader>
-        <CardContent className="grid md:grid-cols-3 gap-8">
-          <Card className="md:col-span-1 bg-secondary/50">
-            <CardHeader>
-              <CardTitle>Summary</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4 text-center">
-              <div className="text-6xl font-bold text-primary">{result.score} <span className="text-3xl text-muted-foreground">/ {result.paper.questionCount}</span></div>
-              <div className="text-2xl font-semibold">Your Score</div>
-              <ChartContainer config={chartConfig} className="w-full h-40">
-                <RechartsBarChart accessibilityLayer data={chartData} layout="vertical" margin={{ left: 10 }}>
-                  <XAxis type="number" hide />
-                  <YAxis dataKey="name" type="category" tickLine={false} tick={false} axisLine={false} />
-                  <ChartTooltip content={<ChartTooltipContent />} />
-                  <Bar dataKey="correct" stackId="a" fill="var(--color-correct)" radius={[4, 4, 4, 4]} />
-                  <Bar dataKey="incorrect" stackId="a" fill="var(--color-incorrect)" radius={[4, 4, 4, 4]} />
-                </RechartsBarChart>
-              </ChartContainer>
-            </CardContent>
-          </Card>
-          <div className="md:col-span-2 space-y-6">
-            <Card>
-              <CardHeader className="flex-row items-center justify-between">
-                <CardTitle>Resource Recommendations</CardTitle>
-                <Button onClick={handleGetRecommendations} disabled={recommendations.loading}>
-                  {recommendations.loading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Book className="mr-2 h-4 w-4" />}
-                  Get Resources
-                </Button>
-              </CardHeader>
-              {recommendations.content && (
-                <CardContent>
-                  <div className="prose prose-sm max-w-none text-muted-foreground">{recommendations.content}</div>
-                </CardContent>
-              )}
-            </Card>
-            <Card>
-              <CardHeader><CardTitle>Detailed Review</CardTitle></CardHeader>
-              <CardContent>
-                <Accordion type="single" collapsible className="w-full">
-                  {result.answers.map((answer) => {
-                    const question = questions.find(q => q.id === answer.questionId);
-                    if (!question) return null;
-                    const questionFeedback = feedback[question.id];
-                    const correctAnswerText = Array.isArray(question.correctAnswer) ? question.correctAnswer.join(', ') : question.correctAnswer;
-
-                    return (
-                      <AccordionItem key={question.id} value={`item-${question.id}`}>
-                        <AccordionTrigger className="text-left">
-                          <div className="flex items-center gap-4">
-                            {answer.isCorrect ? <CheckCircle2 className="h-5 w-5 text-green-500" /> : <XCircle className="h-5 w-5 text-destructive" />}
-                            <span>Question {question.order}: {question.questionText}</span>
+        <CardContent className="space-y-8">
+          {currentQuestions.map((question) => (
+            <div key={question.id}>
+              <div className="flex flex-col sm:flex-row items-start gap-4">
+                <div className="flex-shrink-0 flex-grow-0 w-8 h-8 bg-primary text-primary-foreground rounded-full flex items-center justify-center font-bold text-lg">
+                  {question.order}
+                </div>
+                <div className="flex-grow w-full">
+                  <p className="font-semibold text-lg mb-4">{question.questionText}</p>
+                  
+                  {question.type === 'mcq' && question.options && (
+                    <div className="space-y-2 mb-4">
+                      {question.options.map((option, optIndex) => {
+                        const isCorrect = Array.isArray(question.correctAnswer)
+                          ? question.correctAnswer.includes(option)
+                          : option === question.correctAnswer;
+                        
+                        return (
+                          <div
+                            key={optIndex}
+                            className={cn(
+                              'flex items-center gap-3 p-3 rounded-md border',
+                              isCorrect
+                                ? 'bg-green-600/10 border-green-600/50'
+                                : 'bg-card'
+                            )}
+                          >
+                            {isCorrect ? (
+                              <CheckCircle2 className="h-4 w-4 text-green-600 flex-shrink-0" />
+                            ) : (
+                              <div className="h-4 w-4 flex-shrink-0" />
+                            )}
+                            <span className="text-base">{option}</span>
                           </div>
-                        </AccordionTrigger>
-                        <AccordionContent className="space-y-4">
-                          <p>Your answer: <Badge variant={answer.isCorrect ? "default" : "destructive"}>{answer.selectedOption || "Not Answered"}</Badge></p>
-                          {!answer.isCorrect && <p>Correct answer: <Badge className="bg-green-600 hover:bg-green-700">{correctAnswerText}</Badge></p>}
-                          {question.explanation && <p className="text-muted-foreground"><span className="font-semibold">Explanation:</span> {question.explanation}</p>}
-                          {!answer.isCorrect && (
-                            <div className="p-4 bg-secondary/50 rounded-lg">
-                              <Button size="sm" onClick={() => handleGetFeedback(question, answer.selectedOption)} disabled={questionFeedback?.loading || loading}>
-                                {questionFeedback?.loading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Lightbulb className="mr-2 h-4 w-4" />}
-                                Get AI Feedback
-                              </Button>
-                              {questionFeedback && !questionFeedback.loading && (
-                                <div className="mt-4 prose prose-sm max-w-none">
-                                  {questionFeedback.feedback && <><h4>Feedback</h4><p>{questionFeedback.feedback}</p></>}
-                                  {questionFeedback.suggestions && <><h4>Suggestions</h4><p>{questionFeedback.suggestions}</p></>}
-                                </div>
-                              )}
-                            </div>
-                          )}
-                        </AccordionContent>
-                      </AccordionItem>
-                    )
-                  })}
-                </Accordion>
-              </CardContent>
-            </Card>
-          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+
+                  {question.type === 'short_answer' && (
+                    <div className="mb-4 p-4 rounded-md border bg-green-600/10 border-green-600/50">
+                        <div className="flex items-center gap-2">
+                           <CheckCircle2 className="h-4 w-4 text-green-600 flex-shrink-0" />
+                          <p className="font-semibold text-green-700">Correct Answer</p>
+                        </div>
+                        <div className="text-card-foreground mt-2 pl-6">{question.correctAnswer}</div>
+                    </div>
+                  )}
+                  
+                  {question.explanation && (
+                    <div className="flex items-start gap-3 p-3 rounded-md bg-secondary/50">
+                       <Lightbulb className="h-4 w-4 text-accent-foreground flex-shrink-0 mt-1" />
+                       <div>
+                          <p className="font-semibold">Explanation</p>
+                          <p className="text-muted-foreground">{question.explanation}</p>
+                       </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+              {question.order < currentQuestions[currentQuestions.length - 1].order && <Separator className="mt-8" />}
+            </div>
+          ))}
         </CardContent>
+        {totalPages > 1 && (
+            <CardFooter className="flex justify-between items-center border-t pt-6">
+                <Button onClick={goToPreviousPage} disabled={currentPage === 1} variant="outline">
+                    <ArrowLeft className="mr-2 h-4 w-4" />
+                    Previous
+                </Button>
+                <span className="text-sm text-muted-foreground">
+                    Page {currentPage} of {totalPages}
+                </span>
+                <Button onClick={goToNextPage} disabled={currentPage === totalPages} variant="outline">
+                    Next
+                    <ArrowRight className="ml-2 h-4 w-4" />
+                </Button>
+            </CardFooter>
+        )}
       </Card>
     </div>
   );

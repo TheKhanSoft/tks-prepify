@@ -219,7 +219,7 @@ export default function DynamicTestResultsPage() {
                       <AccordionItem key={question.questionId} value={`item-${question.questionId}`}>
                         <AccordionTrigger className="text-left">
                           <div className="flex items-center gap-4">
-                            {question.isCorrect ? <CheckCircle2 className="h-5 w-5 text-green-500" /> : <XCircle className="h-5 w-5 text-destructive" />}
+                            {question.isCorrect ? <CheckCircle2 className="h-4 w-4 flex-shrink-0 text-green-500" /> : <XCircle className="h-4 w-4 flex-shrink-0 text-destructive" />}
                             <span>Question {question.order}: {question.questionText}</span>
                           </div>
                         </AccordionTrigger>
@@ -235,8 +235,10 @@ export default function DynamicTestResultsPage() {
                               </Button>
                               {questionFeedback && !questionFeedback.loading && (
                                 <div className="mt-4 prose prose-sm max-w-none">
-                                  {questionFeedback.feedback && <><h4>Feedback</h4><p>{questionFeedback.feedback}</p></>}
-                                  {questionFeedback.suggestions && <><h4>Suggestions</h4><p>{questionFeedback.suggestions}</p></>}
+                                  {questionFeedback.feedback && <h4>Feedback</h4>}
+                                  {questionFeedback.feedback && <p>{questionFeedback.feedback}</p>}
+                                  {questionFeedback.suggestions && <h4>Suggestions</h4>}
+                                  {questionFeedback.suggestions && <p>{questionFeedback.suggestions}</p>}
                                 </div>
                               )}
                             </div>
