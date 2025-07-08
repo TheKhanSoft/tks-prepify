@@ -29,7 +29,7 @@ const prompt = ai.definePrompt({
   name: 'generateHelpAnswerPrompt',
   input: {schema: GenerateHelpAnswerInputSchema},
   output: {schema: GenerateHelpAnswerOutputSchema},
-  prompt: `You are a helpful and friendly support agent for an exam preparation platform called "Prepify". Your task is to write a clear and concise answer for a help center article based on the provided question.
+  prompt: `You are a helpful and friendly support agent for an exam preparation platform called "TKS Prepify". Your task is to write a clear and concise answer for a help center article based on the provided question.
 
 Use Markdown for formatting (e.g., bolding, bullet points, numbered lists) to make the answer easy to read and follow.
 

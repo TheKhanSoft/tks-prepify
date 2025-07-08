@@ -10,7 +10,7 @@ import { cache } from 'react';
 const settingsDocRef = doc(db, 'settings', 'global_app_settings');
 
 const defaultSettings: Settings = {
-    siteName: 'Prepify',
+    siteName: 'TKS Prepify',
     siteDescription: 'Ace your exams with AI-powered practice.',
     defaultQuestionCount: 100,
     defaultDuration: 120,
@@ -19,7 +19,7 @@ const defaultSettings: Settings = {
     heroTitlePrefix: 'Excel in Your Tests with',
     heroTitleHighlight: 'Expertly Solved',
     heroTitleSuffix: 'Question Papers',
-    heroSubtitle: 'Prepify offers a vast library of solved question papers, complete with detailed explanations and practice tools to help you excel in your exams.',
+    heroSubtitle: '**TKS Prepify** offers a vast library of solved question papers, complete with detailed explanations and practice tools to help you excel in your exams.',
     heroButton1Text: 'Explore Papers',
     heroButton1Link: '/papers',
     heroButton2Text: 'Get Started',

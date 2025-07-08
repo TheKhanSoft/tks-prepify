@@ -31,7 +31,7 @@ const prompt = ai.definePrompt({
   output: {schema: EnhanceHelpQuestionOutputSchema},
   prompt: `You are an expert content editor for a help center. Your task is to refine a user's question to make it clearer, more concise, and easier to understand for someone seeking help.
 
-The application is an exam preparation platform called "Prepify".
+The application is an exam preparation platform called "TKS Prepify".
 
 Original Question: {{{question}}}
 
