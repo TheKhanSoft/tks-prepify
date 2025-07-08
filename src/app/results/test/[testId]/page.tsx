@@ -3,7 +3,7 @@
 
 import { useEffect, useState, useMemo, useCallback } from 'react';
 import { useRouter, useParams } from 'next/navigation';
-import { Book, CheckCircle2, Lightbulb, Loader2, XCircle, ShieldAlert, Timer, CheckSquare, BarChart, Clock } from 'lucide-react';
+import { Book, CheckCircle2, Lightbulb, Loader2, XCircle, ShieldAlert, Timer, CheckSquare, BarChart, Clock, Percent } from 'lucide-react';
 import type { QuestionAttempt, TestAttempt, QuestionCategory } from '@/types';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -12,7 +12,7 @@ import { Badge } from '@/components/ui/badge';
 import { getPersonalizedFeedback } from '@/ai/flows/personalized-feedback';
 import { recommendResources } from '@/ai/flows/resource-recommendation';
 import { ChartContainer, ChartTooltip, ChartTooltipContent, ChartConfig } from "@/components/ui/chart";
-import { Bar, BarChart as RechartsBarChart, XAxis, YAxis } from "recharts";
+import { Bar, BarChart as RechartsBarChart, XAxis, YAxis, ResponsiveContainer } from "recharts";
 import { cn } from '@/lib/utils';
 import { getTestAttemptById } from '@/lib/test-attempt-service';
 import { useAuth } from '@/hooks/use-auth';
@@ -29,8 +29,8 @@ const chartConfig = {
   incorrect: { label: "Incorrect", color: "hsl(var(--destructive))" },
 } satisfies ChartConfig;
 
-const RETRY_DELAY = 2000; // 2 seconds
-const MAX_RETRIES = 4; // Total time ~8 seconds
+const RETRY_DELAY = 2000; 
+const MAX_RETRIES = 4;
 
 export default function DynamicTestResultsPage() {
   const router = useRouter();
@@ -316,8 +316,11 @@ export default function DynamicTestResultsPage() {
                           </div>
                         </AccordionTrigger>
                         <AccordionContent className="space-y-4 pl-10">
-                          <div>Your answer: <Badge variant={question.isCorrect ? "default" : "destructive"} className={cn(question.isCorrect && 'bg-green-600 hover:bg-green-700')}>{userAnswerText}</Badge></div>
-                          {!question.isCorrect && <div>Correct answer: <Badge className="bg-green-600 hover:bg-green-700">{correctAnswerText}</Badge></div>}
+                          <div className='flex justify-between items-center text-sm'>
+                            <span>Your answer: <Badge variant={question.isCorrect ? "default" : "destructive"} className={cn('text-base', question.isCorrect && 'bg-green-600 hover:bg-green-700')}>{userAnswerText}</Badge></span>
+                            {question.timeSpent && <span className='text-muted-foreground flex items-center gap-1'><Clock className='h-3 w-3'/> {question.timeSpent}s</span>}
+                          </div>
+                          {!question.isCorrect && <div>Correct answer: <Badge className="bg-green-600 hover:bg-green-700 text-base">{correctAnswerText}</Badge></div>}
                           {question.explanation && <div className="text-muted-foreground pt-2 border-t mt-4"><span className="font-semibold text-foreground">Explanation:</span> {question.explanation}</div>}
                           {!question.isCorrect && (
                             <div className="p-4 bg-muted/50 rounded-lg mt-4">

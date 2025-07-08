@@ -6,11 +6,16 @@ import { fetchCategories } from '@/lib/category-service';
 import { getDescendantCategoryIds } from '@/lib/category-helpers';
 import { ArrowRight, Folder, FileText } from 'lucide-react';
 import type { Metadata } from 'next';
+import { fetchSettings } from '@/lib/settings-service';
 
-export const metadata: Metadata = {
-  title: 'All Categories',
-  description: 'Find question papers tailored to your subjects of interest.',
-};
+export async function generateMetadata(): Promise<Metadata> {
+  const settings = await fetchSettings();
+  return {
+    title: 'All Categories',
+    description: `Browse all categories on ${settings.siteName} to find question papers tailored to your subjects of interest.`,
+  };
+}
+
 
 export default async function CategoriesPage() {
   const [allTopLevelCategories, allPapers] = await Promise.all([

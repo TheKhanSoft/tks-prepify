@@ -2,11 +2,11 @@
 'use client';
 
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
-import { ChevronRight, Loader2, BarChart3, ShieldAlert } from 'lucide-react';
+import { ChevronRight, Loader2, BarChart3, ShieldAlert, ListChecks, Check, Star } from 'lucide-react';
 import { useAuth } from "@/hooks/use-auth";
 import { fetchTestAttemptsForUser } from "@/lib/test-attempt-service";
 import type { TestAttempt } from "@/types";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { format } from "date-fns";
 import { Badge } from "@/components/ui/badge";
@@ -39,11 +39,8 @@ export default function ResultsPage() {
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
 
-    // Fetch attempts when user is available
     useEffect(() => {
-        if (authLoading) {
-            return;
-        }
+        if (authLoading) return;
         if (!user) {
             setLoading(false);
             return;
@@ -66,8 +63,14 @@ export default function ResultsPage() {
         loadAttempts();
     }, [user, authLoading]);
     
-
-    // Loading State
+    const { completedAttempts, averageScore } = useMemo(() => {
+        const completed = attempts.filter(a => a.status === 'completed');
+        const avg = completed.length > 0 
+            ? (completed.reduce((acc, attempt) => acc + attempt.percentage, 0) / completed.length)
+            : null;
+        return { completedAttempts: completed, averageScore: avg };
+    }, [attempts]);
+    
     if (loading || authLoading) {
         return (
             <div className="flex justify-center items-center h-full min-h-[calc(100vh-20rem)]">
@@ -76,19 +79,48 @@ export default function ResultsPage() {
         );
     }
     
-    const completedAttemptsCount = attempts.filter(a => a.status === 'completed').length;
-    
     return (
         <div className="space-y-6">
             <div>
                 <h1 className="text-3xl font-bold">My Results</h1>
                 <p className="text-muted-foreground">A history of all the tests you've completed or started.</p>
             </div>
+            
+            <div className="grid gap-4 md:grid-cols-3 mb-6">
+                <Card>
+                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                    <CardTitle className="text-sm font-medium">Total Attempts</CardTitle>
+                    <ListChecks className="h-4 w-4 text-muted-foreground" />
+                    </CardHeader>
+                    <CardContent>
+                    <div className="text-2xl font-bold">{attempts.length}</div>
+                    </CardContent>
+                </Card>
+                <Card>
+                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                    <CardTitle className="text-sm font-medium">Completed</CardTitle>
+                    <Check className="h-4 w-4 text-muted-foreground" />
+                    </CardHeader>
+                    <CardContent>
+                    <div className="text-2xl font-bold">{completedAttempts.length}</div>
+                    </CardContent>
+                </Card>
+                <Card>
+                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                    <CardTitle className="text-sm font-medium">Average Score</CardTitle>
+                    <Star className="h-4 w-4 text-muted-foreground" />
+                    </CardHeader>
+                    <CardContent>
+                     <div className="text-2xl font-bold">{averageScore !== null ? `${averageScore.toFixed(1)}%` : "N/A"}</div>
+                    </CardContent>
+                </Card>
+            </div>
+
             <Card>
                 <CardHeader>
                     <CardTitle>Test History</CardTitle>
                     <CardDescription>
-                        You have taken {attempts.length} test{attempts.length !== 1 ? 's' : ''} in total. Completed: {completedAttemptsCount}.
+                        You have taken {attempts.length} test{attempts.length !== 1 ? 's' : ''} in total.
                     </CardDescription>
                 </CardHeader>
                 <CardContent>
