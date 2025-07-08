@@ -5,7 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Badge } from "@/components/ui/badge"
-import { FileText, Users, PlusCircle, ArrowUpRight, Loader2, Library, Bell, ClipboardCheck } from 'lucide-react';
+import { FileText, Users, PlusCircle, ArrowUpRight, Loader2, Library, Bell, ClipboardCheck, ShieldCheck, ShieldAlert, Coins } from 'lucide-react';
 import { fetchCategories } from '@/lib/category-service';
 import { getCategoryPath } from '@/lib/category-helpers';
 import { fetchPapers } from '@/lib/paper-service';
@@ -13,8 +13,9 @@ import { fetchAllQuestions, fetchAllPaperQuestionLinks } from '@/lib/question-se
 import { fetchQuestionCategories } from '@/lib/question-category-service';
 import { getDescendantQuestionCategoryIds as getDescendantQCategoryIds } from '@/lib/question-category-helpers';
 import { fetchUserProfiles } from '@/lib/user-service';
-import { fetchAllTestAttempts } from '@/lib/test-attempt-service';
-import type { Category, Paper, Question, QuestionCategory, User, TestAttempt } from '@/types';
+import { fetchAllTestAttempts, fetchAllTestAttemptsForAdmin } from '@/lib/test-attempt-service';
+import { fetchPlans } from '@/lib/plan-service';
+import type { Category, Paper, Question, QuestionCategory, User, TestAttempt, Plan } from '@/types';
 import Link from 'next/link';
 import { Bar, BarChart, ResponsiveContainer, XAxis, YAxis, Tooltip } from "recharts"
 import { useState, useEffect, useMemo, useCallback } from 'react';
@@ -29,13 +30,15 @@ export default function AdminDashboardPage() {
   const [allQuestions, setAllQuestions] = useState<Question[]>([]);
   const [allUsers, setAllUsers] = useState<User[]>([]);
   const [recentAttempts, setRecentAttempts] = useState<TestAttempt[]>([]);
+  const [allTestAttempts, setAllTestAttempts] = useState<TestAttempt[]>([]);
+  const [allPlans, setAllPlans] = useState<Plan[]>([]);
   const [questionCounts, setQuestionCounts] = useState<Record<string, number>>({});
   const [loading, setLoading] = useState(true);
 
   const loadData = useCallback(async () => {
     setLoading(true);
     try {
-        const [cats, papersData, questionsData, questionCatsData, linksData, usersData, attemptsData] = await Promise.all([
+        const [cats, papersData, questionsData, questionCatsData, linksData, usersData, recentAttemptsData, allAttemptsData, plansData] = await Promise.all([
             fetchCategories(),
             fetchPapers(),
             fetchAllQuestions(),
@@ -43,13 +46,17 @@ export default function AdminDashboardPage() {
             fetchAllPaperQuestionLinks(),
             fetchUserProfiles(),
             fetchAllTestAttempts(5),
+            fetchAllTestAttemptsForAdmin(),
+            fetchPlans(),
         ]);
         setAllCategories(cats);
         setAllPapers(papersData);
         setAllQuestions(questionsData);
         setAllQuestionCategories(questionCatsData);
         setAllUsers(usersData);
-        setRecentAttempts(attemptsData);
+        setRecentAttempts(recentAttemptsData);
+        setAllTestAttempts(allAttemptsData);
+        setAllPlans(plansData);
 
         const counts = linksData.reduce((acc, link) => {
             if (link.paperId) {
@@ -78,7 +85,12 @@ export default function AdminDashboardPage() {
     unpublishedPapers,
     totalQuestions,
     totalQuestionCategories,
-    papersNeedingQuestions
+    papersNeedingQuestions,
+    totalTestAttempts,
+    passedCount,
+    failedCount,
+    totalPlans,
+    publishedPlans,
   } = useMemo(() => {
     const oneWeekAgo = subDays(new Date(), 7);
     const newUsers = allUsers.filter(u => u.createdAt && new Date(u.createdAt) >= oneWeekAgo).length;
@@ -102,8 +114,13 @@ export default function AdminDashboardPage() {
       totalQuestions: allQuestions.length,
       totalQuestionCategories: totalQCategories,
       papersNeedingQuestions: allPapers.filter(p => (questionCounts[p.id] || 0) < p.questionCount).length,
+      totalTestAttempts: allTestAttempts.length,
+      passedCount: allTestAttempts.filter(a => a.status === 'completed' && a.passed).length,
+      failedCount: allTestAttempts.filter(a => a.status === 'completed' && !a.passed).length,
+      totalPlans: allPlans.length,
+      publishedPlans: allPlans.filter(p => p.published).length,
     };
-  }, [allUsers, allPapers, allQuestions, allQuestionCategories, questionCounts]);
+  }, [allUsers, allPapers, allQuestions, allQuestionCategories, questionCounts, allTestAttempts, allPlans]);
 
 
   const papersPerCategory = useMemo(() => {
@@ -247,6 +264,50 @@ export default function AdminDashboardPage() {
             <CardContent>
               <div className="text-2xl font-bold">{papersNeedingQuestions}</div>
               <p className="text-xs text-muted-foreground">Papers needing questions</p>
+            </CardContent>
+          </Card>
+        </Link>
+        
+        {/* New Row of Stats */}
+        <Card className="hover:bg-muted/50 transition-colors">
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Total Test Attempts</CardTitle>
+            <ClipboardCheck className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{totalTestAttempts}</div>
+            <p className="text-xs text-muted-foreground">All attempts started by users</p>
+          </CardContent>
+        </Card>
+        <Card className="hover:bg-muted/50 transition-colors">
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Passed Tests</CardTitle>
+            <ShieldCheck className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{passedCount}</div>
+            <p className="text-xs text-muted-foreground">Total tests passed by users</p>
+          </CardContent>
+        </Card>
+        <Card className="hover:bg-muted/50 transition-colors">
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Failed Tests</CardTitle>
+            <ShieldAlert className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{failedCount}</div>
+            <p className="text-xs text-muted-foreground">Total tests failed by users</p>
+          </CardContent>
+        </Card>
+        <Link href="/admin/plans">
+          <Card className="hover:bg-muted/50 transition-colors">
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Pricing Plans</CardTitle>
+              <Coins className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">{totalPlans}</div>
+              <p className="text-xs text-muted-foreground">{publishedPlans} plan(s) are published</p>
             </CardContent>
           </Card>
         </Link>
@@ -400,3 +461,5 @@ export default function AdminDashboardPage() {
     </div>
   );
 }
+
+    

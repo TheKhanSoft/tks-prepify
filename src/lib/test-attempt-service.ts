@@ -270,3 +270,23 @@ export async function fetchAllTestAttempts(limitCount?: number): Promise<TestAtt
     const finalLimit = limitCount || 5;
     return attempts.slice(0, finalLimit);
 }
+
+
+/**
+ * Fetches all test attempts, regardless of status, for admin purposes.
+ */
+export async function fetchAllTestAttemptsForAdmin(): Promise<TestAttempt[]> {
+    const attemptsCol = collection(db, 'test_attempts');
+    const snapshot = await getDocs(attemptsCol);
+    const attempts: TestAttempt[] = [];
+    snapshot.docs.forEach(doc => {
+        try {
+            attempts.push(docToTestAttempt(doc));
+        } catch (e) {
+            console.error("Failed to parse a test attempt document:", doc.id, e);
+        }
+    });
+    return attempts;
+}
+
+    
