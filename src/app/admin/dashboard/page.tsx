@@ -5,7 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Badge } from "@/components/ui/badge"
-import { FileText, Users, PlusCircle, ArrowUpRight, Loader2, Library, Bell } from 'lucide-react';
+import { FileText, Users, PlusCircle, ArrowUpRight, Loader2, Library, Bell, ClipboardCheck } from 'lucide-react';
 import { fetchCategories } from '@/lib/category-service';
 import { getCategoryPath, getDescendantCategoryIds } from '@/lib/category-helpers';
 import { fetchPapers } from '@/lib/paper-service';
@@ -13,13 +13,14 @@ import { fetchAllQuestions, fetchAllPaperQuestionLinks } from '@/lib/question-se
 import { fetchQuestionCategories } from '@/lib/question-category-service';
 import { getDescendantQuestionCategoryIds as getDescendantQCategoryIds } from '@/lib/question-category-helpers';
 import { fetchUserProfiles } from '@/lib/user-service';
-import type { Category, Paper, Question, QuestionCategory, User } from '@/types';
+import { fetchAllTestAttempts } from '@/lib/test-attempt-service';
+import type { Category, Paper, Question, QuestionCategory, User, TestAttempt } from '@/types';
 import Link from 'next/link';
 import { Bar, BarChart, ResponsiveContainer, XAxis, YAxis, Tooltip } from "recharts"
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { cn } from '@/lib/utils';
-import { format, subDays } from 'date-fns';
+import { format, subDays, formatDistanceToNow } from 'date-fns';
 
 export default function AdminDashboardPage() {
   const [allCategories, setAllCategories] = useState<Category[]>([]);
@@ -27,25 +28,28 @@ export default function AdminDashboardPage() {
   const [allPapers, setAllPapers] = useState<Paper[]>([]);
   const [allQuestions, setAllQuestions] = useState<Question[]>([]);
   const [allUsers, setAllUsers] = useState<User[]>([]);
+  const [recentAttempts, setRecentAttempts] = useState<TestAttempt[]>([]);
   const [questionCounts, setQuestionCounts] = useState<Record<string, number>>({});
   const [loading, setLoading] = useState(true);
 
   const loadData = useCallback(async () => {
     setLoading(true);
     try {
-        const [cats, papersData, questionsData, questionCatsData, linksData, usersData] = await Promise.all([
+        const [cats, papersData, questionsData, questionCatsData, linksData, usersData, attemptsData] = await Promise.all([
             fetchCategories(),
             fetchPapers(),
             fetchAllQuestions(),
             fetchQuestionCategories(),
             fetchAllPaperQuestionLinks(),
             fetchUserProfiles(),
+            fetchAllTestAttempts(5),
         ]);
         setAllCategories(cats);
         setAllPapers(papersData);
         setAllQuestions(questionsData);
         setAllQuestionCategories(questionCatsData);
         setAllUsers(usersData);
+        setRecentAttempts(attemptsData);
 
         const counts = linksData.reduce((acc, link) => {
             if (link.paperId) {
@@ -133,15 +137,7 @@ export default function AdminDashboardPage() {
   }, [allQuestions, allQuestionCategories]);
 
   const recentPapers = useMemo(() => [...allPapers].sort((a, b) => b.id.localeCompare(a.id)).slice(0, 5), [allPapers]);
-  
-  const recentUsers = useMemo(() => {
-    return [...allUsers]
-      .sort((a, b) => {
-        if (!a.createdAt || !b.createdAt) return 0;
-        return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
-      })
-      .slice(0, 5);
-  }, [allUsers]);
+  const userMap = useMemo(() => new Map(allUsers.map(u => [u.id, u])), [allUsers]);
 
   if (loading) {
       return (
@@ -328,38 +324,47 @@ export default function AdminDashboardPage() {
             <Card>
               <CardHeader className="flex flex-row items-center">
                 <div className="grid gap-2">
-                  <CardTitle>Recent Users</CardTitle>
-                  <CardDescription>The newest users who have signed up.</CardDescription>
+                  <CardTitle>Recent Test Activity</CardTitle>
+                  <CardDescription>The latest tests completed by users.</CardDescription>
                 </div>
                 <Button asChild size="sm" className="ml-auto gap-1">
-                  <Link href="/admin/users">
+                  <Link href="#">
                     View All
                     <ArrowUpRight className="h-4 w-4" />
                   </Link>
                 </Button>
               </CardHeader>
               <CardContent>
-                 {recentUsers.length > 0 ? (
+                 {recentAttempts.length > 0 ? (
                     <div className="space-y-4">
-                        {recentUsers.map((user) => (
-                            <div key={user.id} className="flex items-center gap-4">
-                            <Avatar className="hidden h-9 w-9 sm:flex">
-                                <AvatarImage src={user.photoURL || undefined} data-ai-hint="user avatar" alt="Avatar" />
-                                <AvatarFallback>{user.name?.charAt(0) || user.email?.charAt(0)}</AvatarFallback>
-                            </Avatar>
-                            <div className="grid gap-1">
-                                <p className="text-sm font-medium leading-none">{user.name || 'N/A'}</p>
-                                <p className="text-sm text-muted-foreground">{user.email}</p>
-                            </div>
-                            <div className="ml-auto font-medium text-sm text-muted-foreground">
-                                {user.createdAt ? format(new Date(user.createdAt), "PPP") : 'N/A'}
-                            </div>
-                            </div>
-                        ))}
+                        {recentAttempts.map((attempt) => {
+                            const user = userMap.get(attempt.userId);
+                            return (
+                                <Link key={attempt.id} href={`/results/test/${attempt.id}`} className="flex items-center gap-4 hover:bg-muted/50 p-2 rounded-md">
+                                    <Avatar className="hidden h-9 w-9 sm:flex">
+                                        <AvatarImage src={user?.photoURL || undefined} data-ai-hint="user avatar" alt="Avatar" />
+                                        <AvatarFallback>{user?.name?.charAt(0) || user?.email?.charAt(0)}</AvatarFallback>
+                                    </Avatar>
+                                    <div className="grid gap-1">
+                                        <p className="text-sm font-medium leading-none">{user?.name || 'Unknown User'}</p>
+                                        <p className="text-sm text-muted-foreground">{attempt.testConfigName}</p>
+                                    </div>
+                                    <div className="ml-auto font-medium text-right">
+                                        <div className={cn("font-bold", attempt.passed ? "text-green-600" : "text-destructive")}>
+                                            {attempt.percentage.toFixed(1)}%
+                                        </div>
+                                        <div className="text-xs text-muted-foreground">
+                                            {attempt.endTime ? formatDistanceToNow(new Date(attempt.endTime), { addSuffix: true }) : 'N/A'}
+                                        </div>
+                                    </div>
+                                </Link>
+                            )
+                        })}
                     </div>
                  ) : (
                     <div className="text-center text-muted-foreground py-10">
-                        <p>No users have signed up yet.</p>
+                         <ClipboardCheck className="mx-auto h-12 w-12 text-muted-foreground/50" />
+                        <p className="mt-4">No test activity yet.</p>
                     </div>
                  )}
               </CardContent>

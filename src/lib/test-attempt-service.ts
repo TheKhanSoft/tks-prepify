@@ -15,6 +15,7 @@ import {
   orderBy,
   Timestamp,
   DocumentData,
+  limit,
 } from 'firebase/firestore';
 import { db } from './firebase';
 import type { TestConfig, PaperQuestion, QuestionAttempt, TestAttempt } from '@/types';
@@ -235,5 +236,28 @@ export async function fetchTestAttemptsForUser(userId: string): Promise<TestAtte
         return dateB - dateA;
     });
 
+    return attempts;
+}
+
+export async function fetchAllTestAttempts(limitCount?: number): Promise<TestAttempt[]> {
+    const attemptsCol = collection(db, 'test_attempts');
+    
+    const q = query(
+        attemptsCol, 
+        where('status', '==', 'completed'), 
+        orderBy('endTime', 'desc'), 
+        limit(limitCount || 5)
+    );
+
+    const snapshot = await getDocs(q);
+    const attempts: TestAttempt[] = [];
+    snapshot.docs.forEach(doc => {
+        try {
+            attempts.push(docToTestAttempt(doc));
+        } catch (e) {
+            console.error("Failed to parse a test attempt document:", doc.id, e);
+        }
+    });
+    
     return attempts;
 }
