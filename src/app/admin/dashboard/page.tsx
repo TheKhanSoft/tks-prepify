@@ -5,9 +5,9 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Badge } from "@/components/ui/badge"
-import { FileText, Users, Folder, PlusCircle, ArrowUpRight, Loader2, Library, Tags } from 'lucide-react';
+import { FileText, Users, PlusCircle, ArrowUpRight, Loader2, Library, Bell } from 'lucide-react';
 import { fetchCategories } from '@/lib/category-service';
-import { getCategoryPath, getFlattenedCategories, getDescendantCategoryIds } from '@/lib/category-helpers';
+import { getCategoryPath } from '@/lib/category-helpers';
 import { fetchPapers } from '@/lib/paper-service';
 import { fetchAllQuestions, fetchAllPaperQuestionLinks } from '@/lib/question-service';
 import { fetchQuestionCategories } from '@/lib/question-category-service';
@@ -19,7 +19,7 @@ import { Bar, BarChart, ResponsiveContainer, XAxis, YAxis, Tooltip } from "recha
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { cn } from '@/lib/utils';
-import { format } from 'date-fns';
+import { format, subDays } from 'date-fns';
 
 export default function AdminDashboardPage() {
   const [allCategories, setAllCategories] = useState<Category[]>([]);
@@ -65,34 +65,42 @@ export default function AdminDashboardPage() {
   useEffect(() => {
     loadData();
   }, [loadData]);
-
-  const totalPapers = allPapers.length;
-  const totalPaperCategories = useMemo(() => getFlattenedCategories(allCategories).length, [allCategories]);
-  const totalQuestions = allQuestions.length;
-  const totalQuestionCategories = useMemo(() => {
-      let count = 0;
-      const countCategories = (categories: QuestionCategory[]) => {
-          for (const category of categories) {
-              count++;
-              if (category.subcategories) {
-                  countCategories(category.subcategories);
-              }
-          }
-      };
-      countCategories(allQuestionCategories);
-      return count;
-  }, [allQuestionCategories]);
-
-  const totalUsers = allUsers.length;
   
-  const recentUsers = useMemo(() => {
-    return [...allUsers]
-      .sort((a, b) => {
-        if (!a.createdAt || !b.createdAt) return 0;
-        return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
-      })
-      .slice(0, 5);
-  }, [allUsers]);
+  // Calculate key metrics
+  const {
+    totalUsers,
+    newUsersThisWeek,
+    totalPapers,
+    unpublishedPapers,
+    totalQuestions,
+    totalQuestionCategories,
+    papersNeedingQuestions
+  } = useMemo(() => {
+    const oneWeekAgo = subDays(new Date(), 7);
+    const newUsers = allUsers.filter(u => u.createdAt && new Date(u.createdAt) >= oneWeekAgo).length;
+
+    let totalQCategories = 0;
+    const countQCategories = (categories: QuestionCategory[]) => {
+      for (const category of categories) {
+          totalQCategories++;
+          if (category.subcategories) {
+              countQCategories(category.subcategories);
+          }
+      }
+    };
+    countQCategories(allQuestionCategories);
+    
+    return {
+      totalUsers: allUsers.length,
+      newUsersThisWeek: newUsers,
+      totalPapers: allPapers.length,
+      unpublishedPapers: allPapers.filter(p => !p.published).length,
+      totalQuestions: allQuestions.length,
+      totalQuestionCategories: totalQCategories,
+      papersNeedingQuestions: allPapers.filter(p => (questionCounts[p.id] || 0) < p.questionCount).length,
+    };
+  }, [allUsers, allPapers, allQuestions, allQuestionCategories, questionCounts]);
+
 
   const papersPerCategory = useMemo(() => {
     if (allPapers.length === 0 || allCategories.length === 0) return [];
@@ -101,7 +109,7 @@ export default function AdminDashboardPage() {
 
     return topLevelCategories.map(category => {
         const descendantIds = getDescendantCategoryIds(category.id, allCategories);
-        const count = allPapers.filter(p => descendantIds.includes(p.categoryId)).length;
+        const count = allPapers.filter(p => p.categoryId && descendantIds.includes(p.categoryId)).length;
         return {
             name: category.name,
             total: count,
@@ -126,6 +134,15 @@ export default function AdminDashboardPage() {
 
   const recentPapers = useMemo(() => [...allPapers].sort((a, b) => b.id.localeCompare(a.id)).slice(0, 5), [allPapers]);
   
+  const recentUsers = useMemo(() => {
+    return [...allUsers]
+      .sort((a, b) => {
+        if (!a.createdAt || !b.createdAt) return 0;
+        return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+      })
+      .slice(0, 5);
+  }, [allUsers]);
+
   if (loading) {
       return (
           <div className="flex justify-center items-center h-full min-h-[calc(100vh-20rem)]">
@@ -139,7 +156,7 @@ export default function AdminDashboardPage() {
       <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-4">
         <div>
             <h1 className="text-3xl font-bold">Dashboard</h1>
-            <p className="text-muted-foreground">Welcome back, Admin!</p>
+            <p className="text-muted-foreground">Welcome back, Admin! Here's an overview of your platform.</p>
         </div>
         <div className="flex gap-2">
             <Button asChild>
@@ -149,63 +166,15 @@ export default function AdminDashboardPage() {
               </Link>
             </Button>
              <Button asChild variant="outline">
-              <Link href="/admin/categories/new">
+              <Link href="/admin/question-categories/new">
                 <PlusCircle className="mr-2 h-4 w-4" />
-                New Category
+                New Question Category
               </Link>
             </Button>
         </div>
       </div>
       
-      <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-5">
-        <Link href="/admin/papers">
-          <Card className="hover:bg-muted/50 transition-colors">
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Total Papers</CardTitle>
-              <FileText className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{totalPapers}</div>
-              <p className="text-xs text-muted-foreground">Published and unpublished</p>
-            </CardContent>
-          </Card>
-        </Link>
-        <Link href="/admin/categories">
-          <Card className="hover:bg-muted/50 transition-colors">
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Paper Categories</CardTitle>
-              <Folder className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{totalPaperCategories}</div>
-              <p className="text-xs text-muted-foreground">For organizing papers</p>
-            </CardContent>
-          </Card>
-        </Link>
-        <Link href="/admin/questions">
-          <Card className="hover:bg-muted/50 transition-colors">
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Total Questions</CardTitle>
-              <Library className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{totalQuestions}</div>
-              <p className="text-xs text-muted-foreground">In the central question bank</p>
-            </CardContent>
-          </Card>
-        </Link>
-        <Link href="/admin/question-categories">
-          <Card className="hover:bg-muted/50 transition-colors">
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Question Categories</CardTitle>
-              <Tags className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{totalQuestionCategories}</div>
-              <p className="text-xs text-muted-foreground">For organizing questions</p>
-            </CardContent>
-          </Card>
-        </Link>
+      <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
         <Link href="/admin/users">
           <Card className="hover:bg-muted/50 transition-colors">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
@@ -214,7 +183,47 @@ export default function AdminDashboardPage() {
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold">{totalUsers}</div>
-              <p className="text-xs text-muted-foreground">Total registered users</p>
+              <p className="text-xs text-muted-foreground">
+                {newUsersThisWeek > 0 ? `+${newUsersThisWeek} in the last 7 days` : 'No new users this week'}
+              </p>
+            </CardContent>
+          </Card>
+        </Link>
+        <Link href="/admin/papers">
+          <Card className="hover:bg-muted/50 transition-colors">
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Total Papers</CardTitle>
+              <FileText className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">{totalPapers}</div>
+              <p className="text-xs text-muted-foreground">
+                {unpublishedPapers > 0 ? `${unpublishedPapers} unpublished` : 'All papers are published'}
+              </p>
+            </CardContent>
+          </Card>
+        </Link>
+        <Link href="/admin/questions">
+          <Card className="hover:bg-muted/50 transition-colors">
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Question Bank</CardTitle>
+              <Library className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">{totalQuestions}</div>
+              <p className="text-xs text-muted-foreground">in {totalQuestionCategories} categories</p>
+            </CardContent>
+          </Card>
+        </Link>
+        <Link href="/admin/papers">
+          <Card className="hover:bg-muted/50 transition-colors">
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Action Required</CardTitle>
+              <Bell className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">{papersNeedingQuestions}</div>
+              <p className="text-xs text-muted-foreground">Papers needing questions</p>
             </CardContent>
           </Card>
         </Link>
