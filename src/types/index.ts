@@ -166,7 +166,7 @@ export interface MessageReply {
   createdAt: Date;
 }
 
-export type ContactSubmissionStatus = 'open' | 'replied' | 'closed';
+export type ContactSubmissionStatus = 'open' | 'replied' | 'in-progress' | 'closed';
 
 export interface ContactSubmission {
   id: string;

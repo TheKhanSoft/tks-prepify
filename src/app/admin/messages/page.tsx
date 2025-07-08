@@ -1,7 +1,7 @@
 
 "use client";
 
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useMemo } from "react";
 import Link from "next/link";
 import {
   Table,
@@ -23,7 +23,7 @@ import {
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Loader2, Eye, Mail, MailOpen, Star, User, MessageSquare, ChevronDown, CheckCircle, Info, XCircle } from "lucide-react";
+import { Loader2, Eye, MailOpen, Star, User, MessageSquare, ChevronDown, CheckCircle, Info, XCircle, Wrench } from "lucide-react";
 import { fetchContactSubmissions, updateSubmissionStatus, addReplyToSubmission } from "@/lib/contact-service";
 import type { ContactSubmission, MessageReply, ContactSubmissionStatus } from "@/types";
 import { useToast } from "@/hooks/use-toast";
@@ -39,6 +39,7 @@ import { Label } from "@/components/ui/label";
 const statusConfig: { [key in ContactSubmissionStatus]: { icon: React.FC<any>; color: string; label: string } } = {
     open: { icon: Info, color: 'text-blue-500', label: 'Open' },
     replied: { icon: CheckCircle, color: 'text-amber-500', label: 'Replied' },
+    'in-progress': { icon: Wrench, color: 'text-violet-500', label: 'In Progress' },
     closed: { icon: XCircle, color: 'text-gray-500', label: 'Closed' },
 };
 
@@ -53,6 +54,8 @@ export default function AdminMessagesPage() {
   
   const [replyText, setReplyText] = useState("");
   const [isReplying, setIsReplying] = useState(false);
+  const [statusFilter, setStatusFilter] = useState<'all' | ContactSubmissionStatus>('all');
+
 
   const loadSubmissions = useCallback(async () => {
     setLoading(true);
@@ -68,6 +71,21 @@ export default function AdminMessagesPage() {
   useEffect(() => {
     loadSubmissions();
   }, [loadSubmissions]);
+
+  const summaryCounts = useMemo(() => {
+    return submissions.reduce((acc, sub) => {
+        acc[sub.status] = (acc[sub.status] || 0) + 1;
+        acc.total = (acc.total || 0) + 1;
+        return acc;
+    }, {} as Record<ContactSubmissionStatus | 'total', number>);
+  }, [submissions]);
+
+  const filteredSubmissions = useMemo(() => {
+    if (statusFilter === 'all') {
+        return submissions;
+    }
+    return submissions.filter(s => s.status === statusFilter);
+  }, [submissions, statusFilter]);
 
   const handleViewMessage = async (submission: ContactSubmission) => {
     setSelectedSubmission(submission);
@@ -160,10 +178,49 @@ export default function AdminMessagesPage() {
           <h1 className="text-3xl font-bold">Contact Messages</h1>
           <p className="text-muted-foreground">A list of all messages submitted through the contact form.</p>
         </div>
+        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4 mb-6">
+            <Card>
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                    <CardTitle className="text-sm font-medium">Open Tickets</CardTitle>
+                    <Info className="h-4 w-4 text-muted-foreground" />
+                </CardHeader>
+                <CardContent><div className="text-2xl font-bold">{summaryCounts.open || 0}</div></CardContent>
+            </Card>
+            <Card>
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                    <CardTitle className="text-sm font-medium">In Progress</CardTitle>
+                    <Wrench className="h-4 w-4 text-muted-foreground" />
+                </CardHeader>
+                <CardContent><div className="text-2xl font-bold">{summaryCounts['in-progress'] || 0}</div></CardContent>
+            </Card>
+            <Card>
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                    <CardTitle className="text-sm font-medium">Awaiting User Reply</CardTitle>
+                    <CheckCircle className="h-4 w-4 text-muted-foreground" />
+                </CardHeader>
+                <CardContent><div className="text-2xl font-bold">{summaryCounts.replied || 0}</div></CardContent>
+            </Card>
+            <Card>
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                    <CardTitle className="text-sm font-medium">Closed Tickets</CardTitle>
+                    <XCircle className="h-4 w-4 text-muted-foreground" />
+                </CardHeader>
+                <CardContent><div className="text-2xl font-bold">{summaryCounts.closed || 0}</div></CardContent>
+            </Card>
+        </div>
+
         <Card>
           <CardHeader>
             <CardTitle>Inbox</CardTitle>
             <CardDescription>Total Messages: {submissions.length}</CardDescription>
+             <div className="flex items-center gap-2 pt-4">
+                <Button size="sm" variant={statusFilter === 'all' ? 'default' : 'outline'} onClick={() => setStatusFilter('all')}>All ({summaryCounts.total || 0})</Button>
+                {Object.keys(statusConfig).map(status => (
+                    <Button key={status} size="sm" variant={statusFilter === status ? 'default' : 'outline'} onClick={() => setStatusFilter(status as ContactSubmissionStatus)}>
+                        {statusConfig[status as ContactSubmissionStatus].label} ({summaryCounts[status as ContactSubmissionStatus] || 0})
+                    </Button>
+                ))}
+            </div>
           </CardHeader>
           <CardContent>
             <Table>
@@ -179,8 +236,8 @@ export default function AdminMessagesPage() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {submissions.length > 0 ? (
-                  submissions.map((submission) => {
+                {filteredSubmissions.length > 0 ? (
+                  filteredSubmissions.map((submission) => {
                     const statusInfo = statusConfig[submission.status];
                     return (
                         <TableRow key={submission.id} className={cn(!submission.isRead && "font-bold")}>
@@ -226,7 +283,7 @@ export default function AdminMessagesPage() {
                 ) : (
                   <TableRow>
                     <TableCell colSpan={7} className="h-24 text-center">
-                      No messages found.
+                      No messages found for this filter.
                     </TableCell>
                   </TableRow>
                 )}
@@ -257,6 +314,7 @@ export default function AdminMessagesPage() {
                     <DropdownMenuTrigger asChild><Button variant="outline">Status: {selectedSubmission?.status} <ChevronDown className="ml-2 h-4 w-4"/></Button></DropdownMenuTrigger>
                     <DropdownMenuContent>
                         <DropdownMenuItem onClick={() => handleChangeStatus('open')}>Mark as Open</DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => handleChangeStatus('in-progress')}>Mark as In Progress</DropdownMenuItem>
                         <DropdownMenuItem onClick={() => handleChangeStatus('replied')}>Mark as Replied</DropdownMenuItem>
                         <DropdownMenuItem onClick={() => handleChangeStatus('closed')}>Mark as Closed</DropdownMenuItem>
                     </DropdownMenuContent>
