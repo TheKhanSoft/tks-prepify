@@ -139,17 +139,17 @@ function docToTestAttempt(doc: DocumentData): TestAttempt {
     startTime: serializeDate(data.startTime),
     endTime: serializeDate(data.endTime),
     status: data.status,
-    score: data.score,
-    totalMarks: data.totalMarks,
-    percentage: data.percentage,
-    passed: data.passed,
+    score: data.score ?? 0,
+    totalMarks: data.totalMarks ?? 0,
+    percentage: data.percentage ?? 0,
+    passed: data.passed ?? false,
   };
 }
 
 function docToQuestionAttempt(doc: DocumentData): QuestionAttempt {
     const data = doc.data();
     return {
-        order: data.order,
+        order: data.order ?? 0,
         questionId: data.questionId,
         questionText: data.questionText,
         type: data.type,
@@ -157,7 +157,7 @@ function docToQuestionAttempt(doc: DocumentData): QuestionAttempt {
         correctAnswer: data.correctAnswer,
         explanation: data.explanation,
         userAnswer: data.userAnswer,
-        isCorrect: data.isCorrect,
+        isCorrect: data.isCorrect ?? false,
     }
 }
 
@@ -185,7 +185,15 @@ export async function getTestAttemptById(attemptId: string, userId: string): Pro
 
     const questionsColRef = collection(db, 'test_attempts', attemptId, 'questions');
     const questionsSnapshot = await getDocs(questionsColRef);
-    const questionAttempts = questionsSnapshot.docs.map(docToQuestionAttempt);
+    const questionAttempts: QuestionAttempt[] = [];
+
+    questionsSnapshot.docs.forEach(doc => {
+        try {
+            questionAttempts.push(docToQuestionAttempt(doc));
+        } catch (e) {
+            console.error("Failed to parse a question attempt document:", doc.id, e);
+        }
+    });
     
     questionAttempts.sort((a,b) => a.order - b.order);
 
@@ -204,7 +212,14 @@ export async function fetchTestAttemptsForUser(userId: string): Promise<TestAtte
     const q = query(attemptsCol, where("userId", "==", userId));
 
     const snapshot = await getDocs(q);
-    const attempts = snapshot.docs.map(docToTestAttempt);
+    const attempts: TestAttempt[] = [];
+    snapshot.docs.forEach(doc => {
+        try {
+            attempts.push(docToTestAttempt(doc));
+        } catch (e) {
+            console.error("Failed to parse a test attempt document:", doc.id, e);
+        }
+    });
 
     // Sort by start time descending in-memory to avoid index dependency
     attempts.sort((a, b) => {
