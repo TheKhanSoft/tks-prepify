@@ -195,6 +195,14 @@ export interface Settings {
     pdfWatermarkText?: string;
 }
 
+export interface MessageReply {
+  id: string;
+  authorId: string;
+  authorName: string;
+  message: string;
+  createdAt: Date;
+}
+
 export interface ContactSubmission {
   id: string;
   name: string;
@@ -206,6 +214,7 @@ export interface ContactSubmission {
   isRead: boolean;
   userId?: string;
   priority?: boolean;
+  replies?: MessageReply[];
 }
 
 export interface SupportRequest {

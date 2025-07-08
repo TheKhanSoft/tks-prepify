@@ -1,9 +1,9 @@
 
 'use server';
 
-import { collection, addDoc, serverTimestamp, getDocs, query, orderBy, doc, updateDoc, DocumentData } from 'firebase/firestore';
+import { collection, addDoc, serverTimestamp, getDocs, query, orderBy, doc, updateDoc, DocumentData, arrayUnion } from 'firebase/firestore';
 import { db } from './firebase';
-import type { ContactSubmission } from '@/types';
+import type { ContactSubmission, MessageReply } from '@/types';
 import { getUserProfile } from './user-service';
 import { getPlanById } from './plan-service';
 import { checkAndRecordSupportRequest } from './support-request-service';
@@ -26,6 +26,7 @@ export async function submitContactForm(data: ContactFormData, userId?: string |
       priority: false,
       isRead: false,
       createdAt: serverTimestamp(),
+      replies: [],
     };
     
     const newSubmissionRef = await addDoc(submissionsCollection, initialData);
@@ -49,8 +50,39 @@ export async function submitContactForm(data: ContactFormData, userId?: string |
   }
 }
 
+export interface ReplyData {
+  authorId: string;
+  authorName: string;
+  message: string;
+}
+
+export async function addReplyToSubmission(submissionId: string, replyData: ReplyData) {
+  try {
+    const submissionRef = doc(db, 'contact_submissions', submissionId);
+    // Add the new reply and mark the submission as read in one operation.
+    await updateDoc(submissionRef, {
+      replies: arrayUnion({
+        ...replyData,
+        createdAt: serverTimestamp(),
+      }),
+      isRead: true,
+    });
+    return { success: true };
+  } catch (error) {
+    return { success: false, error: "Failed to add reply." };
+  }
+}
+
 const docToContactSubmission = (doc: DocumentData): ContactSubmission => {
     const data = doc.data();
+    const replies = data.replies?.map((reply: any): MessageReply => ({
+        id: (reply.createdAt?.toDate() || new Date()).toISOString(), // use timestamp as a key
+        authorId: reply.authorId,
+        authorName: reply.authorName,
+        message: reply.message,
+        createdAt: reply.createdAt.toDate(),
+    })).sort((a: MessageReply, b: MessageReply) => a.createdAt.getTime() - b.createdAt.getTime()) || [];
+
     return {
         id: doc.id,
         name: data.name,
@@ -62,6 +94,7 @@ const docToContactSubmission = (doc: DocumentData): ContactSubmission => {
         isRead: data.isRead,
         userId: data.userId,
         priority: data.priority,
+        replies: replies,
     }
 }
 

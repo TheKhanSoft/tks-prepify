@@ -18,23 +18,32 @@ import {
   DialogTitle,
   DialogDescription,
   DialogFooter,
+  DialogClose,
 } from "@/components/ui/dialog";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Loader2, Eye, Mail, MailOpen, Star, User } from "lucide-react";
-import { fetchContactSubmissions, updateSubmissionStatus } from "@/lib/contact-service";
-import type { ContactSubmission } from "@/types";
+import { Loader2, Eye, Mail, MailOpen, Star, User, MessageSquare } from "lucide-react";
+import { fetchContactSubmissions, updateSubmissionStatus, addReplyToSubmission } from "@/lib/contact-service";
+import type { ContactSubmission, MessageReply } from "@/types";
 import { useToast } from "@/hooks/use-toast";
 import { format } from "date-fns";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
+import { useAuth } from "@/hooks/use-auth";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { Textarea } from "@/components/ui/textarea";
 
 export default function AdminMessagesPage() {
   const { toast } = useToast();
+  const { user } = useAuth();
   const [submissions, setSubmissions] = useState<ContactSubmission[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedSubmission, setSelectedSubmission] = useState<ContactSubmission | null>(null);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
+  
+  const [replyText, setReplyText] = useState("");
+  const [isReplying, setIsReplying] = useState(false);
 
   const loadSubmissions = useCallback(async () => {
     setLoading(true);
@@ -64,6 +73,53 @@ export default function AdminMessagesPage() {
       }
     }
   };
+
+  const handleReplySubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!replyText.trim() || !selectedSubmission || !user) return;
+
+    setIsReplying(true);
+    try {
+      const replyData = {
+        authorId: user.uid,
+        authorName: user.displayName || 'Admin',
+        message: replyText.trim(),
+      };
+      
+      const result = await addReplyToSubmission(selectedSubmission.id, replyData);
+      
+      if (result.success) {
+        // Optimistic UI update
+        const newReply: MessageReply = {
+          ...replyData,
+          id: new Date().toISOString(), // Temporary client-side ID
+          createdAt: new Date(),
+        };
+
+        const updatedSubmission = {
+            ...selectedSubmission,
+            isRead: true, // Replying marks it as read
+            replies: [...(selectedSubmission.replies || []), newReply],
+        };
+        setSelectedSubmission(updatedSubmission);
+        
+        // Update main list as well
+        setSubmissions(prev =>
+          prev.map(s => (s.id === updatedSubmission.id ? updatedSubmission : s))
+        );
+
+        setReplyText("");
+        toast({ title: "Reply Sent" });
+      } else {
+        throw new Error(result.error);
+      }
+    } catch (error: any) {
+      toast({ title: "Error Sending Reply", description: error.message, variant: "destructive" });
+    } finally {
+      setIsReplying(false);
+    }
+  };
+
 
   if (loading) {
     return (
@@ -103,11 +159,16 @@ export default function AdminMessagesPage() {
                   submissions.map((submission) => (
                     <TableRow key={submission.id} className={cn(!submission.isRead && "font-bold")}>
                       <TableCell>
-                        {submission.isRead ? (
-                          <MailOpen className="h-5 w-5 text-muted-foreground" />
-                        ) : (
-                          <Mail className="h-5 w-5 text-primary" />
-                        )}
+                        <div className="flex items-center gap-2">
+                           {submission.isRead ? (
+                            <MailOpen className="h-5 w-5 text-muted-foreground" />
+                            ) : (
+                            <Mail className="h-5 w-5 text-primary" />
+                            )}
+                            {submission.replies && submission.replies.length > 0 && (
+                                <MessageSquare className="h-4 w-4 text-muted-foreground" />
+                            )}
+                        </div>
                       </TableCell>
                        <TableCell>
                         {submission.priority && <Star className="h-5 w-5 text-amber-500 fill-amber-400" />}
@@ -146,7 +207,13 @@ export default function AdminMessagesPage() {
           </CardContent>
         </Card>
       </div>
-      <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+      <Dialog open={isDialogOpen} onOpenChange={(open) => {
+        setIsDialogOpen(open);
+        if(!open) {
+            setSelectedSubmission(null);
+            setReplyText("");
+        }
+      }}>
         <DialogContent className="sm:max-w-2xl">
           <DialogHeader>
             <div className="flex justify-between items-start">
@@ -165,32 +232,73 @@ export default function AdminMessagesPage() {
               )}
             </div>
           </DialogHeader>
-          <div className="py-4 space-y-4">
-            <div className="text-sm">
-              <span className="font-semibold">From:</span> {selectedSubmission?.name} &lt;{selectedSubmission?.email}&gt;
-            </div>
-            <div className="p-4 bg-muted/50 rounded-md border text-sm whitespace-pre-wrap max-h-96 overflow-y-auto">
-              {selectedSubmission?.message}
-            </div>
+          <div className="flex flex-col gap-4">
+             <ScrollArea className="h-96 pr-4 border-b pb-4">
+                <div className="space-y-6">
+                    {/* Original Message */}
+                    <div className="flex items-start gap-3">
+                        <Avatar className="h-8 w-8 border">
+                            <AvatarFallback>{selectedSubmission?.name?.charAt(0)}</AvatarFallback>
+                        </Avatar>
+                        <div className="flex-1">
+                            <div className="rounded-lg bg-muted p-3 w-fit max-w-full">
+                                <p className="text-sm font-semibold">{selectedSubmission?.name}</p>
+                                <p className="text-sm whitespace-pre-wrap">{selectedSubmission?.message}</p>
+                            </div>
+                            <p className="text-xs text-muted-foreground mt-1">
+                                {selectedSubmission && format(new Date(selectedSubmission.createdAt), "p")}
+                            </p>
+                        </div>
+                    </div>
+
+                    {/* Replies */}
+                    {selectedSubmission?.replies?.map((reply, index) => (
+                    <div key={index} className="flex items-start gap-3 justify-end">
+                        <div className="flex-1 text-right">
+                            <div className="rounded-lg bg-primary text-primary-foreground p-3 w-fit max-w-full inline-block text-left">
+                                <p className="text-sm font-semibold">{reply.authorName} (You)</p>
+                                <p className="text-sm whitespace-pre-wrap">{reply.message}</p>
+                            </div>
+                            <p className="text-xs text-muted-foreground mt-1">
+                                {format(new Date(reply.createdAt), "p")}
+                            </p>
+                        </div>
+                        <Avatar className="h-8 w-8 border bg-foreground text-background">
+                            <AvatarFallback>{reply.authorName?.charAt(0)}</AvatarFallback>
+                        </Avatar>
+                    </div>
+                    ))}
+                </div>
+            </ScrollArea>
+             <form onSubmit={handleReplySubmit} className="space-y-2">
+                <Label htmlFor="reply-message" className="sr-only">Your Reply</Label>
+                <Textarea
+                    id="reply-message"
+                    placeholder="Type your reply here..."
+                    value={replyText}
+                    onChange={(e) => setReplyText(e.target.value)}
+                    disabled={isReplying}
+                    rows={4}
+                />
+                <div className="flex justify-end">
+                    <Button type="submit" disabled={isReplying || !replyText.trim()}>
+                    {isReplying && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                    Send Reply
+                    </Button>
+                </div>
+            </form>
           </div>
-          <DialogFooter className="sm:justify-between gap-2">
-            <div>
-              {selectedSubmission?.userId && (
+          <DialogFooter className="sm:justify-start">
+            {selectedSubmission?.userId && (
                 <Button variant="outline" asChild>
                   <Link href={`/admin/users/${selectedSubmission.userId}/subscription`}>
                     <User className="mr-2 h-4 w-4"/> View User
                   </Link>
                 </Button>
-              )}
-            </div>
-            <div className="flex gap-2">
-              <Button variant="secondary" asChild>
-                <a href={`mailto:${selectedSubmission?.email}?subject=Re: ${selectedSubmission?.subject}`}>
-                  <Mail className="mr-2 h-4 w-4"/> Reply via Email
-                </a>
-              </Button>
-              <Button onClick={() => setIsDialogOpen(false)}>Close</Button>
-            </div>
+            )}
+             <DialogClose asChild>
+                <Button type="button" variant="secondary">Close</Button>
+            </DialogClose>
           </DialogFooter>
         </DialogContent>
       </Dialog>
