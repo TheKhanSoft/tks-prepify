@@ -63,7 +63,7 @@ export async function addReplyToSubmission(submissionId: string, replyData: Repl
     await updateDoc(submissionRef, {
       replies: arrayUnion({
         ...replyData,
-        createdAt: serverTimestamp(),
+        createdAt: new Date(), // Use standard Date object instead of serverTimestamp() in arrayUnion
       }),
       isRead: true,
     });
