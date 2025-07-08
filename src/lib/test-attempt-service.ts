@@ -293,7 +293,6 @@ export async function fetchAllTestAttemptsForAdmin(): Promise<TestAttempt[]> {
         try {
             attempts.push(docToTestAttempt(doc));
         } catch (e) {
-            // console.error("Failed to parse a test attempt document:", doc.id, e);
         }
     });
     return attempts;
