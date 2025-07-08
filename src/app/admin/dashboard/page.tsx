@@ -21,7 +21,8 @@ import { Bar, BarChart, ResponsiveContainer, XAxis, YAxis, Tooltip } from "recha
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { cn } from '@/lib/utils';
-import { subDays, formatDistanceToNow } from 'date-fns';
+import { subDays, formatDistanceToNow, isAfter, isBefore, addDays, format } from 'date-fns';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
 export default function AdminDashboardPage() {
   const [allCategories, setAllCategories] = useState<Category[]>([]);
@@ -34,6 +35,7 @@ export default function AdminDashboardPage() {
   const [allPlans, setAllPlans] = useState<Plan[]>([]);
   const [questionCounts, setQuestionCounts] = useState<Record<string, number>>({});
   const [loading, setLoading] = useState(true);
+  const [expiringFilter, setExpiringFilter] = useState('7d');
 
   const loadData = useCallback(async () => {
     setLoading(true);
@@ -182,6 +184,37 @@ export default function AdminDashboardPage() {
 
   const recentPapers = useMemo(() => [...allPapers].sort((a, b) => b.id.localeCompare(a.id)).slice(0, 5), [allPapers]);
   const userMap = useMemo(() => new Map(allUsers.map(u => [u.id, u])), [allUsers]);
+  const plansMap = useMemo(() => new Map(allPlans.map(p => [p.id, p])), [allPlans]);
+
+   const { activeSubscribers, expiringUsers } = useMemo(() => {
+    const now = new Date();
+    let endDate: Date;
+
+    if (expiringFilter === '24h') {
+        endDate = addDays(now, 1);
+    } else if (expiringFilter === '3d') {
+        endDate = addDays(now, 3);
+    } else { // '7d'
+        endDate = addDays(now, 7);
+    }
+
+    const active = allUsers.filter(u => {
+        if (!u.planId) return false;
+        if (!u.planExpiryDate) return true; // Lifetime/free plans are active
+        return isAfter(new Date(u.planExpiryDate), now);
+    });
+
+    const expiring = active.filter(u => {
+        if (!u.planExpiryDate) return false; // Not expiring if lifetime
+        const expiryDate = new Date(u.planExpiryDate);
+        return isAfter(expiryDate, now) && isBefore(expiryDate, endDate);
+    });
+    
+    expiring.sort((a,b) => new Date(a.planExpiryDate!).getTime() - new Date(b.planExpiryDate!).getTime());
+
+    return { activeSubscribers: active, expiringUsers: expiring };
+}, [allUsers, expiringFilter]);
+
 
   if (loading) {
       return (
@@ -458,6 +491,59 @@ export default function AdminDashboardPage() {
               </CardContent>
             </Card>
         </div>
+        <Card>
+            <CardHeader className="flex flex-row items-center justify-between gap-4">
+                <div>
+                    <CardTitle>Active & Expiring Subscriptions</CardTitle>
+                    <CardDescription>
+                        {activeSubscribers.length} total active subscribers.
+                    </CardDescription>
+                </div>
+                <Select value={expiringFilter} onValueChange={setExpiringFilter}>
+                    <SelectTrigger className="w-[180px]">
+                        <SelectValue placeholder="Filter expiring..." />
+                    </SelectTrigger>
+                    <SelectContent>
+                        <SelectItem value="24h">Expiring in 24h</SelectItem>
+                        <SelectItem value="3d">Expiring in 3 days</SelectItem>
+                        <SelectItem value="7d">Expiring in 1 week</SelectItem>
+                    </SelectContent>
+                </Select>
+            </CardHeader>
+            <CardContent>
+                {expiringUsers.length > 0 ? (
+                    <div className="space-y-4">
+                        {expiringUsers.map((user) => {
+                            const plan = plansMap.get(user.planId);
+                            return (
+                                <Link key={user.id} href={`/admin/users/${user.id}/subscription`} className="flex items-center gap-4 hover:bg-muted/50 p-2 rounded-md transition-colors">
+                                    <Avatar className="hidden h-9 w-9 sm:flex">
+                                        <AvatarImage src={user?.photoURL || undefined} data-ai-hint="user avatar" alt="Avatar" />
+                                        <AvatarFallback>{user?.name?.charAt(0) || user?.email?.charAt(0)}</AvatarFallback>
+                                    </Avatar>
+                                    <div className="grid gap-1 flex-grow">
+                                        <p className="text-sm font-medium leading-none">{user?.name || 'Unknown User'}</p>
+                                        <p className="text-sm text-muted-foreground">{plan?.name || 'Unknown Plan'}</p>
+                                    </div>
+                                    <div className="ml-auto text-right">
+                                        <div className="font-medium text-destructive">
+                                            Expires in {formatDistanceToNow(new Date(user.planExpiryDate!), { addSuffix: false })}
+                                        </div>
+                                        <div className="text-xs text-muted-foreground">
+                                            {user.planExpiryDate ? format(new Date(user.planExpiryDate), "PPP") : 'N/A'}
+                                        </div>
+                                    </div>
+                                </Link>
+                            );
+                        })}
+                    </div>
+                ) : (
+                    <div className="text-center text-muted-foreground py-10">
+                        <p>No subscriptions are expiring within the selected timeframe.</p>
+                    </div>
+                )}
+            </CardContent>
+        </Card>
     </div>
   );
 }
