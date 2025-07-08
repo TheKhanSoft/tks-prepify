@@ -13,9 +13,10 @@ import { Loader2, ChevronRight, MessageSquarePlus } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import Link from 'next/link';
 
-const statusConfig: { [key in ContactSubmissionStatus]: { color: string; label: string } } = {
-    open: { color: 'bg-blue-500 hover:bg-blue-600', label: 'Open' },
-    replied: { color: 'bg-amber-500 hover:bg-amber-600', label: 'Admin Replied' },
+const userStatusConfig: { [key in ContactSubmissionStatus]: { color: string; label: string } } = {
+    open: { color: 'bg-green-600 hover:bg-green-700', label: 'Awaiting Support' },
+    replied: { color: 'bg-amber-500 hover:bg-amber-600', label: 'Awaiting Your Reply' },
+    'in-progress': { color: 'bg-violet-500 hover:bg-violet-600', label: 'In Progress' },
     closed: { color: 'bg-gray-500 hover:bg-gray-600', label: 'Closed' },
 };
 
@@ -78,7 +79,7 @@ export default function SupportPage() {
                         <TableBody>
                             {submissions.length > 0 ? (
                                 submissions.map(sub => {
-                                    const statusInfo = statusConfig[sub.status];
+                                    const statusInfo = userStatusConfig[sub.status];
                                     return (
                                         <TableRow key={sub.id}>
                                             <TableCell className="font-medium">{sub.subject}</TableCell>
