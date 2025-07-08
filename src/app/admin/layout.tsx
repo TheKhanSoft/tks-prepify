@@ -1,7 +1,7 @@
 
 'use client';
 
-import { SidebarProvider, Sidebar, SidebarHeader, SidebarTrigger, SidebarMenu, SidebarMenuItem, SidebarMenuButton, SidebarContent, SidebarInset, SidebarFooter, SidebarSeparator } from '@/components/ui/sidebar';
+import { SidebarProvider, Sidebar, SidebarHeader, SidebarTrigger, SidebarMenu, SidebarMenuItem, SidebarMenuButton, SidebarContent, SidebarInset, SidebarFooter, SidebarSeparator, SidebarMenuBadge } from '@/components/ui/sidebar';
 import { LayoutDashboard, FileText, Folder, Home, Users, Settings, Bell, Search, Library, Tags, Mail, FileSliders, ChevronRight, Database, Coins, LogOut, ClipboardList, LifeBuoy } from 'lucide-react';
 import Link from 'next/link';
 import { BookOpen } from 'lucide-react';
@@ -19,6 +19,8 @@ import { useRouter } from 'next/navigation';
 import { signOut } from 'firebase/auth';
 import { auth } from '@/lib/firebase';
 import { Skeleton } from '@/components/ui/skeleton';
+import { getUnreadMessageSummary } from '@/lib/contact-service';
+import { cn } from '@/lib/utils';
 
 export default function AdminLayout({
   children,
@@ -29,9 +31,17 @@ export default function AdminLayout({
   const { user } = useAuth();
   const { toast } = useToast();
   const router = useRouter();
+  const [unreadSummary, setUnreadSummary] = useState({ count: 0, hasPriority: false });
   
   useEffect(() => {
     fetchSettings().then(setSettings);
+
+    const fetchUnreadCount = async () => {
+      const summary = await getUnreadMessageSummary();
+      setUnreadSummary(summary);
+    };
+    fetchUnreadCount();
+
   }, []);
 
   const handleLogout = async () => {
@@ -195,6 +205,11 @@ export default function AdminLayout({
                   <Link href="/admin/messages">
                     <Mail />
                     <span className="group-data-[collapsible=icon]:hidden">Messages</span>
+                     {unreadSummary.count > 0 && (
+                        <SidebarMenuBadge className={cn(unreadSummary.hasPriority && 'bg-destructive text-destructive-foreground')}>
+                            {unreadSummary.count}
+                        </SidebarMenuBadge>
+                    )}
                   </Link>
                 </SidebarMenuButton>
               </SidebarMenuItem>

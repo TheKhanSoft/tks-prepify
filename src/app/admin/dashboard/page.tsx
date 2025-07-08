@@ -5,7 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Badge } from "@/components/ui/badge"
-import { FileText, Users, PlusCircle, ArrowUpRight, Loader2, Library, Bell, ClipboardCheck, ShieldCheck, ShieldAlert, Coins } from 'lucide-react';
+import { FileText, Users, PlusCircle, ArrowUpRight, Loader2, Library, Bell, ClipboardCheck, ShieldCheck, ShieldAlert, Coins, Info, Star, Mail } from 'lucide-react';
 import { fetchCategories } from '@/lib/category-service';
 import { getCategoryPath } from '@/lib/category-helpers';
 import { fetchPapers } from '@/lib/paper-service';
@@ -15,7 +15,8 @@ import { getDescendantQuestionCategoryIds as getDescendantQCategoryIds } from '@
 import { fetchUserProfiles } from '@/lib/user-service';
 import { fetchAllTestAttempts, fetchAllTestAttemptsForAdmin } from '@/lib/test-attempt-service';
 import { fetchPlans } from '@/lib/plan-service';
-import type { Category, Paper, Question, QuestionCategory, User, TestAttempt, Plan } from '@/types';
+import { fetchContactSubmissions } from '@/lib/contact-service';
+import type { Category, Paper, Question, QuestionCategory, User, TestAttempt, Plan, ContactSubmission } from '@/types';
 import Link from 'next/link';
 import { Bar, BarChart, ResponsiveContainer, XAxis, YAxis, Tooltip } from "recharts"
 import { useState, useEffect, useMemo, useCallback } from 'react';
@@ -33,6 +34,7 @@ export default function AdminDashboardPage() {
   const [recentAttempts, setRecentAttempts] = useState<TestAttempt[]>([]);
   const [allTestAttempts, setAllTestAttempts] = useState<TestAttempt[]>([]);
   const [allPlans, setAllPlans] = useState<Plan[]>([]);
+  const [contactSubmissions, setContactSubmissions] = useState<ContactSubmission[]>([]);
   const [questionCounts, setQuestionCounts] = useState<Record<string, number>>({});
   const [loading, setLoading] = useState(true);
   const [expiringFilter, setExpiringFilter] = useState('7d');
@@ -40,7 +42,7 @@ export default function AdminDashboardPage() {
   const loadData = useCallback(async () => {
     setLoading(true);
     try {
-        const [cats, papersData, questionsData, questionCatsData, linksData, usersData, recentAttemptsData, allAttemptsData, plansData] = await Promise.all([
+        const [cats, papersData, questionsData, questionCatsData, linksData, usersData, recentAttemptsData, allAttemptsData, plansData, submissionsData] = await Promise.all([
             fetchCategories(),
             fetchPapers(),
             fetchAllQuestions(),
@@ -50,6 +52,7 @@ export default function AdminDashboardPage() {
             fetchAllTestAttempts(5),
             fetchAllTestAttemptsForAdmin(),
             fetchPlans(),
+            fetchContactSubmissions(),
         ]);
         setAllCategories(cats);
         setAllPapers(papersData);
@@ -59,6 +62,7 @@ export default function AdminDashboardPage() {
         setRecentAttempts(recentAttemptsData);
         setAllTestAttempts(allAttemptsData);
         setAllPlans(plansData);
+        setContactSubmissions(submissionsData);
 
         const counts = linksData.reduce((acc, link) => {
             if (link.paperId) {
@@ -69,7 +73,6 @@ export default function AdminDashboardPage() {
         setQuestionCounts(counts);
 
     } catch(error) {
-        // console.error("Failed to load dashboard data:", error);
     } finally {
         setLoading(false);
     }
@@ -79,7 +82,6 @@ export default function AdminDashboardPage() {
     loadData();
   }, [loadData]);
   
-  // Calculate key metrics
   const {
     totalUsers,
     newUsersThisWeek,
@@ -93,6 +95,8 @@ export default function AdminDashboardPage() {
     failedCount,
     totalPlans,
     publishedPlans,
+    openTickets,
+    priorityTickets,
   } = useMemo(() => {
     const oneWeekAgo = subDays(new Date(), 7);
     const newUsers = allUsers.filter(u => u.createdAt && new Date(u.createdAt) >= oneWeekAgo).length;
@@ -121,8 +125,10 @@ export default function AdminDashboardPage() {
       failedCount: allTestAttempts.filter(a => a.status === 'completed' && !a.passed).length,
       totalPlans: allPlans.length,
       publishedPlans: allPlans.filter(p => p.published).length,
+      openTickets: contactSubmissions.filter(s => s.status === 'open').length,
+      priorityTickets: contactSubmissions.filter(s => s.priority).length,
     };
-  }, [allUsers, allPapers, allQuestions, allQuestionCategories, questionCounts, allTestAttempts, allPlans]);
+  }, [allUsers, allPapers, allQuestions, allQuestionCategories, questionCounts, allTestAttempts, allPlans, contactSubmissions]);
 
 
   const papersPerCategory = useMemo(() => {
@@ -183,6 +189,8 @@ export default function AdminDashboardPage() {
   }, [allQuestions, allQuestionCategories]);
 
   const recentPapers = useMemo(() => [...allPapers].sort((a, b) => b.id.localeCompare(a.id)).slice(0, 5), [allPapers]);
+  const recentUnreadMessages = useMemo(() => contactSubmissions.filter(s => !s.isRead).slice(0, 5), [contactSubmissions]);
+
   const userMap = useMemo(() => new Map(allUsers.map(u => [u.id, u])), [allUsers]);
   const plansMap = useMemo(() => new Map(allPlans.map(p => [p.id, p])), [allPlans]);
 
@@ -200,12 +208,12 @@ export default function AdminDashboardPage() {
 
     const active = allUsers.filter(u => {
         if (!u.planId) return false;
-        if (!u.planExpiryDate) return true; // Lifetime/free plans are active
+        if (!u.planExpiryDate) return true;
         return isAfter(new Date(u.planExpiryDate), now);
     });
 
     const expiring = active.filter(u => {
-        if (!u.planExpiryDate) return false; // Not expiring if lifetime
+        if (!u.planExpiryDate) return false;
         const expiryDate = new Date(u.planExpiryDate);
         return isAfter(expiryDate, now) && isBefore(expiryDate, endDate);
     });
@@ -301,7 +309,30 @@ export default function AdminDashboardPage() {
           </Card>
         </Link>
         
-        {/* New Row of Stats */}
+        <Link href="/admin/messages">
+            <Card className="hover:bg-muted/50 transition-colors">
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Open Tickets</CardTitle>
+                <Info className="h-4 w-4 text-muted-foreground" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">{openTickets}</div>
+                <p className="text-xs text-muted-foreground">Tickets needing a reply</p>
+              </CardContent>
+            </Card>
+        </Link>
+        <Link href="/admin/messages">
+            <Card className="hover:bg-muted/50 transition-colors">
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Priority Tickets</CardTitle>
+                <Star className="h-4 w-4 text-muted-foreground" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">{priorityTickets}</div>
+                <p className="text-xs text-muted-foreground">High-priority tickets</p>
+              </CardContent>
+            </Card>
+        </Link>
         <Card className="hover:bg-muted/50 transition-colors">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Total Test Attempts</CardTitle>
@@ -310,26 +341,6 @@ export default function AdminDashboardPage() {
           <CardContent>
             <div className="text-2xl font-bold">{totalTestAttempts}</div>
             <p className="text-xs text-muted-foreground">All attempts started by users</p>
-          </CardContent>
-        </Card>
-        <Card className="hover:bg-muted/50 transition-colors">
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Passed Tests</CardTitle>
-            <ShieldCheck className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{passedCount}</div>
-            <p className="text-xs text-muted-foreground">Total tests passed by users</p>
-          </CardContent>
-        </Card>
-        <Card className="hover:bg-muted/50 transition-colors">
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Failed Tests</CardTitle>
-            <ShieldAlert className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{failedCount}</div>
-            <p className="text-xs text-muted-foreground">Total tests failed by users</p>
           </CardContent>
         </Card>
         <Link href="/admin/plans">
@@ -395,51 +406,42 @@ export default function AdminDashboardPage() {
             <Card>
                 <CardHeader className="flex flex-row items-center">
                 <div className="grid gap-2">
-                        <CardTitle>Recent Papers</CardTitle>
-                        <CardDescription>The last 5 papers added to the system.</CardDescription>
+                        <CardTitle>Recent Unread Messages</CardTitle>
+                        <CardDescription>The last 5 unread messages from users.</CardDescription>
                     </div>
                     <Button asChild size="sm" className="ml-auto gap-1">
-                        <Link href="/admin/papers">View All <ArrowUpRight className="h-4 w-4" /></Link>
+                        <Link href="/admin/messages">View All <ArrowUpRight className="h-4 w-4" /></Link>
                     </Button>
                 </CardHeader>
                 <CardContent>
-                    <Table>
-                        <TableHeader>
-                            <TableRow>
-                                <TableHead className="w-[60%]">Title</TableHead>
-                                <TableHead>Details</TableHead>
-                                <TableHead className="text-right">Status</TableHead>
-                            </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                            {recentPapers.map((paper) => {
-                                const addedQuestions = questionCounts[paper.id] || 0;
-                                const categoryPath = getCategoryPath(paper.categoryId, allCategories);
-                                const categoryName = categoryPath?.map(c => c.name).join(' / ') || 'N/A';
-                                const isComplete = addedQuestions >= paper.questionCount;
+                    {recentUnreadMessages.length > 0 ? (
+                        <div className="space-y-4">
+                            {recentUnreadMessages.map((message) => {
                                 return (
-                                <TableRow key={paper.id}>
-                                    <TableCell>
-                                        <Link href={`/admin/papers/${paper.id}/edit`} className="font-medium hover:underline">{paper.title}</Link>
-                                        <div className="text-xs text-muted-foreground">
-                                            {categoryName}
+                                    <Link key={message.id} href="/admin/messages" className="flex items-center gap-4 hover:bg-muted/50 p-2 rounded-md">
+                                        <Avatar className="hidden h-9 w-9 sm:flex">
+                                            <AvatarFallback>{message.name.charAt(0)}</AvatarFallback>
+                                        </Avatar>
+                                        <div className="grid gap-1">
+                                            <p className="text-sm font-medium leading-none">{message.name}</p>
+                                            <p className="text-sm text-muted-foreground truncate max-w-xs">{message.subject}</p>
                                         </div>
-                                    </TableCell>
-                                    <TableCell className="text-sm text-muted-foreground">
-                                        <div className={cn(isComplete ? "text-green-600" : "text-destructive")}>
-                                            {addedQuestions} / {paper.questionCount} Qs
+                                        <div className="ml-auto font-medium text-right">
+                                            {message.priority && <Badge className="bg-amber-100 text-amber-800 border-amber-300 hover:bg-amber-200"><Star className="mr-1 h-3 w-3 fill-current"/>Priority</Badge>}
+                                            <div className="text-xs text-muted-foreground mt-1">
+                                                {formatDistanceToNow(new Date(message.createdAt), { addSuffix: true })}
+                                            </div>
                                         </div>
-                                        <div>{paper.duration} min</div>
-                                    </TableCell>
-                                    <TableCell className="text-right">
-                                        <Badge variant={paper.published ? "default" : "secondary"} className={cn(paper.published && "bg-green-600 hover:bg-green-700")}>
-                                            {paper.published ? 'Published' : 'Draft'}
-                                        </Badge>
-                                    </TableCell>
-                                </TableRow>
-                            )})}
-                        </TableBody>
-                    </Table>
+                                    </Link>
+                                )
+                            })}
+                        </div>
+                    ) : (
+                        <div className="text-center text-muted-foreground py-10">
+                            <Mail className="mx-auto h-12 w-12 text-muted-foreground/50" />
+                            <p className="mt-4">Inbox is all caught up!</p>
+                        </div>
+                    )}
                 </CardContent>
             </Card>
             <Card>
@@ -547,7 +549,3 @@ export default function AdminDashboardPage() {
     </div>
   );
 }
-
-    
-
-    

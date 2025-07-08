@@ -1,7 +1,7 @@
 
 'use server';
 
-import { collection, addDoc, serverTimestamp, getDocs, query, orderBy, doc, updateDoc, DocumentData, arrayUnion, getDoc, where } from 'firebase/firestore';
+import { collection, addDoc, serverTimestamp, getDocs, query, orderBy, doc, updateDoc, DocumentData, arrayUnion, getDoc, where, getCountFromServer } from 'firebase/firestore';
 import { db } from './firebase';
 import type { ContactSubmission, MessageReply, ContactSubmissionStatus } from '@/types';
 import { getUserProfile } from './user-service';
@@ -89,7 +89,7 @@ export async function addReplyToSubmission(submissionId: string, replyData: Repl
 const docToContactSubmission = (doc: DocumentData): ContactSubmission => {
     const data = doc.data();
     const replies = data.replies?.map((reply: any): MessageReply => ({
-        id: (reply.createdAt?.toDate() || new Date()).toISOString(), // use timestamp as a key
+        id: (reply.createdAt?.toDate() || new Date()).toISOString(),
         authorId: reply.authorId,
         authorName: reply.authorName,
         message: reply.message,
@@ -116,13 +116,11 @@ const docToContactSubmission = (doc: DocumentData): ContactSubmission => {
 export async function fetchContactSubmissions(): Promise<ContactSubmission[]> {
   try {
     const submissionsCol = collection(db, 'contact_submissions');
-    // Removed orderBy to sort in memory and avoid index issues.
     const q = query(submissionsCol);
     const snapshot = await getDocs(q);
     
     const submissions = snapshot.docs.map(docToContactSubmission);
     
-    // Sort in-memory
     submissions.sort((a,b) => new Date(b.lastRepliedAt!).getTime() - new Date(a.lastRepliedAt!).getTime());
 
     return submissions;
@@ -141,7 +139,6 @@ export async function getSubmissionById(submissionId: string, userId?: string): 
     
     const submission = docToContactSubmission(submissionDoc);
     
-    // If a userId is provided, ensure this submission belongs to them.
     if (userId && submission.userId !== userId) {
         return null;
     }
@@ -153,13 +150,11 @@ export async function getSubmissionById(submissionId: string, userId?: string): 
 export async function fetchSubmissionsForUser(userId: string): Promise<ContactSubmission[]> {
   try {
     const submissionsCol = collection(db, 'contact_submissions');
-    // Remove orderBy to avoid needing a composite index
     const q = query(submissionsCol, where('userId', '==', userId));
     const snapshot = await getDocs(q);
     
     const submissions = snapshot.docs.map(docToContactSubmission);
     
-    // Sort in-memory
     submissions.sort((a,b) => new Date(b.lastRepliedAt!).getTime() - new Date(a.lastRepliedAt!).getTime());
 
     return submissions;
@@ -175,5 +170,22 @@ export async function updateSubmissionStatus(id: string, status: ContactSubmissi
     return { success: true };
   } catch (error) {
     return { success: false, error: "Failed to update status." };
+  }
+}
+
+export async function getUnreadMessageSummary(): Promise<{ count: number; hasPriority: boolean }> {
+  try {
+    const q = query(collection(db, 'contact_submissions'), where('isRead', '==', false));
+    const snapshot = await getDocs(q);
+
+    if (snapshot.empty) {
+      return { count: 0, hasPriority: false };
+    }
+
+    const hasPriority = snapshot.docs.some(doc => doc.data().priority === true);
+    
+    return { count: snapshot.size, hasPriority };
+  } catch (error) {
+    return { count: 0, hasPriority: false };
   }
 }
