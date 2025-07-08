@@ -49,12 +49,13 @@ const contactTopics = [
 function ContactForm() {
   const { toast } = useToast();
   const { user } = useAuth();
-  const [isSubmitting, setIsSubmitting] = useState(false);
   
   const form = useForm<ContactFormValues>({
     resolver: zodResolver(contactFormSchema),
     defaultValues: { name: "", email: "", subject: "", message: "", topic: "" },
   });
+
+  const { formState: { isSubmitting } } = form;
   
   // Pre-fill form for logged-in users
   useEffect(() => {
@@ -65,7 +66,6 @@ function ContactForm() {
   }, [user, form]);
 
   async function onSubmit(data: ContactFormValues) {
-    setIsSubmitting(true);
     try {
       const result = await submitContactForm(data, user?.uid);
 
@@ -90,8 +90,6 @@ function ContactForm() {
         description: error.message || "Failed to send message. Please try again.",
         variant: "destructive",
       });
-    } finally {
-      setIsSubmitting(false);
     }
   }
 
