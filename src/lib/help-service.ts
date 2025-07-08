@@ -106,11 +106,18 @@ export async function addMultipleHelpArticles(
   const batch = writeBatch(db);
   const articlesCol = collection(db, 'help_articles');
   
-  const q = query(articlesCol, where("categoryId", "==", categoryId), orderBy("order", "desc"), limit(1));
+  // Fetch all articles in the category to find the current max order.
+  // This avoids needing a composite index in Firestore.
+  const q = query(articlesCol, where("categoryId", "==", categoryId));
   const snapshot = await getDocs(q);
   let maxOrder = 0;
   if (!snapshot.empty) {
-    maxOrder = snapshot.docs[0].data().order || 0;
+    snapshot.forEach(doc => {
+      const currentOrder = doc.data().order || 0;
+      if (currentOrder > maxOrder) {
+        maxOrder = currentOrder;
+      }
+    });
   }
 
   articles.forEach((article, index) => {

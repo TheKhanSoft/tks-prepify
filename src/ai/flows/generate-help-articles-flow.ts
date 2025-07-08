@@ -22,7 +22,7 @@ const ArticleSchema = z.object({
 });
 
 const GenerateHelpArticlesOutputSchema = z.object({
-  articles: z.array(ArticleSchema).describe('An array of 3 to 5 generated help articles.'),
+  articles: z.array(ArticleSchema).describe('An array of generated help articles, with a number of questions appropriate for the given category. Some categories might only need 2-3 questions, while broader ones might need more.'),
 });
 export type GenerateHelpArticlesOutput = z.infer<typeof GenerateHelpArticlesOutputSchema>;
 
@@ -34,13 +34,17 @@ const prompt = ai.definePrompt({
   name: 'generateHelpArticlesPrompt',
   input: {schema: GenerateHelpArticlesInputSchema},
   output: {schema: GenerateHelpArticlesOutputSchema},
-  prompt: `You are a helpful and friendly support agent for an exam preparation platform called "TKS Prepify". Your task is to generate a set of 3 to 5 frequently asked questions and their corresponding answers for a specific help center category.
+  prompt: `You are an expert content strategist for "TKS Prepify," an online exam preparation platform.
 
-The answers should be clear, concise, and formatted in Markdown for readability (e.g., use bolding, bullet points, etc.).
+Your task is to create a set of the most common and important frequently asked questions (FAQs) and their answers for a specific help center category.
+
+Instead of a fixed number, use your judgment to determine how many questions are appropriate for the topic. A narrow topic might only need 2 or 3 questions, while a broader one could require 5 or more. Focus on quality and relevance over quantity.
+
+The answers should be clear, concise, and formatted in Markdown for readability (e.g., use bolding, bullet points, numbered lists, etc.). Frame all responses from the perspective of supporting users of an exam prep website.
 
 Category: {{{categoryName}}}
 
-Generate the questions and answers based on what a user might ask about this topic in the context of an exam preparation platform.`,
+Generate the most relevant questions and answers a user would have about this topic on the TKS Prepify platform.`,
 });
 
 const generateHelpArticlesFlow = ai.defineFlow(
