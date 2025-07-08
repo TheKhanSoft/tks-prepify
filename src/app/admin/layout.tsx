@@ -2,7 +2,7 @@
 'use client';
 
 import { SidebarProvider, Sidebar, SidebarHeader, SidebarTrigger, SidebarMenu, SidebarMenuItem, SidebarMenuButton, SidebarContent, SidebarInset, SidebarFooter, SidebarSeparator } from '@/components/ui/sidebar';
-import { LayoutDashboard, FileText, Folder, Home, Users, Settings, Bell, Search, Library, Tags, Mail, FileSliders, ChevronRight, Database, Coins, LogOut, ClipboardList } from 'lucide-react';
+import { LayoutDashboard, FileText, Folder, Home, Users, Settings, Bell, Search, Library, Tags, Mail, FileSliders, ChevronRight, Database, Coins, LogOut, ClipboardList, LifeBuoy } from 'lucide-react';
 import Link from 'next/link';
 import { BookOpen } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -195,6 +195,14 @@ export default function AdminLayout({
                   <Link href="/admin/messages">
                     <Mail />
                     <span className="group-data-[collapsible=icon]:hidden">Messages</span>
+                  </Link>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+               <SidebarMenuItem>
+                <SidebarMenuButton asChild tooltip="Help Center">
+                  <Link href="/admin/help">
+                    <LifeBuoy />
+                    <span className="group-data-[collapsible=icon]:hidden">Help Center</span>
                   </Link>
                 </SidebarMenuButton>
               </SidebarMenuItem>

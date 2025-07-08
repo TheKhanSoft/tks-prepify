@@ -42,7 +42,7 @@ export function Footer({ settings }: { settings: Settings }) {
                 })}
             </div>
           </div>
-          <div className="grid grid-cols-2 gap-8 md:col-span-2 md:grid-cols-3">
+          <div className="grid grid-cols-2 gap-8 md:grid-cols-3">
             <div>
               <h3 className="font-semibold mb-2">Platform</h3>
               <ul className="space-y-2 text-muted-foreground">
@@ -60,7 +60,7 @@ export function Footer({ settings }: { settings: Settings }) {
               <ul className="space-y-2 text-muted-foreground">
                 <li><Link href="/about" className="hover:text-primary">About Us</Link></li>
                 <li><Link href="/contact" className="hover:text-primary">Contact Us</Link></li>
-                <li><Link href="#" className="hover:text-primary">Help Center</Link></li>
+                <li><Link href="/help" className="hover:text-primary">Help Center</Link></li>
                 <li><Link href="#" className="hover:text-primary">Blog</Link></li>
               </ul>
             </div>

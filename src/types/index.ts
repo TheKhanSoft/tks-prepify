@@ -252,3 +252,16 @@ export interface TestAttempt {
   // This will be fetched from a subcollection
   questionAttempts?: QuestionAttempt[];
 }
+
+export interface HelpCategory {
+  id: string;
+  name: string;
+}
+
+export interface HelpArticle {
+  id: string;
+  question: string;
+  answer: string;
+  categoryId: string;
+  order: number;
+}
