@@ -2,22 +2,30 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { useParams, useRouter } from 'next/navigation';
+import { useParams, useRouter, usePathname } from 'next/navigation';
 import { getTestConfigBySlug } from '@/lib/test-config-service';
 import type { TestConfig } from '@/types';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Loader2, ListChecks, Clock, Percent, ArrowRight, ArrowLeft } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
+import { useAuth } from '@/hooks/use-auth';
+import { useToast } from '@/hooks/use-toast';
+import { getUserProfile } from '@/lib/user-service';
+import { getPlanById } from '@/lib/plan-service';
+import { checkTestAttemptQuota } from '@/lib/test-attempt-service';
 
 export default function TestDetailsPage() {
     const params = useParams();
     const router = useRouter();
+    const pathname = usePathname();
     const slug = params.configId as string;
 
     const [config, setConfig] = useState<TestConfig | null>(null);
     const [loading, setLoading] = useState(true);
     const [isStarting, setIsStarting] = useState(false);
+    const { user } = useAuth();
+    const { toast } = useToast();
 
     useEffect(() => {
         if (!slug) return;
@@ -41,10 +49,54 @@ export default function TestDetailsPage() {
         loadConfig();
     }, [slug]);
     
-    const handleStartTest = () => {
+    const handleStartTest = async () => {
         if (!config) return;
+
+        if (!user) {
+            toast({
+                title: 'Login Required',
+                description: 'You must be logged in to take a test.',
+                variant: 'destructive',
+            });
+            router.push(`/login?redirect=${pathname}`);
+            return;
+        }
+
         setIsStarting(true);
-        router.push(`/tests/${config.slug}/take`);
+        try {
+            const profile = await getUserProfile(user.uid);
+            if (!profile || !profile.planId) {
+                throw new Error('Could not load your user profile or plan.');
+            }
+
+            const plan = await getPlanById(profile.planId);
+            if (!plan) {
+                throw new Error('Could not load your subscription plan.');
+            }
+
+            const quotaCheck = await checkTestAttemptQuota(user.uid, plan);
+
+            if (!quotaCheck.success) {
+                toast({
+                    title: 'Cannot Start Test',
+                    description: quotaCheck.message,
+                    variant: 'destructive',
+                });
+                setIsStarting(false);
+                return;
+            }
+            
+            // If quota check passes, proceed
+            router.push(`/tests/${config.slug}/take`);
+
+        } catch (error: any) {
+            toast({
+                title: 'An Error Occurred',
+                description: error.message || 'Could not process your request. Please try again.',
+                variant: 'destructive',
+            });
+            setIsStarting(false);
+        }
     };
 
     if (loading) {

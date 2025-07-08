@@ -18,8 +18,20 @@ import {
   limit,
 } from 'firebase/firestore';
 import { db } from './firebase';
-import type { TestConfig, PaperQuestion, QuestionAttempt, TestAttempt } from '@/types';
+import type { TestConfig, PaperQuestion, QuestionAttempt, TestAttempt, Plan, QuotaPeriod } from '@/types';
 import { serializeDate } from './utils';
+import {
+  startOfDay,
+  addDays,
+  addWeeks,
+  addMonths,
+  addYears,
+  differenceInWeeks,
+  differenceInMonths,
+  differenceInYears,
+  isAfter,
+} from 'date-fns';
+import { getUserProfile } from './user-service';
 
 type AnswerEntry = { answer?: string | string[]; timeSpent: number };
 type AnswersState = { [questionId: string]: AnswerEntry };
@@ -289,4 +301,96 @@ export async function fetchAllTestAttemptsForAdmin(): Promise<TestAttempt[]> {
     return attempts;
 }
 
+/**
+ * Counts the number of test attempts for a user within a given period.
+ */
+export async function countTestAttemptsForPeriod(
+  userId: string,
+  period: QuotaPeriod,
+  subscriptionDate: Date
+): Promise<{count: number; resetDate: Date | null}> {
+  if (!userId) {
+    throw new Error('User ID is required.');
+  }
+
+  const now = new Date();
+  const subscriptionStart = startOfDay(subscriptionDate);
+
+  let startDate: Date;
+  let resetDate: Date | null = null;
+
+  if (period === 'lifetime') {
+    startDate = new Date(0); 
+    resetDate = null; 
+  } else if (period === 'daily') {
+    startDate = startOfDay(now);
+    resetDate = addDays(startDate, 1);
+  } else {
     
+    let difference = 0;
+    if (period === 'weekly') {
+      difference = differenceInWeeks(now, subscriptionStart, { roundingMethod: 'floor' });
+      startDate = addWeeks(subscriptionStart, difference);
+      resetDate = addWeeks(startDate, 1);
+    } else if (period === 'monthly') {
+      difference = differenceInMonths(now, subscriptionStart);
+      startDate = addMonths(subscriptionStart, difference);
+      resetDate = addMonths(startDate, 1);
+    } else { // 'yearly'
+      difference = differenceInYears(now, subscriptionStart);
+      startDate = addYears(subscriptionStart, difference);
+      resetDate = addYears(startDate, 1);
+    }
+  }
+  
+  const attemptsQuery = query(
+    collection(db, 'test_attempts'),
+    where('userId', '==', userId),
+    where('startTime', '>=', Timestamp.fromDate(startDate))
+  );
+  
+  const snapshot = await getDocs(attemptsQuery);
+  return { count: snapshot.size, resetDate };
+}
+
+
+/**
+ * Checks if a user can take a test based on their plan quotas.
+ */
+export async function checkTestAttemptQuota(
+    userId: string,
+    plan: Plan,
+): Promise<{ success: boolean; message: string; }> {
+    const takeExamFeatures = plan.features.filter(f => f.key === 'take_exam' && f.isQuota);
+
+    if (takeExamFeatures.length === 0) {
+        return { success: true, message: 'Access granted.' };
+    }
+
+    const userPlansCol = collection(db, 'user_plans');
+    const q = query(userPlansCol, where("userId", "==", userId), where("status", "==", "active"), limit(1));
+    const currentPlanSnapshot = await getDocs(q);
+
+    let subscriptionDate: Date;
+    if (!currentPlanSnapshot.empty) {
+        const currentPlanDoc = currentPlanSnapshot.docs[0].data();
+        subscriptionDate = currentPlanDoc.subscriptionDate ? currentPlanDoc.subscriptionDate.toDate() : new Date();
+    } else {
+        const userProfile = await getUserProfile(userId);
+        subscriptionDate = userProfile?.createdAt ? new Date(userProfile.createdAt) : new Date();
+    }
+
+    for (const feature of takeExamFeatures) {
+        const quotaLimit = feature.limit ?? 0;
+        const period = feature.period;
+
+        if (quotaLimit !== -1 && period) {
+            const { count: attemptsThisPeriod } = await countTestAttemptsForPeriod(userId, period, subscriptionDate);
+            if (attemptsThisPeriod >= quotaLimit) {
+                return { success: false, message: `You have reached your ${period} test attempt limit of ${quotaLimit}.` };
+            }
+        }
+    }
+    
+    return { success: true, message: 'Quota check passed.' };
+}
