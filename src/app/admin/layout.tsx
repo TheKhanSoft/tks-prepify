@@ -2,7 +2,7 @@
 'use client';
 
 import { SidebarProvider, Sidebar, SidebarHeader, SidebarTrigger, SidebarMenu, SidebarMenuItem, SidebarMenuButton, SidebarContent, SidebarInset, SidebarFooter, SidebarSeparator, SidebarMenuBadge } from '@/components/ui/sidebar';
-import { LayoutDashboard, FileText, Folder, Home, Users, Settings, Bell, Search, Library, Tags, Mail, FileSliders, ChevronRight, Database, Coins, LogOut, ClipboardList, LifeBuoy, Download } from 'lucide-react';
+import { LayoutDashboard, FileText, Folder, Home, Users, Settings, Bell, Search, Library, Tags, Mail, FileSliders, ChevronRight, Database, Coins, LogOut, ClipboardList, LifeBuoy, Download, BarChart3 } from 'lucide-react';
 import Link from 'next/link';
 import { BookOpen } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -172,6 +172,14 @@ export default function AdminLayout({
                   <Link href="/admin/downloads">
                     <Download className="h-4 w-4" />
                     <span className="group-data-[collapsible=icon]:hidden">Downloads</span>
+                  </Link>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+              <SidebarMenuItem>
+                <SidebarMenuButton asChild tooltip="Results">
+                  <Link href="/admin/results">
+                    <BarChart3 className="h-4 w-4" />
+                    <span className="group-data-[collapsible=icon]:hidden">Results</span>
                   </Link>
                 </SidebarMenuButton>
               </SidebarMenuItem>
