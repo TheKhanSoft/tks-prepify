@@ -46,6 +46,19 @@ const docToDownload = (doc: DocumentData): Download => {
     }
 }
 
+export async function fetchAllDownloads(): Promise<Download[]> {
+  try {
+    const downloads = collection(db, 'downloads');
+    const q = query(downloads);
+    const snapshot = await getDocs(q);
+    
+    return snapshot.docs.map(docToDownload) ;
+    
+  } catch (error) {
+    return [] ;
+  }
+}
+
 /**
  * Counts the number of downloads for a user within a given period.
  * This function fetches all user downloads and filters in memory to avoid needing a composite index.
