@@ -5,7 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Badge } from "@/components/ui/badge"
-import { FileText, Users, PlusCircle, ArrowUpRight, Loader2, Library, Bell, ClipboardCheck, ShieldCheck, ShieldAlert, Coins, Info, Star, Mail, Database } from 'lucide-react';
+import { FileText, Users, PlusCircle, ArrowUpRight, Loader2, Library, Bell, ClipboardCheck, ShieldCheck, ShieldAlert, Coins, Info, Star, Mail, Database, LineChart, MessageCircle, BarChart3, Folder } from 'lucide-react';
 import { fetchCategories } from '@/lib/category-service';
 import { getCategoryPath } from '@/lib/category-helpers';
 import { fetchPapers } from '@/lib/paper-service';
@@ -24,6 +24,7 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { cn } from '@/lib/utils';
 import { subDays, formatDistanceToNow, isAfter, isBefore, addDays, format } from 'date-fns';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Separator } from '@/components/ui/separator';
 
 export default function AdminDashboardPage() {
   const [allCategories, setAllCategories] = useState<Category[]>([]);
@@ -92,6 +93,8 @@ export default function AdminDashboardPage() {
     failedCount,
     averageScore,
     openTickets,
+    unreadMessages,
+    priorityOpenTickets,
   } = useMemo(() => {
     const oneWeekAgo = subDays(new Date(), 7);
     const newUsers = allUsers.filter(u => u.createdAt && new Date(u.createdAt) >= oneWeekAgo).length;
@@ -113,6 +116,8 @@ export default function AdminDashboardPage() {
       failedCount: failed,
       averageScore: avgScore,
       openTickets: contactSubmissions.filter(s => s.status === 'open').length,
+      unreadMessages: contactSubmissions.filter(s => !s.isRead).length,
+      priorityOpenTickets: contactSubmissions.filter(s => s.status === 'open' && s.priority).length,
     };
   }, [allUsers, allPapers, allQuestions, allTestAttempts, contactSubmissions]);
 
@@ -174,7 +179,6 @@ export default function AdminDashboardPage() {
       }).filter(c => c.total > 0);
   }, [allQuestions, allQuestionCategories]);
 
-  const recentPapers = useMemo(() => [...allPapers].sort((a, b) => b.id.localeCompare(a.id)).slice(0, 5), [allPapers]);
   const recentUnreadMessages = useMemo(() => contactSubmissions.filter(s => !s.isRead).slice(0, 5), [contactSubmissions]);
 
   const userMap = useMemo(() => new Map(allUsers.map(u => [u.id, u])), [allUsers]);
@@ -218,6 +222,13 @@ export default function AdminDashboardPage() {
       )
   }
 
+  const StatItem = ({ label, value }: { label: string, value: string | number }) => (
+    <div className="text-center">
+        <p className="text-sm text-muted-foreground">{label}</p>
+        <p className="text-3xl font-bold">{value}</p>
+    </div>
+  );
+
   return (
     <div className="space-y-8">
       <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-4">
@@ -241,105 +252,89 @@ export default function AdminDashboardPage() {
         </div>
       </div>
       
-      <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
-        <Link href="/admin/users">
-          <Card className="hover:bg-muted/50 transition-colors">
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Total Users</CardTitle>
-              <Users className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{totalUsers}</div>
-              <p className="text-xs text-muted-foreground">
-                {newUsersThisWeek > 0 ? `+${newUsersThisWeek} in the last 7 days` : 'No new users this week'}
-              </p>
-            </CardContent>
-          </Card>
-        </Link>
-        <Link href="/admin/papers">
-          <Card className="hover:bg-muted/50 transition-colors">
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Total Papers</CardTitle>
-              <FileText className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{totalPapers}</div>
-              <p className="text-xs text-muted-foreground">
-                {allPapers.filter(p => !p.published).length} unpublished
-              </p>
-            </CardContent>
-          </Card>
-        </Link>
-        <Link href="/admin/questions">
-          <Card className="hover:bg-muted/50 transition-colors">
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Question Bank</CardTitle>
-              <Database className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{totalQuestions}</div>
-              <p className="text-xs text-muted-foreground">Total questions in bank</p>
-            </CardContent>
-          </Card>
-        </Link>
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total Test Attempts</CardTitle>
-            <ClipboardCheck className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{totalTestAttempts}</div>
-            <p className="text-xs text-muted-foreground">All attempts started by users</p>
-          </CardContent>
-        </Card>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+            <Link href="/admin/users">
+                <Card className="hover:bg-muted/50 transition-colors h-full">
+                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                        <CardTitle className="text-base font-medium">Users & Subscriptions</CardTitle>
+                        <Users className="h-5 w-5 text-muted-foreground" />
+                    </CardHeader>
+                    <CardContent className="space-y-4">
+                        <div className="grid grid-cols-2 gap-4 text-center">
+                            <div>
+                                <p className="text-sm text-muted-foreground">Total Users</p>
+                                <p className="text-2xl font-bold">{totalUsers}</p>
+                            </div>
+                             <div>
+                                <p className="text-sm text-muted-foreground">New This Week</p>
+                                <p className="text-2xl font-bold">{newUsersThisWeek}</p>
+                            </div>
+                        </div>
+                        <Separator />
+                        <div className="grid grid-cols-2 gap-4 text-center">
+                            <div>
+                                <p className="text-sm text-muted-foreground">Active Subs</p>
+                                <p className="text-2xl font-bold">{activeSubscribers.length}</p>
+                            </div>
+                            <div>
+                                <p className="text-sm text-muted-foreground">Expiring Soon</p>
+                                <p className="text-2xl font-bold">{expiringUsers.length}</p>
+                            </div>
+                        </div>
+                    </CardContent>
+                </Card>
+            </Link>
 
-        <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Passed Tests</CardTitle>
-                <ShieldCheck className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-                <div className="text-2xl font-bold">{passedCount}</div>
-                <p className="text-xs text-muted-foreground">
-                {totalTestAttempts > 0 ? `${((passedCount / allTestAttempts.filter(a => a.status === 'completed').length) * 100).toFixed(1)}% pass rate` : 'No completed tests'}
-                </p>
-            </CardContent>
-        </Card>
-        <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Failed Tests</CardTitle>
-                <ShieldAlert className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-                <div className="text-2xl font-bold">{failedCount}</div>
-                <p className="text-xs text-muted-foreground">
-                    {totalTestAttempts > 0 ? `${((failedCount / allTestAttempts.filter(a => a.status === 'completed').length) * 100).toFixed(1)}% fail rate` : 'No completed tests'}
-                </p>
-            </CardContent>
-        </Card>
-         <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Average Score</CardTitle>
-            <Star className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-            <div className="text-2xl font-bold">{averageScore.toFixed(1)}%</div>
-            <p className="text-xs text-muted-foreground">Across all completed tests</p>
-            </CardContent>
-        </Card>
-        <Link href="/admin/messages">
-            <Card className="hover:bg-muted/50 transition-colors">
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Open Tickets</CardTitle>
-                <Info className="h-4 w-4 text-muted-foreground" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold">{openTickets}</div>
-                <p className="text-xs text-muted-foreground">Tickets needing a reply</p>
-              </CardContent>
-            </Card>
-        </Link>
-      </div>
+             <Link href="/admin/papers">
+                <Card className="hover:bg-muted/50 transition-colors h-full">
+                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                        <CardTitle className="text-base font-medium">Content Overview</CardTitle>
+                        <Library className="h-5 w-5 text-muted-foreground" />
+                    </CardHeader>
+                    <CardContent>
+                        <div className="grid grid-cols-3 gap-4 py-4">
+                            <StatItem label="Papers" value={totalPapers} />
+                            <StatItem label="Categories" value={allCategories.length} />
+                            <StatItem label="Questions" value={totalQuestions} />
+                        </div>
+                    </CardContent>
+                </Card>
+            </Link>
+
+            <Link href="/admin/users">
+                 <Card className="hover:bg-muted/50 transition-colors h-full">
+                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                        <CardTitle className="text-base font-medium">Test Performance</CardTitle>
+                        <BarChart3 className="h-5 w-5 text-muted-foreground" />
+                    </CardHeader>
+                    <CardContent>
+                         <div className="grid grid-cols-2 gap-4 py-4">
+                            <StatItem label="Total Attempts" value={totalTestAttempts} />
+                             <StatItem label="Avg. Score" value={`${averageScore.toFixed(1)}%`} />
+                             <div className="flex justify-center items-center gap-1 text-green-600 font-bold"><ShieldCheck className="h-4 w-4" /> Passed: {passedCount}</div>
+                             <div className="flex justify-center items-center gap-1 text-destructive font-bold"><ShieldAlert className="h-4 w-4" /> Failed: {failedCount}</div>
+                         </div>
+                    </CardContent>
+                </Card>
+            </Link>
+            
+            <Link href="/admin/messages">
+                 <Card className="hover:bg-muted/50 transition-colors h-full">
+                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                        <CardTitle className="text-base font-medium">Support & Feedback</CardTitle>
+                        <MessageCircle className="h-5 w-5 text-muted-foreground" />
+                    </CardHeader>
+                    <CardContent>
+                        <div className="grid grid-cols-3 gap-4 py-4">
+                           <StatItem label="Open" value={openTickets} />
+                           <StatItem label="Unread" value={unreadMessages} />
+                           <StatItem label="Priority" value={priorityOpenTickets} />
+                        </div>
+                    </CardContent>
+                </Card>
+            </Link>
+        </div>
+
 
        <div className="grid gap-6 lg:grid-cols-2">
             <Card>
@@ -533,5 +528,3 @@ export default function AdminDashboardPage() {
     </div>
   );
 }
-
-    
