@@ -49,12 +49,26 @@ const NavItem = ({ href, tooltip, icon, children, badgeContent, badgeDestructive
 
   return (
     <SidebarMenuItem>
-      <SidebarMenuButton asChild tooltip={tooltip} variant={isActive ? "secondary" : "ghost"}>
+      <SidebarMenuButton 
+        asChild 
+        tooltip={tooltip} 
+        className={cn(
+          "transition-all duration-200 relative group",
+          // Active state: lighter background with subtle left border
+          isActive && "bg-orange-100 text-orange-600 hover:bg-orange-200 before:absolute before:left-0 before:top-0 before:bottom-0 before:w-1 before:bg-orange-500 before:rounded-r-sm",
+          // Inactive state: default with darker hover
+          !isActive && "hover:bg-gray-100 text-gray-700 hover:text-gray-900"
+        )}
+      >
         <Link href={href}>
           {icon}
           <span className="group-data-[collapsible=icon]:hidden">{children}</span>
           {badgeContent && (
-            <SidebarMenuBadge className={cn(badgeDestructive && 'bg-destructive text-destructive-foreground')}>
+            <SidebarMenuBadge className={cn(
+              "transition-colors duration-200",
+              badgeDestructive && 'bg-destructive text-destructive-foreground',
+              isActive && 'bg-orange-500 text-white'
+            )}>
               {badgeContent}
             </SidebarMenuBadge>
           )}
@@ -78,15 +92,35 @@ const NavGroup = ({ title, tooltip, icon, subItems }: {
       {/* Behavior for Expanded Sidebar: A Collapsible Area */}
       <Collapsible defaultOpen={isAnyChildActive} className="w-full group-data-[collapsible=icon]:hidden">
         <CollapsibleTrigger asChild>
-          <SidebarMenuButton variant={isAnyChildActive ? "secondary" : "ghost"} className="w-full justify-between">
+          <SidebarMenuButton 
+            className={cn(
+              "w-full justify-between transition-all duration-200 relative group",
+              // Parent active state: lighter background when child is active with left border
+              isAnyChildActive && "bg-orange-100 text-orange-600 hover:bg-orange-200 before:absolute before:left-0 before:top-0 before:bottom-0 before:w-1 before:bg-orange-500 before:rounded-r-sm",
+              // Parent inactive state: default with darker hover
+              !isAnyChildActive && "hover:bg-gray-100 text-gray-700 hover:text-gray-900"
+            )}
+          >
             <div className="flex items-center gap-2">{icon}<span>{title}</span></div>
             <ChevronRight className="h-4 w-4 transition-transform duration-200 [&[data-state=open]]:rotate-90" />
           </SidebarMenuButton>
         </CollapsibleTrigger>
         <CollapsibleContent>
-          <div className="pl-8 py-1 flex flex-col space-y-2">
+          <div className="pl-8 py-1 flex flex-col space-y-1">
             {subItems.map(item => (
-              <Button key={item.href} asChild variant="link" size="sm" className={cn("h-auto justify-start text-muted-foreground hover:text-foreground", pathname === item.href && "font-semibold text-primary")}>
+              <Button 
+                key={item.href} 
+                asChild 
+                variant="link" 
+                size="sm" 
+                className={cn(
+                  "h-auto justify-start transition-all duration-200 relative group rounded-md px-3 py-2",
+                  // Child active state: lighter background with orange text and subtle indicator
+                  pathname === item.href && "bg-orange-50 text-orange-600 font-semibold hover:bg-orange-100 before:absolute before:left-0 before:top-0 before:bottom-0 before:w-0.5 before:bg-orange-400 before:rounded-r-sm",
+                  // Child inactive state: muted with darker hover
+                  pathname !== item.href && "text-muted-foreground hover:text-gray-700 hover:bg-gray-50"
+                )}
+              >
                 <Link href={item.href}>{item.label}</Link>
               </Button>
             ))}
@@ -97,7 +131,16 @@ const NavGroup = ({ title, tooltip, icon, subItems }: {
       {/* Behavior for Collapsed Sidebar: A Dropdown Menu */}
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
-          <SidebarMenuButton tooltip={tooltip} variant={isAnyChildActive ? "secondary" : "ghost"} className="hidden group-data-[collapsible=icon]:flex group-data-[collapsible=icon]:justify-center">
+          <SidebarMenuButton 
+            tooltip={tooltip} 
+            className={cn(
+              "hidden group-data-[collapsible=icon]:flex group-data-[collapsible=icon]:justify-center transition-all duration-200 relative group",
+              // Parent active state in collapsed mode with left border
+              isAnyChildActive && "bg-orange-100 text-orange-600 hover:bg-orange-200 before:absolute before:left-0 before:top-0 before:bottom-0 before:w-1 before:bg-orange-500 before:rounded-r-sm",
+              // Parent inactive state in collapsed mode
+              !isAnyChildActive && "hover:bg-gray-100 text-gray-700 hover:text-gray-900"
+            )}
+          >
             {icon}
           </SidebarMenuButton>
         </DropdownMenuTrigger>
@@ -106,7 +149,12 @@ const NavGroup = ({ title, tooltip, icon, subItems }: {
           <DropdownMenuSeparator />
           {subItems.map(item => (
             <DropdownMenuItem key={item.href} asChild>
-              <Link href={item.href}>{item.label}</Link>
+              <Link href={item.href} className={cn(
+                "transition-colors duration-200",
+                pathname === item.href && "bg-orange-50 text-orange-600 font-semibold"
+              )}>
+                {item.label}
+              </Link>
             </DropdownMenuItem>
           ))}
         </DropdownMenuContent>
@@ -213,7 +261,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   return (
     <SidebarProvider>
       <Sidebar collapsible="icon" variant="sidebar" className="flex flex-col h-screen">
-        <SidebarHeader className="px-4 py-4 border-b">
+        <SidebarHeader className="px-4 py-4 border-b flex-shrink-0">
           <Link href="/admin/dashboard" className="flex items-center gap-2 font-bold text-lg hover:opacity-80 transition-opacity">
             <BookOpen className="h-5 w-5 text-primary flex-shrink-0" />
             <span 
@@ -224,7 +272,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
           </Link>
         </SidebarHeader>
 
-        <SidebarContent className="flex-1 overflow-y-auto pt-4">
+        <SidebarContent className="flex-1 overflow-y-auto pt-4 scrollbar-thin scrollbar-thumb-gray-300 scrollbar-track-gray-100 hover:scrollbar-thumb-gray-400">
           <SidebarMenu>
             <NavItem href="/admin/dashboard" tooltip="Dashboard" icon={<LayoutDashboard />}>Dashboard</NavItem>
             <SidebarSeparator className="my-2" />
@@ -276,11 +324,19 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
           </SidebarMenu>
         </SidebarContent>
 
-        <SidebarFooter className="border-t">
+        <SidebarFooter className="border-t p-2 flex-shrink-0">
           <SidebarMenu>
             <NavItem href="/admin/settings" tooltip="Settings" icon={<Settings />}>Settings</NavItem>
             <SidebarSeparator className="my-1" />
-            <NavItem href="/" tooltip="Back to Site" icon={<Home className="h-4 w-4" />}>Back to Site</NavItem>
+            {/* Back to Site - smaller and less prominent */}
+            <SidebarMenuItem>
+              <SidebarMenuButton asChild tooltip="Back to Site" size="sm" className="h-8 text-xs text-muted-foreground hover:text-foreground hover:bg-accent/50">
+                <Link href="/" className="flex items-center gap-2">
+                  <Home className="h-3 w-3" />
+                  <span className="group-data-[collapsible=icon]:hidden">Back to Site</span>
+                </Link>
+              </SidebarMenuButton>
+            </SidebarMenuItem>
           </SidebarMenu>
         </SidebarFooter>
       </Sidebar>
