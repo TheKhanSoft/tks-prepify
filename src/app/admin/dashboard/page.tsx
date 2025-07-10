@@ -515,7 +515,7 @@ export default function AdminDashboardPage() {
                   value={completedAttemptsCount}
                   icon={BookOpenCheck}
                   colorClass="bg-gradient-to-br from-emerald-600 to-green-500"
-                  href="/admin/users"
+                  href="/admin/results"
                 >
                   <div className="grid grid-cols-2 gap-6">
                     <span>
@@ -532,7 +532,7 @@ export default function AdminDashboardPage() {
                   value={totalDownloadsCount.toLocaleString()}
                   icon={Users}
                   colorClass="bg-gradient-to-br from-amber-600 to-yellow-500"
-                  href="/admin/users"
+                  href="/admin/downloads"
                 >
                   <div className="flex items-center gap-2">
                     <span
@@ -557,7 +557,7 @@ export default function AdminDashboardPage() {
                   value={`${successRate.toFixed(1)}%`}
                   icon={ShieldCheck}
                   colorClass="bg-gradient-to-br from-pink-500 to-rose-500"
-                  href="/admin/users"
+                  href="/admin/tests"
                 >
                   <div className="flex items-center justify-between">
                     <span>
@@ -635,7 +635,7 @@ export default function AdminDashboardPage() {
                 <CardTitle className="flex items-center justify-between">
                   <span>Recent Test Activity</span>
                   <Link
-                    href="/admin/users"
+                    href="/admin/results"
                     className="text-sm font-medium text-primary hover:underline flex items-center gap-1"
                   >
                     View All <ArrowUpRight className="h-4 w-4" />
@@ -677,7 +677,7 @@ export default function AdminDashboardPage() {
                               {attempt.testConfigName}
                             </p>
                           </div>
-                          <div className="text-right">
+                          <div className="text-right" right>
                             <div
                               className={cn(
                                 "font-bold text-lg flex items-center gap-1.5",

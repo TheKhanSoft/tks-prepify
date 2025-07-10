@@ -49,6 +49,7 @@ export async function updateRole(id: string, roleData: Partial<Omit<Role, 'id'>>
   await updateDoc(docRef, roleData);
 }
 
+
 export async function deleteRole(id: string) {
   const docRef = doc(db, 'roles', id);
   await deleteDoc(docRef);

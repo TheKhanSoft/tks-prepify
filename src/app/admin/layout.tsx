@@ -1,35 +1,124 @@
-
 'use client';
 
-import { SidebarProvider, Sidebar, SidebarHeader, SidebarTrigger, SidebarMenu, SidebarMenuItem, SidebarMenuButton, SidebarContent, SidebarInset, SidebarFooter, SidebarSeparator, SidebarMenuBadge } from '@/components/ui/sidebar';
-import { LayoutDashboard, FileText, Folder, Home, Users, Settings, Bell, Search, Library, Tags, Mail, FileSliders, ChevronRight, Database, Coins, LogOut, ClipboardList, LifeBuoy, Download, BarChart3, UserCog } from 'lucide-react';
+import { usePathname, useRouter } from 'next/navigation';
+import { useEffect, useState, useMemo, useRef } from 'react';
 import Link from 'next/link';
-import { BookOpen, Loader2, ShieldAlert } from 'lucide-react';
-import { Button } from '@/components/ui/button';
+import { signOut } from 'firebase/auth';
+import { auth } from '@/lib/firebase';
+import { cn } from '@/lib/utils';
+
+// --- UI & Icon Imports ---
+import { SidebarProvider, Sidebar, SidebarHeader, SidebarTrigger, SidebarMenu, SidebarMenuItem, SidebarMenuButton, SidebarContent, SidebarInset, SidebarFooter, SidebarSeparator, SidebarMenuBadge } from '@/components/ui/sidebar';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator, DropdownMenuLabel } from "@/components/ui/dropdown-menu";
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
-import { useEffect, useState } from 'react';
-import type { Settings as AppSettings, User as UserProfile } from '@/types';
+import { LayoutDashboard, FileText, Folder, Home, Users, Settings, Bell, Search, Mail, FileSliders, ChevronRight, Database, Coins, LogOut, ClipboardList, LifeBuoy, Download, BarChart3, UserCog, BookOpen, Loader2, ShieldAlert, X } from 'lucide-react';
+
+// --- Service, Type & Hook Imports ---
+import type { Settings as AppSettings } from '@/types';
 import { fetchSettings } from '@/lib/settings-service';
 import { useAuth } from '@/hooks/use-auth';
 import { useToast } from '@/hooks/use-toast';
-import { useRouter } from 'next/navigation';
-import { signOut } from 'firebase/auth';
-import { auth } from '@/lib/firebase';
-import { Skeleton } from '@/components/ui/skeleton';
 import { getUnreadMessageSummary } from '@/lib/contact-service';
-import { cn } from '@/lib/utils';
 import { getUserProfile } from '@/lib/user-service';
 
 const ADMIN_ROLES = ['Super Admin', 'Admin'];
 
-export default function AdminLayout({
-  children,
-}: {
+// ====================================================================
+// REUSABLE NAVIGATION HELPER COMPONENTS
+// ====================================================================
+
+const NavMenuLabel = ({ children }: { children: React.ReactNode }) => (
+  <div className="px-4 py-2 text-xs font-medium text-muted-foreground uppercase tracking-wider group-data-[collapsible=icon]:hidden">
+    {children}
+  </div>
+);
+
+const NavItem = ({ href, tooltip, icon, children, badgeContent, badgeDestructive }: {
+  href: string;
+  tooltip: string;
+  icon: React.ReactNode;
   children: React.ReactNode;
-}) {
+  badgeContent?: string | number;
+  badgeDestructive?: boolean;
+}) => {
+  const pathname = usePathname();
+  const isActive = pathname === href;
+
+  return (
+    <SidebarMenuItem>
+      <SidebarMenuButton asChild tooltip={tooltip} variant={isActive ? "secondary" : "ghost"}>
+        <Link href={href}>
+          {icon}
+          <span className="group-data-[collapsible=icon]:hidden">{children}</span>
+          {badgeContent && (
+            <SidebarMenuBadge className={cn(badgeDestructive && 'bg-destructive text-destructive-foreground')}>
+              {badgeContent}
+            </SidebarMenuBadge>
+          )}
+        </Link>
+      </SidebarMenuButton>
+    </SidebarMenuItem>
+  );
+};
+
+const NavGroup = ({ title, tooltip, icon, subItems }: {
+  title: string;
+  tooltip: string;
+  icon: React.ReactNode;
+  subItems: { href: string; label: string }[];
+}) => {
+  const pathname = usePathname();
+  const isAnyChildActive = useMemo(() => subItems.some(item => pathname.startsWith(item.href)), [subItems, pathname]);
+
+  return (
+    <SidebarMenuItem>
+      {/* Behavior for Expanded Sidebar: A Collapsible Area */}
+      <Collapsible defaultOpen={isAnyChildActive} className="w-full group-data-[collapsible=icon]:hidden">
+        <CollapsibleTrigger asChild>
+          <SidebarMenuButton variant={isAnyChildActive ? "secondary" : "ghost"} className="w-full justify-between">
+            <div className="flex items-center gap-2">{icon}<span>{title}</span></div>
+            <ChevronRight className="h-4 w-4 transition-transform duration-200 [&[data-state=open]]:rotate-90" />
+          </SidebarMenuButton>
+        </CollapsibleTrigger>
+        <CollapsibleContent>
+          <div className="pl-8 py-1 flex flex-col space-y-2">
+            {subItems.map(item => (
+              <Button key={item.href} asChild variant="link" size="sm" className={cn("h-auto justify-start text-muted-foreground hover:text-foreground", pathname === item.href && "font-semibold text-primary")}>
+                <Link href={item.href}>{item.label}</Link>
+              </Button>
+            ))}
+          </div>
+        </CollapsibleContent>
+      </Collapsible>
+
+      {/* Behavior for Collapsed Sidebar: A Dropdown Menu */}
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <SidebarMenuButton tooltip={tooltip} variant={isAnyChildActive ? "secondary" : "ghost"} className="hidden group-data-[collapsible=icon]:flex group-data-[collapsible=icon]:justify-center">
+            {icon}
+          </SidebarMenuButton>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent side="right" align="start" className="w-48">
+          <DropdownMenuLabel>{title}</DropdownMenuLabel>
+          <DropdownMenuSeparator />
+          {subItems.map(item => (
+            <DropdownMenuItem key={item.href} asChild>
+              <Link href={item.href}>{item.label}</Link>
+            </DropdownMenuItem>
+          ))}
+        </DropdownMenuContent>
+      </DropdownMenu>
+    </SidebarMenuItem>
+  );
+};
+
+// ====================================================================
+// THE MAIN ADMINLAYOUT COMPONENT
+// ====================================================================
+export default function AdminLayout({ children }: { children: React.ReactNode }) {
   const [settings, setSettings] = useState<AppSettings | null>(null);
   const { user, loading: authLoading } = useAuth();
   const { toast } = useToast();
@@ -38,27 +127,30 @@ export default function AdminLayout({
   const [unreadSummary, setUnreadSummary] = useState({ count: 0, hasPriority: false });
   const [isAuthorized, setIsAuthorized] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
+  
+  const [isSearchOpen, setIsSearchOpen] = useState(false);
+  const searchRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const checkAuthAndRole = async () => {
-      if (authLoading) return; // Wait until Firebase auth state is resolved
-
+      if (authLoading) return;
       if (!user) {
-        toast({ title: "Access Denied", description: "You must be logged in to view this page.", variant: "destructive" });
+        toast({ title: "Access Denied", description: "You must be logged in.", variant: "destructive" });
         router.push('/login');
         return;
       }
-      
       try {
         const userProfile = await getUserProfile(user.uid);
         if (userProfile && userProfile.role && ADMIN_ROLES.includes(userProfile.role)) {
             setIsAuthorized(true);
-            const summary = await getUnreadMessageSummary();
+            const [summary, appSettings] = await Promise.all([
+              getUnreadMessageSummary(),
+              fetchSettings()
+            ]);
             setUnreadSummary(summary);
-            const appSettings = await fetchSettings();
             setSettings(appSettings);
         } else {
-            toast({ title: "Permission Denied", description: "You do not have permission to access the admin area.", variant: "destructive" });
+            toast({ title: "Permission Denied", description: "You cannot access the admin area.", variant: "destructive" });
             router.push('/');
         }
       } catch (error) {
@@ -68,10 +160,22 @@ export default function AdminLayout({
         setIsLoading(false);
       }
     };
-    
     checkAuthAndRole();
-
   }, [user, authLoading, router, toast]);
+
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (searchRef.current && !searchRef.current.contains(event.target as Node)) {
+        setIsSearchOpen(false);
+      }
+    }
+    if (isSearchOpen) {
+      document.addEventListener("mousedown", handleClickOutside);
+    }
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, [isSearchOpen]);
 
   const handleLogout = async () => {
     try {
@@ -95,8 +199,7 @@ export default function AdminLayout({
   }
 
   if (!isAuthorized || !settings) {
-    // This part should ideally not be reached due to redirects, but serves as a fallback.
-     return (
+    return (
        <div className="flex h-screen w-full items-center justify-center bg-destructive/10 text-destructive">
          <div className="flex flex-col items-center gap-4 text-center p-8">
             <ShieldAlert className="h-12 w-12" />
@@ -109,238 +212,142 @@ export default function AdminLayout({
 
   return (
     <SidebarProvider>
-        <Sidebar collapsible="icon" variant="sidebar">
-          <SidebarHeader className="px-4 py-2">
-            <Link href="/admin/dashboard" className="flex items-center gap-2 font-bold text-lg">
-              <BookOpen className="h-6 w-6 text-primary" />
-              <span className="font-headline group-data-[collapsible=icon]:hidden">{settings.siteName}</span>
-            </Link>
-          </SidebarHeader>
-          <SidebarContent className="pt-4">
-            <SidebarMenu>
-              <SidebarMenuItem>
-                <SidebarMenuButton asChild tooltip="Dashboard">
-                  <Link href="/admin/dashboard">
-                    <LayoutDashboard />
-                    <span className="group-data-[collapsible=icon]:hidden">Dashboard</span>
-                  </Link>
-                </SidebarMenuButton>
-              </SidebarMenuItem>
-              <Collapsible asChild>
-                <SidebarMenuItem>
-                  <div className="w-full">
-                    <CollapsibleTrigger asChild>
-                      <SidebarMenuButton variant="ghost" className="w-full justify-between group-data-[collapsible=icon]:justify-center" tooltip="Pages">
-                        <div className="flex items-center gap-2">
-                          <FileSliders className="h-4 w-4"/>
-                          <span className="group-data-[collapsible=icon]:hidden">Pages</span>
-                        </div>
-                        <ChevronRight className="h-4 w-4 group-data-[collapsible=icon]:hidden transition-transform [&[data-state=open]]:rotate-90" />
-                      </SidebarMenuButton>
-                    </CollapsibleTrigger>
-                    <CollapsibleContent className="group-data-[collapsible=icon]:hidden">
-                      <div className="pl-8 py-1 flex flex-col gap-1">
-                        <Button asChild variant="link" className="h-auto p-0 justify-start text-muted-foreground hover:text-foreground">
-                          <Link href="/admin/pages/homepage">Homepage</Link>
-                        </Button>
-                        <Button asChild variant="link" className="h-auto p-0 justify-start text-muted-foreground hover:text-foreground">
-                          <Link href="/admin/pages/about">About Page</Link>
-                        </Button>
-                         <Button asChild variant="link" className="h-auto p-0 justify-start text-muted-foreground hover:text-foreground">
-                          <Link href="/admin/pages/contact">Contact Page</Link>
-                        </Button>
-                         <Button asChild variant="link" className="h-auto p-0 justify-start text-muted-foreground hover:text-foreground">
-                          <Link href="/admin/pages/terms">Terms of Service</Link>
-                        </Button>
-                         <Button asChild variant="link" className="h-auto p-0 justify-start text-muted-foreground hover:text-foreground">
-                          <Link href="/admin/pages/privacy">Privacy Policy</Link>
-                        </Button>
-                      </div>
-                    </CollapsibleContent>
-                  </div>
-                </SidebarMenuItem>
-              </Collapsible>
-              <SidebarMenuItem>
-                <SidebarMenuButton asChild tooltip="Papers">
-                  <Link href="/admin/papers">
-                    <FileText />
-                    <span className="group-data-[collapsible=icon]:hidden">Papers</span>
-                  </Link>
-                </SidebarMenuButton>
-              </SidebarMenuItem>
-              <SidebarMenuItem>
-                <SidebarMenuButton asChild tooltip="Categories">
-                  <Link href="/admin/categories">
-                    <Folder />
-                    <span className="group-data-[collapsible=icon]:hidden">Categories</span>
-                  </Link>
-                </SidebarMenuButton>
-              </SidebarMenuItem>
-              <SidebarMenuItem>
-                <SidebarMenuButton asChild tooltip="Plans">
-                  <Link href="/admin/plans">
-                    <Coins className="h-4 w-4" />
-                    <span className="group-data-[collapsible=icon]:hidden">Plans</span>
-                  </Link>
-                </SidebarMenuButton>
-              </SidebarMenuItem>
-              <SidebarMenuItem>
-                <SidebarMenuButton asChild tooltip="Test Configs">
-                  <Link href="/admin/test-configs">
-                    <ClipboardList className="h-4 w-4" />
-                    <span className="group-data-[collapsible=icon]:hidden">Test Configs</span>
-                  </Link>
-                </SidebarMenuButton>
-              </SidebarMenuItem>
-               <SidebarMenuItem>
-                <SidebarMenuButton asChild tooltip="Downloads">
-                  <Link href="/admin/downloads">
-                    <Download className="h-4 w-4" />
-                    <span className="group-data-[collapsible=icon]:hidden">Downloads</span>
-                  </Link>
-                </SidebarMenuButton>
-              </SidebarMenuItem>
-              <SidebarMenuItem>
-                <SidebarMenuButton asChild tooltip="Results">
-                  <Link href="/admin/results">
-                    <BarChart3 className="h-4 w-4" />
-                    <span className="group-data-[collapsible=icon]:hidden">Results</span>
-                  </Link>
-                </SidebarMenuButton>
-              </SidebarMenuItem>
-              <Collapsible asChild>
-                <SidebarMenuItem>
-                  <div className="w-full">
-                    <CollapsibleTrigger asChild>
-                      <SidebarMenuButton variant="ghost" className="w-full justify-between group-data-[collapsible=icon]:justify-center" tooltip="Question Bank">
-                        <div className="flex items-center gap-2">
-                          <Database className="h-4 w-4"/>
-                          <span className="group-data-[collapsible=icon]:hidden">Question Bank</span>
-                        </div>
-                        <ChevronRight className="h-4 w-4 group-data-[collapsible=icon]:hidden transition-transform [&[data-state=open]]:rotate-90" />
-                      </SidebarMenuButton>
-                    </CollapsibleTrigger>
-                    <CollapsibleContent className="group-data-[collapsible=icon]:hidden">
-                      <div className="pl-8 py-1 flex flex-col gap-1">
-                        <Button asChild variant="link" className="h-auto p-0 justify-start text-muted-foreground hover:text-foreground">
-                          <Link href="/admin/questions">All Questions</Link>
-                        </Button>
-                        <Button asChild variant="link" className="h-auto p-0 justify-start text-muted-foreground hover:text-foreground">
-                          <Link href="/admin/question-categories">Question Categories</Link>
-                        </Button>
-                      </div>
-                    </CollapsibleContent>
-                  </div>
-                </SidebarMenuItem>
-              </Collapsible>
-              <SidebarMenuItem>
-                <SidebarMenuButton asChild tooltip="Messages">
-                  <Link href="/admin/messages">
-                    <Mail />
-                    <span className="group-data-[collapsible=icon]:hidden">Messages</span>
-                     {unreadSummary.count > 0 && (
-                        <SidebarMenuBadge className={cn(unreadSummary.hasPriority && 'bg-destructive text-destructive-foreground')}>
-                            {unreadSummary.count}
-                        </SidebarMenuBadge>
-                    )}
-                  </Link>
-                </SidebarMenuButton>
-              </SidebarMenuItem>
-               <SidebarMenuItem>
-                <SidebarMenuButton asChild tooltip="Help Center">
-                  <Link href="/admin/help">
-                    <LifeBuoy />
-                    <span className="group-data-[collapsible=icon]:hidden">Help Center</span>
-                  </Link>
-                </SidebarMenuButton>
-              </SidebarMenuItem>
-            </SidebarMenu>
-          </SidebarContent>
-          <SidebarFooter>
-             <SidebarSeparator />
-            <SidebarMenu>
-               <SidebarMenuItem>
-                <SidebarMenuButton asChild tooltip="Users">
-                  <Link href="/admin/users">
-                    <Users />
-                    <span className="group-data-[collapsible=icon]:hidden">Users</span>
-                  </Link>
-                </SidebarMenuButton>
-              </SidebarMenuItem>
-              <SidebarMenuItem>
-                <SidebarMenuButton asChild tooltip="Roles">
-                  <Link href="/admin/roles">
-                    <UserCog />
-                    <span className="group-data-[collapsible=icon]:hidden">Roles</span>
-                  </Link>
-                </SidebarMenuButton>
-              </SidebarMenuItem>
-              <SidebarMenuItem>
-                  <SidebarMenuButton asChild tooltip="Settings">
-                      <Link href="/admin/settings">
-                          <Settings />
-                          <span className="group-data-[collapsible=icon]:hidden">Settings</span>
-                      </Link>
-                  </SidebarMenuButton>
-              </SidebarMenuItem>
-              <SidebarMenuItem>
-                  <SidebarMenuButton asChild tooltip="Back to Site">
-                      <Link href="/">
-                          <Home />
-                          <span className="group-data-[collapsible=icon]:hidden">Back to Site</span>
-                      </Link>
-                  </SidebarMenuButton>
-              </SidebarMenuItem>
-            </SidebarMenu>
-          </SidebarFooter>
-        </Sidebar>
-        <SidebarInset>
-          <header className="flex items-center justify-between px-8 md:px-16 h-16 border-b sticky top-0 bg-background z-10">
-            <div className="flex items-center gap-4">
-                <div className="md:hidden">
-                    <SidebarTrigger />
-                </div>
-                <div className="hidden md:block">
-                    <SidebarTrigger />
-                </div>
-                 <div className="relative hidden lg:block">
-                    <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-                    <Input placeholder="Search..." className="pl-8 w-full md:w-[200px] lg:w-[300px]" />
-                </div>
-            </div>
-            <div className="flex items-center gap-4">
-              <Button variant="ghost" size="icon" className="rounded-full">
-                <Bell className="h-5 w-5" />
-                <span className="sr-only">Toggle notifications</span>
+      <Sidebar collapsible="icon" variant="sidebar" className="flex flex-col h-screen">
+        <SidebarHeader className="px-4 py-4 border-b">
+          <Link href="/admin/dashboard" className="flex items-center gap-2 font-bold text-lg hover:opacity-80 transition-opacity">
+            <BookOpen className="h-5 w-5 text-primary flex-shrink-0" />
+            <span 
+              className="font-headline whitespace-nowrap overflow-hidden transition-all duration-300 ease-in-out group-data-[collapsible=icon]:w-0 group-data-[collapsible=icon]:opacity-0"
+            >
+              {settings.siteName}
+            </span>
+          </Link>
+        </SidebarHeader>
+
+        <SidebarContent className="flex-1 overflow-y-auto pt-4">
+          <SidebarMenu>
+            <NavItem href="/admin/dashboard" tooltip="Dashboard" icon={<LayoutDashboard />}>Dashboard</NavItem>
+            <SidebarSeparator className="my-2" />
+
+            <NavMenuLabel>Content</NavMenuLabel>
+            <NavGroup
+              title="Pages"
+              tooltip="Pages"
+              icon={<FileSliders className="h-4 w-4" />}
+              subItems={[
+                { href: "/admin/pages/homepage", label: "Homepage" },
+                { href: "/admin/pages/about", label: "About Page" },
+                { href: "/admin/pages/contact", label: "Contact Page" },
+                { href: "/admin/pages/terms", label: "Terms of Service" },
+                { href: "/admin/pages/privacy", label: "Privacy Policy" },
+              ]}
+            />
+            <NavItem href="/admin/papers" tooltip="Papers" icon={<FileText />}>Papers</NavItem>
+            <NavItem href="/admin/categories" tooltip="Categories" icon={<Folder />}>Categories</NavItem>
+            <SidebarSeparator className="my-2" />
+            
+            <NavMenuLabel>E-commerce</NavMenuLabel>
+            <NavItem href="/admin/plans" tooltip="Plans" icon={<Coins className="h-4 w-4" />}>Plans</NavItem>
+            <NavItem href="/admin/downloads" tooltip="Downloads" icon={<Download className="h-4 w-4" />}>Downloads</NavItem>
+            <SidebarSeparator className="my-2" />
+            
+            <NavMenuLabel>Assessment</NavMenuLabel>
+            <NavItem href="/admin/test-configs" tooltip="Test Configs" icon={<ClipboardList className="h-4 w-4" />}>Test Configs</NavItem>
+            <NavItem href="/admin/results" tooltip="Results" icon={<BarChart3 className="h-4 w-4" />}>Results</NavItem>
+            <NavGroup
+              title="Question Bank"
+              tooltip="Question Bank"
+              icon={<Database className="h-4 w-4" />}
+              subItems={[
+                { href: "/admin/questions", label: "All Questions" },
+                { href: "/admin/question-categories", label: "Question Categories" },
+              ]}
+            />
+            <SidebarSeparator className="my-2" />
+            
+            <NavMenuLabel>Communication</NavMenuLabel>
+            <NavItem href="/admin/messages" tooltip="Messages" icon={<Mail />} badgeContent={unreadSummary.count > 0 ? unreadSummary.count : undefined} badgeDestructive={unreadSummary.hasPriority}>Messages</NavItem>
+            <NavItem href="/admin/help" tooltip="Help Center" icon={<LifeBuoy />}>Help Center</NavItem>
+            <SidebarSeparator className="my-2" />
+            
+            <NavMenuLabel>User Management</NavMenuLabel>
+            <NavItem href="/admin/users" tooltip="Users" icon={<Users />}>Users</NavItem>
+            <NavItem href="/admin/roles" tooltip="Roles" icon={<UserCog />}>Roles</NavItem>
+          </SidebarMenu>
+        </SidebarContent>
+
+        <SidebarFooter className="border-t">
+          <SidebarMenu>
+            <NavItem href="/admin/settings" tooltip="Settings" icon={<Settings />}>Settings</NavItem>
+            <SidebarSeparator className="my-1" />
+            <NavItem href="/" tooltip="Back to Site" icon={<Home className="h-4 w-4" />}>Back to Site</NavItem>
+          </SidebarMenu>
+        </SidebarFooter>
+      </Sidebar>
+
+      <SidebarInset>
+        <header className="flex items-center justify-between px-1 pr-8 md:pr-8 h-16 border-b sticky top-0 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 z-10">
+          {isSearchOpen ? (
+            <div ref={searchRef} className="w-full flex items-center gap-2">
+              <Search className="h-5 w-5 text-muted-foreground" />
+              <Input
+                autoFocus
+                placeholder="Search across the entire platform..."
+                className="h-9 border-0 focus-visible:ring-0 focus-visible:ring-offset-0 bg-transparent text-base"
+              />
+              <Button variant="ghost" size="icon" className="h-9 w-9 rounded-full" onClick={() => setIsSearchOpen(false)}>
+                <X className="h-5 w-5" />
               </Button>
-               <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                    <Button variant="secondary" size="icon" className="rounded-full">
-                        <Avatar className="h-8 w-8">
-                          <AvatarImage src={user?.photoURL || undefined} alt={user?.displayName || "Admin"} data-ai-hint="male avatar"/>
-                          <AvatarFallback>{user?.displayName?.charAt(0) || user?.email?.charAt(0)}</AvatarFallback>
-                        </Avatar>
-                        <span className="sr-only">Toggle user menu</span>
-                    </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end">
-                  <DropdownMenuLabel>{user?.displayName || 'My Account'}</DropdownMenuLabel>
-                  <DropdownMenuSeparator />
-                  <DropdownMenuItem disabled>Profile</DropdownMenuItem>
-                   <DropdownMenuItem disabled>Settings</DropdownMenuItem>
-                  <DropdownMenuSeparator />
-                  <DropdownMenuItem onClick={handleLogout}>
-                    <LogOut className="mr-2 h-4 w-4" />
-                    Logout
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
             </div>
-          </header>
-          <div className="p-8 md:p-16 bg-muted/40 min-h-[calc(100vh-4rem)]">
-            {children}
-          </div>
-        </SidebarInset>
+          ) : (
+            <>
+              <div className="flex items-center gap-4">
+                  <SidebarTrigger className="hover:bg-accent" />
+              </div>
+              <div className="flex items-center gap-2">
+                <Button variant="ghost" size="icon" className="rounded-full h-9 w-9 hover:bg-accent" onClick={() => setIsSearchOpen(true)}>
+                  <Search className="h-4 w-4" />
+                  <span className="sr-only">Open Search</span>
+                </Button>
+                <Button variant="ghost" size="icon" className="rounded-full h-9 w-9 hover:bg-accent">
+                  <Bell className="h-4 w-4" />
+                  <span className="sr-only">Toggle notifications</span>
+                </Button>
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                      <Button variant="ghost" size="icon" className="rounded-full h-9 w-9 hover:bg-accent">
+                          <Avatar className="h-8 w-8">
+                            <AvatarImage src={user?.photoURL || undefined} alt={user?.displayName || "Admin"} />
+                            <AvatarFallback className="text-sm">{user?.displayName?.charAt(0) || user?.email?.charAt(0)}</AvatarFallback>
+                          </Avatar>
+                          <span className="sr-only">Toggle user menu</span>
+                      </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end" className="w-56">
+                    <DropdownMenuLabel className="font-normal">
+                      <div className="flex flex-col space-y-1">
+                        <p className="text-sm font-medium leading-none">{user?.displayName || 'Admin User'}</p>
+                        <p className="text-xs leading-none text-muted-foreground">{user?.email}</p>
+                      </div>
+                    </DropdownMenuLabel>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem disabled>Profile</DropdownMenuItem>
+                    <DropdownMenuItem disabled>Settings</DropdownMenuItem>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem onClick={handleLogout} className="text-destructive focus:text-destructive focus:bg-destructive/10">
+                      <LogOut className="mr-2 h-4 w-4" />
+                      <span>Logout</span>
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              </div>
+            </>
+          )}
+        </header>
+        <div className="p-6 md:p-8 bg-muted/40 min-h-[calc(100vh-4rem)]">
+          {children}
+        </div>
+      </SidebarInset>
     </SidebarProvider>
   );
 }
