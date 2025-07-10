@@ -8,7 +8,7 @@ import Link from 'next/link';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Loader2, Edit, Search, MoreHorizontal, CreditCard, UserCog } from "lucide-react";
+import { Loader2, Edit, Search, MoreHorizontal, CreditCard, UserCog, ShieldAlert } from "lucide-react";
 import { fetchUserProfiles, assignUserRole } from "@/lib/user-service";
 import { fetchPlans } from "@/lib/plan-service";
 import { fetchRoles } from "@/lib/role-service";
@@ -21,10 +21,14 @@ import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuLabel, DropdownMenuSeparator } from "@/components/ui/dropdown-menu";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter, DialogClose } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { useAuth } from "@/hooks/use-auth";
+
+const ADMIN_ROLES = ['Super Admin', 'Admin'];
 
 export default function AdminUsersPage() {
   const router = useRouter();
   const { toast } = useToast();
+  const { user: currentUser } = useAuth();
   const [users, setUsers] = useState<User[]>([]);
   const [plans, setPlans] = useState<Plan[]>([]);
   const [roles, setRoles] = useState<Role[]>([]);
@@ -139,7 +143,11 @@ export default function AdminUsersPage() {
               </TableHeader>
               <TableBody>
                 {filteredUsers.length > 0 ? (
-                  filteredUsers.map((user) => (
+                  filteredUsers.map((user) => {
+                     const isCurrentUserSuperAdmin = currentUser?.role === 'Super Admin';
+                     const targetUserIsAdmin = ADMIN_ROLES.includes(user.role || '');
+                     const canManageRole = isCurrentUserSuperAdmin || !targetUserIsAdmin;
+                    return (
                     <TableRow key={user.id}>
                       <TableCell>
                         <Link href={`/admin/users/${user.id}/subscription`} className="flex items-center gap-3 group">
@@ -154,7 +162,10 @@ export default function AdminUsersPage() {
                         </Link>
                       </TableCell>
                        <TableCell>
-                        <Badge variant="secondary">{user.role || "User"}</Badge>
+                        <Badge variant={targetUserIsAdmin ? "default" : "secondary"}>
+                          {targetUserIsAdmin && <ShieldAlert className="w-3.5 h-3.5 mr-1.5 -ml-1"/>}
+                          {user.role || "User"}
+                        </Badge>
                       </TableCell>
                       <TableCell>
                         <Badge variant="outline">{plansMap.get(user.planId) || "No Plan"}</Badge>
@@ -174,7 +185,7 @@ export default function AdminUsersPage() {
                             </DropdownMenuTrigger>
                             <DropdownMenuContent align="end">
                               <DropdownMenuLabel>Actions</DropdownMenuLabel>
-                              <DropdownMenuItem onSelect={() => handleOpenRoleDialog(user)}>
+                              <DropdownMenuItem onSelect={() => handleOpenRoleDialog(user)} disabled={!canManageRole}>
                                   <UserCog className="mr-2 h-4 w-4" />
                                   Change Role
                               </DropdownMenuItem>
@@ -194,7 +205,8 @@ export default function AdminUsersPage() {
                           </DropdownMenu>
                       </TableCell>
                     </TableRow>
-                  ))
+                    )
+                  })
                 ) : (
                   <TableRow>
                     <TableCell colSpan={5} className="h-24 text-center">

@@ -18,7 +18,7 @@ import {
   limit,
 } from 'firebase/firestore';
 import { db } from './firebase';
-import type { TestConfig, PaperQuestion, QuestionAttempt, TestAttempt, Plan, QuotaPeriod } from '@/types';
+import type { TestConfig, PaperQuestion, QuestionAttempt, TestAttempt, Plan, QuotaPeriod, User } from '@/types';
 import { serializeDate } from './utils';
 import {
   startOfDay,
@@ -40,12 +40,14 @@ type AnswersState = { [questionId: string]: AnswerEntry };
  * Creates a new test attempt record in Firestore when a user starts a test.
  */
 export async function startTestAttempt(
-  userId: string,
+  user: User,
   config: TestConfig
 ): Promise<string> {
   const attemptsCollection = collection(db, 'test_attempts');
   const newAttemptRef = await addDoc(attemptsCollection, {
-    userId,
+    userId: user.id,
+    userName: user.name,
+    userEmail: user.email,
     testConfigId: config.id,
     testConfigName: config.name,
     testConfigSlug: config.slug,
@@ -151,6 +153,8 @@ function docToTestAttempt(doc: DocumentData): TestAttempt {
   return {
     id: doc.id,
     userId: data.userId,
+    userName: data.userName,
+    userEmail: data.userEmail,
     testConfigId: data.testConfigId,
     testConfigName: data.testConfigName,
     testConfigSlug: data.testConfigSlug,
@@ -195,9 +199,10 @@ export async function getTestAttemptById(attemptId: string, userId: string): Pro
     }
 
     const testAttempt = docToTestAttempt(attemptDoc);
+    const userProfile = await getUserProfile(userId);
 
-    // Authorization check
-    if (testAttempt.userId !== userId) {
+    // Authorization check: User must own the attempt OR be an admin
+    if (testAttempt.userId !== userId && userProfile?.role !== 'Super Admin' && userProfile?.role !== 'Admin') {
         return null;
     }
 
@@ -295,6 +300,14 @@ export async function fetchAllTestAttemptsForAdmin(): Promise<TestAttempt[]> {
         } catch (e) {
         }
     });
+
+    // Sort in-memory to get the most recent ones first
+    attempts.sort((a, b) => {
+        const dateA = a.startTime ? new Date(a.startTime).getTime() : 0;
+        const dateB = b.startTime ? new Date(b.startTime).getTime() : 0;
+        return dateB - dateA;
+    });
+
     return attempts;
 }
 

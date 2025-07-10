@@ -1,4 +1,5 @@
 
+
 export interface Category {
   id: string;
   name: string;
@@ -232,6 +233,8 @@ export interface QuestionAttempt {
 export interface TestAttempt {
   id: string; // The doc ID of this attempt
   userId: string;
+  userName?: string;
+  userEmail?: string;
   testConfigId: string;
   testConfigName: string; // Denormalized for easy display
   testConfigSlug?: string;

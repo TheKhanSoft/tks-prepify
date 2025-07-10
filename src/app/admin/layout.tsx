@@ -4,14 +4,14 @@
 import { SidebarProvider, Sidebar, SidebarHeader, SidebarTrigger, SidebarMenu, SidebarMenuItem, SidebarMenuButton, SidebarContent, SidebarInset, SidebarFooter, SidebarSeparator, SidebarMenuBadge } from '@/components/ui/sidebar';
 import { LayoutDashboard, FileText, Folder, Home, Users, Settings, Bell, Search, Library, Tags, Mail, FileSliders, ChevronRight, Database, Coins, LogOut, ClipboardList, LifeBuoy, Download, BarChart3, UserCog } from 'lucide-react';
 import Link from 'next/link';
-import { BookOpen } from 'lucide-react';
+import { BookOpen, Loader2, ShieldAlert } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator, DropdownMenuLabel } from "@/components/ui/dropdown-menu";
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Input } from '@/components/ui/input';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { useEffect, useState } from 'react';
-import type { Settings as AppSettings } from '@/types';
+import type { Settings as AppSettings, User as UserProfile } from '@/types';
 import { fetchSettings } from '@/lib/settings-service';
 import { useAuth } from '@/hooks/use-auth';
 import { useToast } from '@/hooks/use-toast';
@@ -21,6 +21,9 @@ import { auth } from '@/lib/firebase';
 import { Skeleton } from '@/components/ui/skeleton';
 import { getUnreadMessageSummary } from '@/lib/contact-service';
 import { cn } from '@/lib/utils';
+import { getUserProfile } from '@/lib/user-service';
+
+const ADMIN_ROLES = ['Super Admin', 'Admin'];
 
 export default function AdminLayout({
   children,
@@ -28,21 +31,47 @@ export default function AdminLayout({
   children: React.ReactNode;
 }) {
   const [settings, setSettings] = useState<AppSettings | null>(null);
-  const { user } = useAuth();
+  const { user, loading: authLoading } = useAuth();
   const { toast } = useToast();
   const router = useRouter();
-  const [unreadSummary, setUnreadSummary] = useState({ count: 0, hasPriority: false });
   
+  const [unreadSummary, setUnreadSummary] = useState({ count: 0, hasPriority: false });
+  const [isAuthorized, setIsAuthorized] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
+
   useEffect(() => {
-    fetchSettings().then(setSettings);
+    const checkAuthAndRole = async () => {
+      if (authLoading) return; // Wait until Firebase auth state is resolved
 
-    const fetchUnreadCount = async () => {
-      const summary = await getUnreadMessageSummary();
-      setUnreadSummary(summary);
+      if (!user) {
+        toast({ title: "Access Denied", description: "You must be logged in to view this page.", variant: "destructive" });
+        router.push('/login');
+        return;
+      }
+      
+      try {
+        const userProfile = await getUserProfile(user.uid);
+        if (userProfile && userProfile.role && ADMIN_ROLES.includes(userProfile.role)) {
+            setIsAuthorized(true);
+            const summary = await getUnreadMessageSummary();
+            setUnreadSummary(summary);
+            const appSettings = await fetchSettings();
+            setSettings(appSettings);
+        } else {
+            toast({ title: "Permission Denied", description: "You do not have permission to access the admin area.", variant: "destructive" });
+            router.push('/');
+        }
+      } catch (error) {
+         toast({ title: "Authentication Error", description: "Could not verify your role.", variant: "destructive" });
+         router.push('/');
+      } finally {
+        setIsLoading(false);
+      }
     };
-    fetchUnreadCount();
+    
+    checkAuthAndRole();
 
-  }, []);
+  }, [user, authLoading, router, toast]);
 
   const handleLogout = async () => {
     try {
@@ -54,30 +83,26 @@ export default function AdminLayout({
     }
   };
 
-  if (!settings) {
+  if (isLoading) {
     return (
-       <div className="flex h-screen">
-            <div className="w-20 p-4 border-r">
-                <Skeleton className="h-8 w-8 rounded-full mb-8" />
-                <div className="space-y-4">
-                    <Skeleton className="h-8 w-8 rounded" />
-                    <Skeleton className="h-8 w-8 rounded" />
-                    <Skeleton className="h-8 w-8 rounded" />
-                    <Skeleton className="h-8 w-8 rounded" />
-                </div>
-            </div>
-            <div className="flex-1">
-                <header className="flex items-center justify-between px-8 h-16 border-b">
-                    <Skeleton className="h-8 w-8 rounded" />
-                    <div className="flex items-center gap-4">
-                        <Skeleton className="h-8 w-8 rounded-full" />
-                        <Skeleton className="h-8 w-8 rounded-full" />
-                    </div>
-                </header>
-                <div className="p-8">
-                    <Skeleton className="h-64 w-full" />
-                </div>
-            </div>
+       <div className="flex h-screen w-full items-center justify-center bg-background">
+         <div className="flex flex-col items-center gap-4">
+            <Loader2 className="h-12 w-12 animate-spin text-primary" />
+            <p className="text-muted-foreground">Verifying access...</p>
+         </div>
+       </div>
+    );
+  }
+
+  if (!isAuthorized || !settings) {
+    // This part should ideally not be reached due to redirects, but serves as a fallback.
+     return (
+       <div className="flex h-screen w-full items-center justify-center bg-destructive/10 text-destructive">
+         <div className="flex flex-col items-center gap-4 text-center p-8">
+            <ShieldAlert className="h-12 w-12" />
+            <h1 className="text-2xl font-bold">Access Denied</h1>
+            <p>You are being redirected.</p>
+         </div>
        </div>
     );
   }

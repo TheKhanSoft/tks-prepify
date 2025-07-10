@@ -4,7 +4,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { generateTest } from '@/lib/test-config-service';
-import type { TestConfig, PaperQuestion, QuestionAttempt } from '@/types';
+import type { TestConfig, PaperQuestion, QuestionAttempt, User } from '@/types';
 import { Loader2, Clock, ArrowLeft, ArrowRight, Flag } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
@@ -90,7 +90,7 @@ export default function TakeTestPage() {
                 setTimeLeft(fetchedConfig.duration * 60);
                 questionStartTimeRef.current = Date.now();
 
-                const newAttemptId = await startTestAttempt(user.uid, fetchedConfig);
+                const newAttemptId = await startTestAttempt(user as User, fetchedConfig);
                 setAttemptId(newAttemptId);
             } catch (error) {
                 console.error("Failed to generate test:", error);
