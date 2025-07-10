@@ -86,11 +86,17 @@ export interface TestResult {
   completedAt: Date;
 }
 
+export interface Role {
+    id: string;
+    name: string;
+}
+
 export interface User {
   id: string; // Firebase UID
   name: string | null;
   email: string | null;
   photoURL?: string | null;
+  role?: string;
   planId: string;
   planExpiryDate?: string | null; // Dates are serialized to strings for client
   createdAt: string | null; // Dates are serialized to strings for client

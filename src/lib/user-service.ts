@@ -48,6 +48,7 @@ export async function createUserProfile(user: UserProfileData, planId?: string) 
     name: user.displayName,
     email: user.email,
     photoURL: user.photoURL,
+    role: 'User', // Default role for new users
     planId: assignedPlan?.id || '',
     planExpiryDate: planExpiryDate,
     createdAt: serverTimestamp(),
@@ -94,6 +95,7 @@ const docToUser = (doc: DocumentData): User => {
         name: data.name || null,
         email: data.email || null,
         photoURL: data.photoURL || null,
+        role: data.role || 'User',
         planId: data.planId || '',
         createdAt: serializeDate(data.createdAt),
         planExpiryDate: serializeDate(data.planExpiryDate),
@@ -121,6 +123,12 @@ export const updateUserProfileInFirestore = async (userId: string, data: { name?
     const userDocRef = doc(db, 'users', userId);
     await updateDoc(userDocRef, data);
 }
+
+export const assignUserRole = async (userId: string, role: string) => {
+    if (!userId) throw new Error("User ID is required.");
+    const userDocRef = doc(db, 'users', userId);
+    await updateDoc(userDocRef, { role });
+};
 
 export async function changeUserSubscription(
   userId: string,

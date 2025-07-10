@@ -2,7 +2,7 @@
 'use client';
 
 import { SidebarProvider, Sidebar, SidebarHeader, SidebarTrigger, SidebarMenu, SidebarMenuItem, SidebarMenuButton, SidebarContent, SidebarInset, SidebarFooter, SidebarSeparator, SidebarMenuBadge } from '@/components/ui/sidebar';
-import { LayoutDashboard, FileText, Folder, Home, Users, Settings, Bell, Search, Library, Tags, Mail, FileSliders, ChevronRight, Database, Coins, LogOut, ClipboardList, LifeBuoy, Download, BarChart3 } from 'lucide-react';
+import { LayoutDashboard, FileText, Folder, Home, Users, Settings, Bell, Search, Library, Tags, Mail, FileSliders, ChevronRight, Database, Coins, LogOut, ClipboardList, LifeBuoy, Download, BarChart3, UserCog } from 'lucide-react';
 import Link from 'next/link';
 import { BookOpen } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -208,15 +208,7 @@ export default function AdminLayout({
                   </div>
                 </SidebarMenuItem>
               </Collapsible>
-               <SidebarMenuItem>
-                <SidebarMenuButton asChild tooltip="Users">
-                  <Link href="/admin/users">
-                    <Users />
-                    <span className="group-data-[collapsible=icon]:hidden">Users</span>
-                  </Link>
-                </SidebarMenuButton>
-              </SidebarMenuItem>
-               <SidebarMenuItem>
+              <SidebarMenuItem>
                 <SidebarMenuButton asChild tooltip="Messages">
                   <Link href="/admin/messages">
                     <Mail />
@@ -242,22 +234,38 @@ export default function AdminLayout({
           <SidebarFooter>
              <SidebarSeparator />
             <SidebarMenu>
-                <SidebarMenuItem>
-                    <SidebarMenuButton asChild tooltip="Settings">
-                        <Link href="/admin/settings">
-                            <Settings />
-                            <span className="group-data-[collapsible=icon]:hidden">Settings</span>
-                        </Link>
-                    </SidebarMenuButton>
-                </SidebarMenuItem>
-                 <SidebarMenuItem>
-                    <SidebarMenuButton asChild tooltip="Back to Site">
-                        <Link href="/">
-                            <Home />
-                            <span className="group-data-[collapsible=icon]:hidden">Back to Site</span>
-                        </Link>
-                    </SidebarMenuButton>
-                </SidebarMenuItem>
+               <SidebarMenuItem>
+                <SidebarMenuButton asChild tooltip="Users">
+                  <Link href="/admin/users">
+                    <Users />
+                    <span className="group-data-[collapsible=icon]:hidden">Users</span>
+                  </Link>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+              <SidebarMenuItem>
+                <SidebarMenuButton asChild tooltip="Roles">
+                  <Link href="/admin/roles">
+                    <UserCog />
+                    <span className="group-data-[collapsible=icon]:hidden">Roles</span>
+                  </Link>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+              <SidebarMenuItem>
+                  <SidebarMenuButton asChild tooltip="Settings">
+                      <Link href="/admin/settings">
+                          <Settings />
+                          <span className="group-data-[collapsible=icon]:hidden">Settings</span>
+                      </Link>
+                  </SidebarMenuButton>
+              </SidebarMenuItem>
+              <SidebarMenuItem>
+                  <SidebarMenuButton asChild tooltip="Back to Site">
+                      <Link href="/">
+                          <Home />
+                          <span className="group-data-[collapsible=icon]:hidden">Back to Site</span>
+                      </Link>
+                  </SidebarMenuButton>
+              </SidebarMenuItem>
             </SidebarMenu>
           </SidebarFooter>
         </Sidebar>

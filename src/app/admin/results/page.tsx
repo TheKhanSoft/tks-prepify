@@ -4,7 +4,8 @@ import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/com
 import { ChevronRight, Loader2, BarChart3, ShieldAlert, ListChecks, Check, Star, ShieldCheck, Calendar, Clock, Target, TrendingUp, Award, BookOpen } from 'lucide-react';
 import { useAuth } from "@/hooks/use-auth";
 import { fetchAllTestAttemptsForAdmin } from "@/lib/test-attempt-service";
-import type { TestAttempt } from "@/types";
+import type { TestAttempt, User as UserType } from "@/types";
+import { fetchUserProfiles } from "@/lib/user-service";
 import { useEffect, useState, useMemo } from "react";
 import { format } from "date-fns";
 import { Badge } from "@/components/ui/badge";
@@ -47,7 +48,7 @@ const StatusBadge = ({ attempt }: { attempt: TestAttempt }) => {
 };
 
 // Modern test attempt card component
-const TestAttemptCard = ({ attempt }: { attempt: TestAttempt }) => {
+const TestAttemptCard = ({ attempt, userMap }: { attempt: TestAttempt; userMap: Map<string, UserType> }) => {
     const getScoreColor = (percentage: number) => {
         if (percentage >= 80) return "text-emerald-600";
         if (percentage >= 60) return "text-yellow-600";
@@ -59,6 +60,8 @@ const TestAttemptCard = ({ attempt }: { attempt: TestAttempt }) => {
         if (percentage >= 60) return "bg-yellow-50 border-yellow-200";
         return "bg-red-50 border-red-200";
     };
+    
+    const testUser = userMap.get(attempt.userId);
 
     const CardWrapper = ({ children }: { children: React.ReactNode }) => {
         if (attempt.status === 'completed') {
@@ -92,7 +95,7 @@ const TestAttemptCard = ({ attempt }: { attempt: TestAttempt }) => {
                             </div>
                             <div className="flex items-center gap-2 text-sm font-medium text-foreground">
                                 <div className="w-2 h-2 bg-primary rounded-full" />
-                                {attempt.userName || attempt.userEmail || 'Unknown User'}
+                                {testUser?.name || attempt.userName || attempt.userEmail || 'Unknown User'}
                             </div>
                         </div>
                     </div>
@@ -177,6 +180,7 @@ export default function ResultsPage() {
     const [attempts, setAttempts] = useState<TestAttempt[]>([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
+    const [users, setUsers] = useState<UserType[]>([]);
 
     useEffect(() => {
         if (authLoading) return;
@@ -189,8 +193,12 @@ export default function ResultsPage() {
             setLoading(true);
             setError(null);
             try {
-                const fetchedAttempts = await fetchAllTestAttemptsForAdmin();
+                const [fetchedAttempts, usersData] = await Promise.all([
+                    fetchAllTestAttemptsForAdmin(), 
+                    fetchUserProfiles()
+                ]);
                 setAttempts(fetchedAttempts);
+                setUsers(usersData);
             } catch (err) {
                 setError("Could not retrieve your test results. Please try refreshing the page.");
             } finally {
@@ -200,6 +208,8 @@ export default function ResultsPage() {
 
         loadAttempts();
     }, [user, authLoading]);
+
+    const userMap = useMemo(() => new Map(users.map(u => [u.id, u])), [users]);
     
     const { completedAttempts, averageScore, passRate, recentTrend } = useMemo(() => {
         const completed = attempts.filter(a => a.status === 'completed');
@@ -208,7 +218,7 @@ export default function ResultsPage() {
             : null;
         const passedCount = completed.filter(a => a.passed).length;
         const rate = completed.length > 0 ? (passedCount / completed.length) * 100 : null;
-        
+    
         // Calculate recent trend (last 3 vs previous 3)
         const recent = completed.slice(-3);
         const previous = completed.slice(-6, -3);
@@ -299,7 +309,7 @@ export default function ResultsPage() {
                 {!error && attempts.length > 0 && (
                     <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
                         {attempts.map(attempt => (
-                            <TestAttemptCard key={attempt.id} attempt={attempt} />
+                            <TestAttemptCard key={attempt.id} attempt={attempt} userMap={userMap} />
                         ))}
                     </div>
                 )}
