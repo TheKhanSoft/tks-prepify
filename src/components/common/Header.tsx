@@ -2,26 +2,29 @@
 "use client";
 
 import Link from "next/link";
-import { BookOpen, Globe, Search, User, Menu, Wrench, LogOut, LayoutDashboard, TestTube } from "lucide-react";
+import { BookOpen, Globe, Search, User, Menu, Wrench, LogOut, LayoutDashboard } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator, DropdownMenuLabel } from "@/components/ui/dropdown-menu";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import React from "react";
-import type { Settings } from "@/types";
+import type { Settings, User as UserProfile } from "@/types";
 import { useAuth } from "@/hooks/use-auth";
 import { signOut } from "firebase/auth";
 import { auth } from "@/lib/firebase";
 import { useToast } from "@/hooks/use-toast";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useRouter } from "next/navigation";
+import { getUserProfile } from "@/lib/user-service";
 
+const ADMIN_ROLES = ['Super Admin', 'Admin'];
 
 export function Header({ settings }: { settings: Settings }) {
   const [isScrolled, setIsScrolled] = React.useState(false);
-  const { user } = useAuth();
+  const { user, loading: authLoading } = useAuth();
   const { toast } = useToast();
   const router = useRouter();
+  const [userProfile, setUserProfile] = React.useState<UserProfile | null>(null);
 
   React.useEffect(() => {
     const handleScroll = () => {
@@ -30,6 +33,14 @@ export function Header({ settings }: { settings: Settings }) {
     window.addEventListener("scroll", handleScroll);
     return () => window.removeEventListener("scroll", handleScroll);
   }, []);
+
+  React.useEffect(() => {
+    if (user && !authLoading) {
+      getUserProfile(user.uid).then(setUserProfile);
+    } else {
+      setUserProfile(null);
+    }
+  }, [user, authLoading]);
 
   const handleLogout = async () => {
     try {
@@ -60,6 +71,8 @@ export function Header({ settings }: { settings: Settings }) {
       ))}
     </nav>
   );
+  
+  const hasAdminAccess = userProfile?.role && ADMIN_ROLES.includes(userProfile.role);
 
   return (
     <header className={`sticky top-0 z-50 transition-all duration-300 ${isScrolled ? 'bg-card/80 backdrop-blur-sm border-b' : 'bg-transparent'}`}>
@@ -118,12 +131,14 @@ export function Header({ settings }: { settings: Settings }) {
                       My Dashboard
                     </Link>
                   </DropdownMenuItem>
-                  <DropdownMenuItem asChild>
-                    <Link href="/admin/dashboard">
-                      <Wrench className="mr-2 h-4 w-4" />
-                      Admin Panel
-                    </Link>
-                  </DropdownMenuItem>
+                  {hasAdminAccess && (
+                    <DropdownMenuItem asChild>
+                      <Link href="/admin/dashboard">
+                        <Wrench className="mr-2 h-4 w-4" />
+                        Admin Panel
+                      </Link>
+                    </DropdownMenuItem>
+                  )}
                   <DropdownMenuSeparator />
                   <DropdownMenuItem onClick={handleLogout}>
                     <LogOut className="mr-2 h-4 w-4" />
