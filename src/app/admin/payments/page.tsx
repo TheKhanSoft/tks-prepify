@@ -12,6 +12,7 @@ import {
   CardDescription,
   CardHeader,
   CardTitle,
+  CardFooter,
 } from "@/components/ui/card";
 import {
   Dialog,
@@ -134,7 +135,7 @@ export default function PaymentMethodsPage() {
     setLoading(false);
   }, [toast]);
 
-  useEffect(() => { loadData(); }, [loadMethods]);
+  useEffect(() => { loadMethods(); }, [loadMethods]);
 
   const openDialog = (method: PaymentMethod | null = null) => {
     setEditingMethod(method);

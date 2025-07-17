@@ -87,7 +87,7 @@ function CheckoutPageComponent({ planId, optionLabel }: { planId: string, option
 
         const loadData = async () => {
             if (!planId || !optionLabel) {
-                 toast({ title: "Error", description: "Invalid plan or pricing option selected.", variant: "destructive" });
+                 toast({ title: "Error loading plan", description: "The selected plan or option might not exist or is unavailable.", variant: "destructive" });
                  router.push('/pricing');
                  return;
             }
@@ -184,7 +184,7 @@ function CheckoutPageComponent({ planId, optionLabel }: { planId: string, option
                                 <p className="text-muted-foreground">{selectedOption.label} Plan</p>
                                 <div className="mt-4 text-4xl font-extrabold">
                                     PKR {selectedOption?.price || '0'}
-                                    <span className="text-base font-normal text-muted-foreground">/{selectedOption?.label}</span>
+                                    <span className="text-base font-normal text-muted-foreground">/{selectedOption.months === 1 ? 'month' : 'year'}</span>
                                 </div>
                             </div>
                             <div className="space-y-2 pt-4">
