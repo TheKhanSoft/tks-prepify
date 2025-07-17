@@ -115,35 +115,37 @@ export default function AboutSettingsPage() {
                 <p className="text-muted-foreground">Manage the content displayed on your About Us page.</p>
             </div>
             <Form {...form}>
-                <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8 max-w-4xl">
-                     <Card>
-                        <CardHeader><CardTitle>About Page Content</CardTitle><CardDescription>Manage the content displayed on your About Us page.</CardDescription></CardHeader>
-                        <CardContent className="space-y-6">
-                            <FormField control={form.control} name="aboutTitle" render={({ field }) => (<FormItem><FormLabel>Title</FormLabel><FormControl><Input {...field} value={field.value || ''} /></FormControl></FormItem>)} />
-                            <FormField control={form.control} name="aboutSubtitle" render={({ field }) => (<FormItem><FormLabel>Subtitle</FormLabel><FormControl><Textarea {...field} value={field.value || ''} /></FormControl></FormItem>)} />
-                            <FormField control={form.control} name="aboutMission" render={({ field }) => (<FormItem><FormLabel>Our Mission</FormLabel><FormControl><Textarea {...field} value={field.value || ''} rows={4} /></FormControl></FormItem>)} />
-                            <FormField control={form.control} name="aboutVision" render={({ field }) => (<FormItem><FormLabel>Our Vision</FormLabel><FormControl><Textarea {...field} value={field.value || ''} rows={4} /></FormControl></FormItem>)} />
-                            
-                            <div className="space-y-4 pt-4 border-t">
-                                <FormField control={form.control} name="aboutTeamTitle" render={({ field }) => (<FormItem><FormLabel>Team Section Title</FormLabel><FormControl><Input {...field} value={field.value || ''} /></FormControl></FormItem>)} />
-                                {teamFields.map((item, index) => (
-                                    <div key={item.id} className="flex flex-col gap-4 p-4 border rounded-lg relative">
-                                        <Button type="button" variant="ghost" size="icon" className="absolute top-2 right-2 text-destructive hover:text-destructive hover:bg-destructive/10" onClick={() => removeTeam(index)}><Trash2 className="h-4 w-4" /><span className="sr-only">Remove Member</span></Button>
-                                        <FormField control={form.control} name={`teamMembers.${index}.name`} render={({ field }) => (<FormItem><FormLabel>Member Name</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>)} />
-                                        <FormField control={form.control} name={`teamMembers.${index}.role`} render={({ field }) => (<FormItem><FormLabel>Member Role</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>)} />
-                                        <FormField control={form.control} name={`teamMembers.${index}.avatar`} render={({ field }) => (<FormItem><FormLabel>Avatar Image URL</FormLabel><FormControl><Input {...field} placeholder="https://..." /></FormControl><FormMessage /></FormItem>)} />
-                                        <FormField control={form.control} name={`teamMembers.${index}.hint`} render={({ field }) => (<FormItem><FormLabel>Avatar AI Hint</FormLabel><FormControl><Input {...field} /></FormControl><FormDescription>One or two keywords for AI image search (e.g., 'male portrait').</FormDescription><FormMessage /></FormItem>)} />
-                                    </div>
-                                ))}
-                                <Button type="button" variant="outline" onClick={() => appendTeam({ name: '', role: '', avatar: '', hint: '' })}><PlusCircle className="mr-2 h-4 w-4" />Add Team Member</Button>
-                            </div>
-                        </CardContent>
-                    </Card>
-                    <div className="flex justify-end">
-                        <Button type="submit" disabled={isSubmitting || loading}>
-                        {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                        Save Settings
-                        </Button>
+                <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
+                    <div className="rounded-lg border bg-card text-card-foreground shadow-sm">
+                        <Card>
+                            <CardHeader><CardTitle>About Page Content</CardTitle><CardDescription>Manage the content displayed on your About Us page.</CardDescription></CardHeader>
+                            <CardContent className="space-y-6">
+                                <FormField control={form.control} name="aboutTitle" render={({ field }) => (<FormItem><FormLabel>Title</FormLabel><FormControl><Input {...field} value={field.value || ''} /></FormControl></FormItem>)} />
+                                <FormField control={form.control} name="aboutSubtitle" render={({ field }) => (<FormItem><FormLabel>Subtitle</FormLabel><FormControl><Textarea {...field} value={field.value || ''} /></FormControl></FormItem>)} />
+                                <FormField control={form.control} name="aboutMission" render={({ field }) => (<FormItem><FormLabel>Our Mission</FormLabel><FormControl><Textarea {...field} value={field.value || ''} rows={4} /></FormControl></FormItem>)} />
+                                <FormField control={form.control} name="aboutVision" render={({ field }) => (<FormItem><FormLabel>Our Vision</FormLabel><FormControl><Textarea {...field} value={field.value || ''} rows={4} /></FormControl></FormItem>)} />
+                                
+                                <div className="space-y-4 pt-4 border-t">
+                                    <FormField control={form.control} name="aboutTeamTitle" render={({ field }) => (<FormItem><FormLabel>Team Section Title</FormLabel><FormControl><Input {...field} value={field.value || ''} /></FormControl></FormItem>)} />
+                                    {teamFields.map((item, index) => (
+                                        <div key={item.id} className="flex flex-col gap-4 p-4 border rounded-lg relative">
+                                            <Button type="button" variant="ghost" size="icon" className="absolute top-2 right-2 text-destructive hover:text-destructive hover:bg-destructive/10" onClick={() => removeTeam(index)}><Trash2 className="h-4 w-4" /><span className="sr-only">Remove Member</span></Button>
+                                            <FormField control={form.control} name={`teamMembers.${index}.name`} render={({ field }) => (<FormItem><FormLabel>Member Name</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>)} />
+                                            <FormField control={form.control} name={`teamMembers.${index}.role`} render={({ field }) => (<FormItem><FormLabel>Member Role</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>)} />
+                                            <FormField control={form.control} name={`teamMembers.${index}.avatar`} render={({ field }) => (<FormItem><FormLabel>Avatar Image URL</FormLabel><FormControl><Input {...field} placeholder="https://..." /></FormControl><FormMessage /></FormItem>)} />
+                                            <FormField control={form.control} name={`teamMembers.${index}.hint`} render={({ field }) => (<FormItem><FormLabel>Avatar AI Hint</FormLabel><FormControl><Input {...field} /></FormControl><FormDescription>One or two keywords for AI image search (e.g., 'male portrait').</FormDescription><FormMessage /></FormItem>)} />
+                                        </div>
+                                    ))}
+                                    <Button type="button" variant="outline" onClick={() => appendTeam({ name: '', role: '', avatar: '', hint: '' })}><PlusCircle className="mr-2 h-4 w-4" />Add Team Member</Button>
+                                </div>
+                            </CardContent>
+                        </Card>
+                        <div className="flex justify-end">
+                            <Button type="submit" disabled={isSubmitting || loading}>
+                            {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                            Save Settings
+                            </Button>
+                        </div>
                     </div>
                 </form>
             </Form>

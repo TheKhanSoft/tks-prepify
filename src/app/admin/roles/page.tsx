@@ -1,3 +1,4 @@
+
 "use client";
 
 import React, { useState, useEffect, useCallback, useMemo } from "react";
@@ -17,6 +18,8 @@ import { fetchRoles, deleteRole, countUsersWithRole, addRole, updateRole } from 
 import type { Role } from "@/types";
 import { useToast } from "@/hooks/use-toast";
 
+const PROTECTED_ROLES = ['super admin', 'admin'];
+
 // --- SIMPLIFIED Data Structures ---
 interface RoleFormData {
   name: string;
@@ -30,7 +33,7 @@ const RoleCard = ({ role, userCount, onEdit, onDelete }: { role: Role; userCount
       <CardTitle className="text-base font-semibold tracking-tight truncate" title={role.name}>{role.name}</CardTitle>
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
-          <Button size="icon" variant="ghost" className="flex-shrink-0">
+          <Button size="icon" variant="ghost" className="flex-shrink-0" disabled={PROTECTED_ROLES.includes(role.name.toLowerCase())}>
             <MoreHorizontal className="h-5 w-5" />
           </Button>
         </DropdownMenuTrigger>
@@ -131,15 +134,13 @@ export default function AdminRolesPage() {
 
   // --- Custom Sorting Logic (Unchanged) ---
   const sortedRoles = useMemo(() => {
-    const specialOrder = ['super admin', 'admin'];
     return [...roles].sort((a, b) => {
       const aName = a.name.toLowerCase();
       const bName = b.name.toLowerCase();
-      const aIndex = specialOrder.indexOf(aName);
-      const bIndex = specialOrder.indexOf(bName);
-      if (aIndex > -1 && bIndex > -1) return aIndex - bIndex;
-      if (aIndex > -1) return -1;
-      if (bIndex > -1) return 1;
+      const aIsProtected = PROTECTED_ROLES.includes(aName);
+      const bIsProtected = PROTECTED_ROLES.includes(bName);
+      if (aIsProtected && !bIsProtected) return -1;
+      if (!aIsProtected && bIsProtected) return 1;
       return a.name.localeCompare(b.name);
     });
   }, [roles]);
@@ -154,8 +155,11 @@ export default function AdminRolesPage() {
   };
 
   const openEditModal = (role: Role) => {
+    if (PROTECTED_ROLES.includes(role.name.toLowerCase())) {
+        toast({ title: "Action Forbidden", description: "This is a protected role and cannot be edited.", variant: "destructive" });
+        return;
+    }
     setModalMode('edit');
-    // Set only the name
     setFormData({ name: role.name });
     setFormErrors({});
     setEditingRole(role);
@@ -197,7 +201,25 @@ export default function AdminRolesPage() {
     }
   };
   
-  const handleDelete = async () => { /* ... (unchanged) ... */ };
+  const handleDelete = async () => {
+    if (!deleteAlert.role) return;
+    if (PROTECTED_ROLES.includes(deleteAlert.role.name.toLowerCase())) {
+         toast({ title: "Action Forbidden", description: "This is a protected role and cannot be deleted.", variant: "destructive" });
+         setDeleteAlert({ open: false });
+         return;
+    }
+    setIsDeleting(true);
+    try {
+        await deleteRole(deleteAlert.role.id);
+        toast({ title: "Role Deleted", description: `"${deleteAlert.role.name}" has been deleted.` });
+        await loadData();
+    } catch(e) {
+        toast({ title: "Delete Failed", description: "Failed to delete role. It may be in use.", variant: "destructive" });
+    } finally {
+        setIsDeleting(false);
+        setDeleteAlert({ open: false });
+    }
+   };
 
   // --- Render Method ---
   return (

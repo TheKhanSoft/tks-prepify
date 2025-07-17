@@ -6,6 +6,8 @@ import { db } from './firebase';
 import type { User, Plan, UserPlan, UserPlanStatus } from '@/types';
 import { fetchPlans } from './plan-service';
 
+const SUPER_ADMIN_EMAIL = 'thekhansoft@gmail.com';
+
 // Define a plain object type for user data to be passed from client to server
 type UserProfileData = {
   uid: string;
@@ -48,7 +50,8 @@ export async function createUserProfile(user: UserProfileData, planId?: string) 
     name: user.displayName,
     email: user.email,
     photoURL: user.photoURL,
-    role: 'User', // Default role for new users
+    // Assign 'Super Admin' role if email matches, otherwise 'User'
+    role: user.email === SUPER_ADMIN_EMAIL ? 'Super Admin' : 'User',
     planId: assignedPlan?.id || '',
     planExpiryDate: planExpiryDate,
     createdAt: serverTimestamp(),
@@ -126,6 +129,20 @@ export const updateUserProfileInFirestore = async (userId: string, data: { name?
 
 export const assignUserRole = async (userId: string, role: string) => {
     if (!userId) throw new Error("User ID is required.");
+
+    const userProfile = await getUserProfile(userId);
+    if (!userProfile) throw new Error("User not found.");
+
+    // Prevent changing the Super Admin's role
+    if (userProfile.email === SUPER_ADMIN_EMAIL) {
+        throw new Error("The Super Admin role cannot be changed.");
+    }
+
+    // Prevent assigning Super Admin role to anyone else
+    if (role === 'Super Admin') {
+        throw new Error("Cannot assign Super Admin role.");
+    }
+
     const userDocRef = doc(db, 'users', userId);
     await updateDoc(userDocRef, { role });
 };

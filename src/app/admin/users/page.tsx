@@ -24,6 +24,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { useAuth } from "@/hooks/use-auth";
 
 const ADMIN_ROLES = ['Super Admin', 'Admin'];
+const SUPER_ADMIN_EMAIL = 'thekhansoft@gmail.com';
 
 export default function AdminUsersPage() {
   const router = useRouter();
@@ -94,12 +95,22 @@ export default function AdminUsersPage() {
       toast({ title: "Role Updated", description: `${selectedUser.name}'s role has been changed.` });
       await loadData(); // Reload to show the change
       setIsRoleDialogOpen(false);
-    } catch (error) {
-      toast({ title: "Error", description: "Failed to update role.", variant: "destructive" });
+    } catch (error: any) {
+      toast({ title: "Error", description: error.message || "Failed to update role.", variant: "destructive" });
     } finally {
       setIsUpdatingRole(false);
     }
   };
+
+  const isCurrentUserSuperAdmin = currentUser?.role === 'Super Admin';
+  
+  const availableRolesForAssignment = useMemo(() => {
+    if (isCurrentUserSuperAdmin) {
+      return roles;
+    }
+    // Regular admins cannot see or assign the "Super Admin" role
+    return roles.filter(role => role.name !== 'Super Admin');
+  }, [roles, isCurrentUserSuperAdmin]);
 
   if (loading) {
     return <div className="flex justify-center items-center h-full min-h-[calc(100vh-20rem)]"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>;
@@ -144,9 +155,9 @@ export default function AdminUsersPage() {
               <TableBody>
                 {filteredUsers.length > 0 ? (
                   filteredUsers.map((user) => {
-                     const isCurrentUserSuperAdmin = currentUser?.role === 'Super Admin';
+                     const isTargetSuperAdmin = user.email === SUPER_ADMIN_EMAIL;
+                     const canManageRole = isCurrentUserSuperAdmin && !isTargetSuperAdmin;
                      const targetUserIsAdmin = ADMIN_ROLES.includes(user.role || '');
-                     const canManageRole = isCurrentUserSuperAdmin || !targetUserIsAdmin;
                     return (
                     <TableRow key={user.id}>
                       <TableCell>
@@ -185,7 +196,7 @@ export default function AdminUsersPage() {
                             </DropdownMenuTrigger>
                             <DropdownMenuContent align="end">
                               <DropdownMenuLabel>Actions</DropdownMenuLabel>
-                              <DropdownMenuItem onSelect={() => handleOpenRoleDialog(user)} disabled={!canManageRole}>
+                              <DropdownMenuItem onSelect={() => handleOpenRoleDialog(user)} disabled={isTargetSuperAdmin}>
                                   <UserCog className="mr-2 h-4 w-4" />
                                   Change Role
                               </DropdownMenuItem>
@@ -229,7 +240,7 @@ export default function AdminUsersPage() {
                  <Select value={selectedRole} onValueChange={setSelectedRole}>
                     <SelectTrigger><SelectValue placeholder="Select a role..." /></SelectTrigger>
                     <SelectContent>
-                        {roles.map(role => (
+                        {availableRolesForAssignment.map(role => (
                             <SelectItem key={role.id} value={role.name}>{role.name}</SelectItem>
                         ))}
                     </SelectContent>
