@@ -122,7 +122,7 @@ export default function PricingPage() {
                 </Tooltip>
             ) : (
                 <Button asChild size="lg" className="w-full" variant={plan.popular ? 'default' : 'outline'} disabled={isCurrentPlan}>
-                    <Link href={user ? `/checkout/${plan.id}` : '/signup'}>
+                    <Link href={user ? `/checkout/${plan.id}?option=${displayOption.label}` : '/signup'}>
                         {buttonText}
                     </Link>
                 </Button>

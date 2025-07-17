@@ -33,7 +33,6 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage, FormDes
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
-import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
 import { Loader2, PlusCircle, Trash2, Edit } from "lucide-react";
 import type { PaymentMethod, PaymentMethodType } from "@/types";
@@ -165,7 +164,7 @@ export default function PaymentMethodsPage() {
   const renderDetails = () => {
     if (!paymentType) return null;
     return (
-        <>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {(paymentType === 'bank' || paymentType === 'easypaisa' || paymentType === 'jazzcash') && (
                 <FormField control={form.control} name="details.accountTitle" render={({ field }) => (<FormItem><FormLabel>Account Title</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>)} />
             )}
@@ -184,7 +183,7 @@ export default function PaymentMethodsPage() {
                  <FormField control={form.control} name="details.network" render={({ field }) => (<FormItem><FormLabel>Network</FormLabel><FormControl><Input placeholder="e.g., BTC, ETH, TRC-20" {...field} /></FormControl><FormMessage /></FormItem>)} />
                 </>
             )}
-        </>
+        </div>
     );
   }
 
@@ -242,15 +241,17 @@ export default function PaymentMethodsPage() {
       </Card>
 
       <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-        <DialogContent>
+        <DialogContent className="sm:max-w-2xl">
           <DialogHeader>
             <DialogTitle>{editingMethod ? 'Edit' : 'Add'} Payment Method</DialogTitle>
             <DialogDescription>Fill in the details for the payment gateway.</DialogDescription>
           </DialogHeader>
           <Form {...form}>
-            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4 py-4">
-              <FormField control={form.control} name="name" render={({ field }) => (<FormItem><FormLabel>Display Name</FormLabel><FormControl><Input placeholder="e.g., HBL Bank Transfer" {...field} /></FormControl><FormMessage /></FormItem>)} />
-              <FormField control={form.control} name="type" render={({ field }) => (<FormItem><FormLabel>Type</FormLabel><Select onValueChange={field.onChange} defaultValue={field.value}><FormControl><SelectTrigger><SelectValue placeholder="Select a type" /></SelectTrigger></FormControl><SelectContent><SelectItem value="bank">Bank Transfer</SelectItem><SelectItem value="easypaisa">EasyPaisa</SelectItem><SelectItem value="jazzcash">JazzCash</SelectItem><SelectItem value="crypto">Crypto</SelectItem></SelectContent></Select><FormMessage /></FormItem>)} />
+            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6 py-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <FormField control={form.control} name="name" render={({ field }) => (<FormItem><FormLabel>Display Name</FormLabel><FormControl><Input placeholder="e.g., HBL Bank Transfer" {...field} /></FormControl><FormMessage /></FormItem>)} />
+                <FormField control={form.control} name="type" render={({ field }) => (<FormItem><FormLabel>Type</FormLabel><Select onValueChange={field.onChange} defaultValue={field.value}><FormControl><SelectTrigger><SelectValue placeholder="Select a type" /></SelectTrigger></FormControl><SelectContent><SelectItem value="bank">Bank Transfer</SelectItem><SelectItem value="easypaisa">EasyPaisa</SelectItem><SelectItem value="jazzcash">JazzCash</SelectItem><SelectItem value="crypto">Crypto</SelectItem></SelectContent></Select><FormMessage /></FormItem>)} />
+              </div>
               
               {renderDetails()}
 

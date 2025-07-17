@@ -1,19 +1,19 @@
 
 'use client';
 
-import { useState, useEffect } from 'react';
-import { useParams, useRouter, usePathname } from 'next/navigation';
+import { useState, useEffect, useMemo, Suspense } from 'react';
+import { useParams, useRouter, usePathname, useSearchParams } from 'next/navigation';
 import { useAuth } from '@/hooks/use-auth';
 import { getPlanById } from '@/lib/plan-service';
-import type { Plan, PaymentMethod, User as UserProfile } from '@/types';
+import type { Plan, PaymentMethod, User as UserProfile, PricingOption } from '@/types';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Loader2, Check, ArrowLeft, Banknote, Landmark, Wallet } from 'lucide-react';
+import { Loader2, Check, ArrowLeft, Banknote, Landmark, Wallet, Ticket } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { fetchPaymentMethods } from '@/lib/payment-method-service';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import { changeUserSubscription, getUserProfile } from '@/lib/user-service';
-import { format } from 'date-fns';
+import { Input } from '@/components/ui/input';
 
 const InfoRow = ({ label, value }: { label: string; value?: string | number }) => (
     <div className="flex justify-between text-sm">
@@ -32,15 +32,18 @@ const getIconForType = (type: string) => {
     }
 }
 
-export default function CheckoutPage() {
+function CheckoutPageComponent() {
     const params = useParams();
     const router = useRouter();
     const pathname = usePathname();
+    const searchParams = useSearchParams();
     const { toast } = useToast();
     const { user, loading: authLoading } = useAuth();
     const planId = params.planId as string;
+    const optionLabel = searchParams.get('option');
 
     const [selectedPlan, setSelectedPlan] = useState<Plan | null>(null);
+    const [selectedOption, setSelectedOption] = useState<PricingOption | null>(null);
     const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
     const [paymentMethods, setPaymentMethods] = useState<PaymentMethod[]>([]);
     const [loading, setLoading] = useState(true);
@@ -49,7 +52,7 @@ export default function CheckoutPage() {
     useEffect(() => {
         if (authLoading) return;
         if (!user) {
-            router.push(`/login?redirect=${pathname}`);
+            router.push(`/login?redirect=${pathname}?option=${optionLabel}`);
             return;
         }
 
@@ -68,6 +71,13 @@ export default function CheckoutPage() {
                     return;
                 }
                 
+                const option = plan.pricingOptions.find(p => p.label === optionLabel);
+                if (!option) {
+                    toast({ title: "Error", description: "The selected pricing option is invalid.", variant: "destructive" });
+                    router.push(`/pricing`);
+                    return;
+                }
+
                 if (plan.id === profile?.planId) {
                     toast({ title: "Already Subscribed", description: "You are already subscribed to this plan.", variant: "default" });
                     router.push('/account/subscription');
@@ -75,6 +85,7 @@ export default function CheckoutPage() {
                 }
 
                 setSelectedPlan(plan);
+                setSelectedOption(option);
                 setPaymentMethods(methods);
                 setUserProfile(profile);
                 
@@ -86,13 +97,15 @@ export default function CheckoutPage() {
         }
         loadData();
 
-    }, [planId, user, authLoading, router, toast, pathname]);
+    }, [planId, optionLabel, user, authLoading, router, toast, pathname]);
 
     const handleConfirmPurchase = async () => {
-        if (!user || !selectedPlan) return;
+        if (!user || !selectedPlan || !selectedOption) return;
         setIsConfirming(true);
         try {
-            await changeUserSubscription(user.uid, selectedPlan.id, { remarks: "User self-subscribed via checkout." });
+            await changeUserSubscription(user.uid, selectedPlan.id, { 
+              remarks: `User self-subscribed to ${selectedOption.label} via checkout.`
+            });
             toast({
                 title: "Purchase Successful!",
                 description: `You have successfully subscribed to the ${selectedPlan.name} plan.`
@@ -114,17 +127,15 @@ export default function CheckoutPage() {
         return <div className="flex items-center justify-center h-screen"><Loader2 className="h-8 w-8 animate-spin" /></div>;
     }
 
-    if (!selectedPlan) {
+    if (!selectedPlan || !selectedOption) {
          return (
              <div className="flex items-center justify-center h-screen flex-col gap-4">
-                 <h1 className="text-2xl font-semibold">Could not load plan</h1>
-                 <p className="text-muted-foreground">The selected plan might not exist or is unavailable.</p>
+                 <h1 className="text-2xl font-semibold">Could not load plan details</h1>
+                 <p className="text-muted-foreground">The selected plan or option might not exist or is unavailable.</p>
                  <Button onClick={() => router.push('/pricing')}>Go to Pricing</Button>
              </div>
          );
     }
-
-    const pricingOption = selectedPlan.pricingOptions[0]; // Assuming one for now
 
     return (
         <div className="container mx-auto max-w-4xl py-12">
@@ -143,14 +154,14 @@ export default function CheckoutPage() {
                     <CardContent className="space-y-4">
                         <div className="p-4 border rounded-lg bg-muted/50">
                             <h3 className="text-xl font-bold">{selectedPlan.name}</h3>
-                            <p className="text-muted-foreground">{selectedPlan.description}</p>
+                            <p className="text-muted-foreground">{selectedOption.label} Plan</p>
                             <div className="mt-4 text-4xl font-extrabold">
-                                PKR {pricingOption?.price || '0'}
-                                <span className="text-base font-normal text-muted-foreground">/{pricingOption?.label || 'unit'}</span>
+                                PKR {selectedOption?.price || '0'}
+                                <span className="text-base font-normal text-muted-foreground">/{selectedOption?.label}</span>
                             </div>
                         </div>
-                        <div>
-                             <h4 className="font-semibold mb-2">Features Included:</h4>
+                        <div className="space-y-2 pt-4">
+                            <h4 className="font-semibold mb-2">Features Included:</h4>
                              <ul role="list" className="space-y-2 text-sm">
                                 {selectedPlan.features.map((feature, index) => (
                                     <li key={index} className="flex items-center gap-2 text-muted-foreground">
@@ -165,6 +176,15 @@ export default function CheckoutPage() {
                             <CardContent className="p-0 space-y-1">
                                 <InfoRow label="Name" value={userProfile?.name || 'N/A'}/>
                                 <InfoRow label="Email" value={userProfile?.email || 'N/A'}/>
+                            </CardContent>
+                        </Card>
+                         <Card className="mt-4 bg-transparent shadow-none">
+                            <CardHeader className="p-0 pb-2"><h4 className="font-semibold">Apply Coupon</h4></CardHeader>
+                            <CardContent className="p-0 space-y-1">
+                                <div className="flex w-full max-w-sm items-center space-x-2">
+                                    <Input type="text" placeholder="Coupon Code" />
+                                    <Button type="submit">Apply</Button>
+                                </div>
                             </CardContent>
                         </Card>
                     </CardContent>
@@ -230,3 +250,10 @@ export default function CheckoutPage() {
     );
 }
 
+export default function CheckoutPage() {
+    return (
+        <Suspense fallback={<div className="flex items-center justify-center h-screen"><Loader2 className="h-8 w-8 animate-spin" /></div>}>
+            <CheckoutPageComponent />
+        </Suspense>
+    )
+}
