@@ -37,6 +37,14 @@ export default function PricingPage() {
     loadData();
   }, [user, authLoading]);
 
+  const sortedPlans = React.useMemo(() => {
+    return [...plans].sort((a,b) => {
+      const aPrice = a.pricingOptions[0]?.price ?? 0;
+      const bPrice = b.pricingOptions[0]?.price ?? 0;
+      return aPrice - bPrice;
+    });
+  }, [plans]);
+
   if (loading || authLoading) {
     return <div className="flex justify-center items-center h-[50vh]"><Loader2 className="h-8 w-8 animate-spin" /></div>;
   }
@@ -70,12 +78,12 @@ export default function PricingPage() {
           plans.length === 2 && "lg:grid-cols-2",
           plans.length >= 3 && "lg:grid-cols-3",
         )}>
-          {plans.map((plan) => {
+          {sortedPlans.map((plan) => {
             const isCurrentPlan = userProfile?.planId === plan.id;
             const monthlyOption = plan.pricingOptions.find(p => p.months === 1);
             const yearlyOption = plan.pricingOptions.find(p => p.months === 12);
             
-            const displayOption = interval === 'year' ? yearlyOption : monthlyOption;
+            const displayOption = interval === 'year' && yearlyOption ? yearlyOption : monthlyOption;
 
             if (!displayOption) return null;
 
@@ -83,6 +91,15 @@ export default function PricingPage() {
             if (interval === 'year' && monthlyOption && yearlyOption) {
                 savings = (monthlyOption.price * 12) - yearlyOption.price;
             }
+
+            const currentPlanPrice = currentPlan ? currentPlan.pricingOptions[0]?.price ?? 0 : 0;
+            const isUpgrade = displayOption.price > currentPlanPrice;
+            const buttonText = isCurrentPlan
+                ? "Your Current Plan"
+                : user 
+                ? (isUpgrade ? "Upgrade Plan" : "Downgrade Plan")
+                : "Choose Plan";
+
 
             return (
                 <Card key={plan.id} className={cn(
@@ -128,13 +145,11 @@ export default function PricingPage() {
                     </ul>
                 </CardContent>
                 <CardFooter className="p-8 pt-0">
-                    {isCurrentPlan ? (
-                         <Button size="lg" className="w-full" disabled>Your Current Plan</Button>
-                    ) : (
-                        <Button asChild size="lg" className="w-full" variant={plan.popular ? 'default' : 'outline'}>
-                            <Link href="/signup">Choose Plan</Link>
-                        </Button>
-                    )}
+                    <Button asChild size="lg" className="w-full" variant={plan.popular ? 'default' : 'outline'} disabled={isCurrentPlan}>
+                        <Link href={user ? `/checkout/${plan.id}` : '/signup'}>
+                            {buttonText}
+                        </Link>
+                    </Button>
                 </CardFooter>
                 </Card>
             )
