@@ -27,7 +27,7 @@ const PlanActionButton = ({ user, currentPlan, targetPlan, option, isCurrentPlan
     if (user) {
         if (isCurrentPlan) buttonText = "Your Current Plan";
         else if (isUpgrade) buttonText = `Upgrade to ${option.label}`;
-        else if (isDowngrade) buttonText = "Downgrade";
+        else if (isDowngrade) buttonText = `Downgrade`;
     }
 
     const checkoutLink = user
@@ -121,16 +121,13 @@ export default function PricingPage() {
         )}>
           {sortedPlans.map((plan) => {
             const isCurrentPlan = userProfile?.planId === plan.id;
-            const monthlyOption = plan.pricingOptions.find(p => p.months === 1);
-            const yearlyOption = plan.pricingOptions.find(p => p.months === 12);
-            const otherOptions = plan.pricingOptions.filter(p => p.months !== 1 && p.months !== 12);
-
+            
             const getLowestPrice = (options: PricingOption[]): number => {
                 if (!options || options.length === 0) return -1;
                 return Math.min(...options.map(o => o.price));
             };
 
-            const currentPlanPrice = getLowestPrice(currentPlan?.pricingOptions || []);
+            const currentPlanLowestPrice = getLowestPrice(currentPlan?.pricingOptions || []);
 
             return (
                 <Card key={plan.id} className={cn(
@@ -165,10 +162,10 @@ export default function PricingPage() {
                 </CardContent>
                 <CardFooter className="p-8 pt-0 mt-auto">
                     <div className="w-full space-y-4">
-                        {[...(monthlyOption ? [monthlyOption] : []), ...(yearlyOption ? [yearlyOption] : []), ...otherOptions].map(option => {
+                        {plan.pricingOptions.map(option => {
                            const targetPrice = option.price;
-                           const isUpgrade = user && currentPlan && !isCurrentPlan && targetPrice > currentPlanPrice;
-                           const isDowngrade = user && currentPlan && !isCurrentPlan && targetPrice < currentPlanPrice;
+                           const isUpgrade = user && currentPlan && !isCurrentPlan && targetPrice > currentPlanLowestPrice;
+                           const isDowngrade = user && currentPlan && !isCurrentPlan && targetPrice < currentPlanLowestPrice;
                            
                            return (
                                <div key={option.label} className="text-center">
@@ -184,8 +181,8 @@ export default function PricingPage() {
                                             targetPlan={plan}
                                             option={option}
                                             isCurrentPlan={isCurrentPlan}
-                                            isUpgrade={isUpgrade}
-                                            isDowngrade={isDowngrade}
+                                            isUpgrade={!!isUpgrade}
+                                            isDowngrade={!!isDowngrade}
                                        />
                                     </div>
                                </div>
