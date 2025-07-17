@@ -6,7 +6,7 @@ import { useParams, useRouter, usePathname } from 'next/navigation';
 import { useAuth } from '@/hooks/use-auth';
 import { getPlanById } from '@/lib/plan-service';
 import type { Plan, PaymentMethod, User as UserProfile } from '@/types';
-import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
+import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Loader2, Check, ArrowLeft, Banknote, Landmark, Wallet } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
@@ -230,4 +230,3 @@ export default function CheckoutPage() {
     );
 }
 
-    
