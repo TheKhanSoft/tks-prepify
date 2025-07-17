@@ -1,3 +1,4 @@
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -80,5 +81,39 @@
   }
   body {
     @apply bg-background text-foreground;
+  }
+}
+
+/* Custom scrollbar for collapsed sidebar */
+@layer utilities {
+  .scrollbar-thin {
+    scrollbar-width: thin;
+    scrollbar-color: hsl(var(--border)) transparent;
+  }
+  .scrollbar-thin::-webkit-scrollbar {
+    width: 8px;
+  }
+  .scrollbar-thin::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  .scrollbar-thin::-webkit-scrollbar-thumb {
+    background-color: hsl(var(--border));
+    border-radius: 10px;
+    border: 3px solid transparent;
+    background-clip: content-box;
+  }
+  
+  /* Make scrollbar on collapsed sidebar appear on hover */
+  [data-collapsible=icon] [data-sidebar=content]::-webkit-scrollbar-thumb {
+    visibility: hidden;
+  }
+  [data-collapsible=icon] [data-sidebar=content]:hover::-webkit-scrollbar-thumb {
+    visibility: visible;
+  }
+  [data-collapsible=icon] [data-sidebar=content] {
+    scrollbar-color: transparent transparent;
+  }
+  [data-collapsible=icon] [data-sidebar=content]:hover {
+    scrollbar-color: hsl(var(--border)) transparent;
   }
 }
