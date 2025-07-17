@@ -1,14 +1,14 @@
 
 'use client';
 
-import { useState, useEffect, useMemo, Suspense } from 'react';
-import { useParams, useRouter, usePathname, useSearchParams } from 'next/navigation';
+import { useState, useEffect, Suspense } from 'react';
+import { useRouter, usePathname } from 'next/navigation';
 import { useAuth } from '@/hooks/use-auth';
 import { getPlanById } from '@/lib/plan-service';
 import type { Plan, PaymentMethod, User as UserProfile, PricingOption } from '@/types';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Loader2, Check, ArrowLeft, Banknote, Landmark, Wallet, Ticket } from 'lucide-react';
+import { Loader2, Check, ArrowLeft, Banknote, Landmark, Wallet } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { fetchPaymentMethods } from '@/lib/payment-method-service';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
@@ -32,16 +32,12 @@ const getIconForType = (type: string) => {
     }
 }
 
-function CheckoutPageComponent() {
-    const params = useParams();
+function CheckoutPageComponent({ planId, optionLabel }: { planId: string, optionLabel: string | null }) {
     const router = useRouter();
     const pathname = usePathname();
-    const searchParams = useSearchParams();
     const { toast } = useToast();
     const { user, loading: authLoading } = useAuth();
-    const planId = params.planId as string;
-    const optionLabel = searchParams.get('option');
-
+    
     const [selectedPlan, setSelectedPlan] = useState<Plan | null>(null);
     const [selectedOption, setSelectedOption] = useState<PricingOption | null>(null);
     const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
@@ -52,11 +48,17 @@ function CheckoutPageComponent() {
     useEffect(() => {
         if (authLoading) return;
         if (!user) {
-            router.push(`/login?redirect=${pathname}?option=${optionLabel}`);
+            const redirectUrl = optionLabel ? `${pathname}?option=${optionLabel}` : pathname;
+            router.push(`/login?redirect=${redirectUrl}`);
             return;
         }
 
         const loadData = async () => {
+            if (!planId || !optionLabel) {
+                 toast({ title: "Error", description: "Invalid plan or pricing option selected.", variant: "destructive" });
+                 router.push('/pricing');
+                 return;
+            }
             setLoading(true);
             try {
                 const [plan, methods, profile] = await Promise.all([
@@ -250,10 +252,14 @@ function CheckoutPageComponent() {
     );
 }
 
-export default function CheckoutPage() {
+// This is the main page component that will be rendered by Next.js
+export default function CheckoutPage({ params, searchParams }: { params: { planId: string }, searchParams: { [key: string]: string | string[] | undefined } }) {
+    const planId = params.planId;
+    const optionLabel = typeof searchParams.option === 'string' ? searchParams.option : null;
+
     return (
         <Suspense fallback={<div className="flex items-center justify-center h-screen"><Loader2 className="h-8 w-8 animate-spin" /></div>}>
-            <CheckoutPageComponent />
+            <CheckoutPageComponent planId={planId} optionLabel={optionLabel} />
         </Suspense>
     )
 }
