@@ -25,18 +25,21 @@ export default function PricingPage() {
   useEffect(() => {
     const loadData = async () => {
       setLoading(true);
-      const fetchedPlans = await fetchPlans(true); // Fetch only published plans
-      setPlans(fetchedPlans);
-      
-      if (user && !authLoading) {
-        const profile = await getUserProfile(user.uid);
-        setUserProfile(profile);
+      try {
+        const fetchedPlans = await fetchPlans(true);
+        setPlans(fetchedPlans);
+        
+        if (user) {
+          const profile = await getUserProfile(user.uid);
+          setUserProfile(profile);
+        }
+      } catch (error) {
+        // console.error("Failed to load pricing data:", error);
       }
-      
       setLoading(false);
     };
     loadData();
-  }, [user, authLoading]);
+  }, [user]);
 
   const sortedPlans = React.useMemo(() => {
     return [...plans].sort((a,b) => {
@@ -87,30 +90,35 @@ export default function PricingPage() {
             const monthlyOption = plan.pricingOptions.find(p => p.months === 1);
             const yearlyOption = plan.pricingOptions.find(p => p.months === 12);
             
-            const displayOption = interval === 'year' && yearlyOption ? yearlyOption : monthlyOption;
-            
-            // If the selected interval doesn't have a corresponding pricing option, don't render the card.
-            if (!displayOption) return null;
+            // Determine the option to display based on the interval toggle
+            // If the preferred interval doesn't exist, fall back to the other, or the first available option.
+            const displayOption = (interval === 'year' && yearlyOption)
+              ? yearlyOption
+              : (interval === 'month' && monthlyOption)
+                ? monthlyOption
+                : yearlyOption || monthlyOption || plan.pricingOptions[0];
+
+            if (!displayOption) return null; // Don't render card if no valid pricing option
 
             let savings = 0;
             if (interval === 'year' && monthlyOption && yearlyOption) {
                 savings = (monthlyOption.price * 12) - yearlyOption.price;
             }
             
-            const currentPlanForInterval = currentPlan?.pricingOptions.find(p => p.months === displayOption.months);
-            const priceOfCurrentPlanForInterval = currentPlanForInterval?.price ?? (currentPlan ? (currentPlan.pricingOptions.find(p=>p.months === 1)?.price ?? currentPlan.pricingOptions[0]?.price) : -1);
+            const priceOfCurrentPlanForInterval = currentPlan?.pricingOptions.find(p => p.months === displayOption.months)?.price ??
+                (currentPlan ? (currentPlan.pricingOptions.find(p=>p.months === 1)?.price ?? currentPlan.pricingOptions[0]?.price) : -1);
 
-            const isUpgrade = priceOfCurrentPlanForInterval !== -1 && displayOption.price > priceOfCurrentPlanForInterval;
-            const isDowngrade = user && !isCurrentPlan && priceOfCurrentPlanForInterval !== -1 && displayOption.price < priceOfCurrentPlanForInterval;
+            const isUpgrade = user && currentPlan && !isCurrentPlan && displayOption.price > priceOfCurrentPlanForInterval;
+            const isDowngrade = user && currentPlan && !isCurrentPlan && displayOption.price < priceOfCurrentPlanForInterval;
             
             let buttonText = "Choose Plan";
-            if (user && currentPlan) {
+            if (user) {
                 if (isCurrentPlan) buttonText = "Your Current Plan";
                 else if (isDowngrade) buttonText = "Downgrade";
-                else buttonText = "Upgrade Plan";
+                else if (isUpgrade) buttonText = "Upgrade Plan";
             }
             
-            const checkoutLink = user ? `/checkout/${plan.id}?option=${displayOption.label}` : '/signup';
+            const checkoutLink = user ? `/checkout/${plan.id}?option=${encodeURIComponent(displayOption.label)}` : '/signup';
             
             const buttonAction = isDowngrade ? (
                 <Tooltip>
@@ -149,7 +157,7 @@ export default function PricingPage() {
                     <CardDescription className="mt-4">{plan.description}</CardDescription>
                     <div className="mt-6 flex items-baseline gap-x-1">
                     <span className="text-5xl font-bold tracking-tight">PKR {displayOption.price}</span>
-                    <span className="text-sm font-semibold leading-6 text-muted-foreground">/{interval}</span>
+                    <span className="text-sm font-semibold leading-6 text-muted-foreground">/{displayOption.months === 1 ? 'month' : (displayOption.months === 12 ? 'year' : `${displayOption.months} mo`)}</span>
                     </div>
                      {displayOption.badge && (
                         <Badge className="mt-2 bg-accent/20 text-accent-foreground border-accent/50 hover:bg-accent/30">{displayOption.badge}</Badge>

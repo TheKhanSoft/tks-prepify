@@ -32,7 +32,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage, FormDescription } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
@@ -45,6 +45,9 @@ import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Calendar as CalendarIcon } from "lucide-react";
+import { Calendar as CalendarComponent } from "@/components/ui/calendar";
 
 const discountFormSchema = z.object({
   name: z.string().min(3, "Name is required."),
@@ -127,16 +130,18 @@ export default function DiscountsPage() {
 
   async function onSubmit(data: FormValues) {
     setIsSaving(true);
-    const payload = {
+    const payload: Partial<Discount> = {
       ...data,
       applicablePlanIds: data.appliesToAllPlans ? [] : data.applicablePlanIds,
+      startDate: data.startDate?.toISOString(),
+      endDate: data.endDate?.toISOString(),
     };
     try {
       if (editingDiscount) {
         await updateDiscount(editingDiscount.id, payload);
         toast({ title: "Success", description: "Discount updated." });
       } else {
-        await addDiscount(payload);
+        await addDiscount(payload as Omit<Discount, 'id'>);
         toast({ title: "Success", description: "Discount added." });
       }
       setIsDialogOpen(false);
@@ -245,6 +250,11 @@ export default function DiscountsPage() {
                 <FormField control={form.control} name="value" render={({ field }) => (<FormItem><FormLabel>Value</FormLabel><FormControl><Input type="number" {...field} /></FormControl><FormMessage /></FormItem>)} />
               </div>
               
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                 <FormField control={form.control} name="startDate" render={({ field }) => (<FormItem className="flex flex-col"><FormLabel>Start Date (Optional)</FormLabel><Popover><PopoverTrigger asChild><FormControl><Button variant={"outline"} className={cn("pl-3 text-left font-normal", !field.value && "text-muted-foreground")}><CalendarIcon className="mr-2 h-4 w-4" />{field.value ? format(field.value, "PPP") : <span>Pick a date</span>}</Button></FormControl></PopoverTrigger><PopoverContent className="w-auto p-0" align="start"><CalendarComponent mode="single" selected={field.value || undefined} onSelect={field.onChange} initialFocus /></PopoverContent></Popover><FormMessage /></FormItem>)} />
+                <FormField control={form.control} name="endDate" render={({ field }) => (<FormItem className="flex flex-col"><FormLabel>End Date (Optional)</FormLabel><Popover><PopoverTrigger asChild><FormControl><Button variant={"outline"} className={cn("pl-3 text-left font-normal", !field.value && "text-muted-foreground")}><CalendarIcon className="mr-2 h-4 w-4" />{field.value ? format(field.value, "PPP") : <span>Pick a date</span>}</Button></FormControl></PopoverTrigger><PopoverContent className="w-auto p-0" align="start"><CalendarComponent mode="single" selected={field.value || undefined} onSelect={field.onChange} initialFocus /></PopoverContent></Popover><FormMessage /></FormItem>)} />
+              </div>
+
               <FormField control={form.control} name="appliesToAllPlans" render={({ field }) => (<FormItem className="flex flex-row items-center space-x-3 space-y-0 p-3 rounded-md border bg-muted/50"><FormControl><Switch checked={field.value} onCheckedChange={field.onChange} /></FormControl><FormLabel>Apply to all plans</FormLabel></FormItem>)} />
                 
               {!appliesToAllPlans && (
@@ -310,4 +320,3 @@ export default function DiscountsPage() {
     </div>
   );
 }
-

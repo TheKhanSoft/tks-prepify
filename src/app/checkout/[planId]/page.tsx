@@ -80,8 +80,8 @@ function CheckoutPageComponent({ planId, optionLabel }: { planId: string, option
     useEffect(() => {
         if (authLoading) return;
         if (!user) {
-            const redirectUrl = optionLabel ? `${pathname}?option=${optionLabel}` : pathname;
-            router.push(`/login?redirect=${redirectUrl}`);
+            const redirectUrl = optionLabel ? `${pathname}?option=${encodeURIComponent(optionLabel)}` : pathname;
+            router.push(`/login?redirect=${encodeURIComponent(redirectUrl)}`);
             return;
         }
 
@@ -138,6 +138,7 @@ function CheckoutPageComponent({ planId, optionLabel }: { planId: string, option
         setIsConfirming(true);
         try {
             await changeUserSubscription(user.id, selectedPlan.id, { 
+              endDate: null, // Let backend calculate based on plan
               remarks: `User self-subscribed to ${selectedOption.label} via checkout.`
             });
             toast({
@@ -184,7 +185,7 @@ function CheckoutPageComponent({ planId, optionLabel }: { planId: string, option
                                 <p className="text-muted-foreground">{selectedOption.label} Plan</p>
                                 <div className="mt-4 text-4xl font-extrabold">
                                     PKR {selectedOption?.price || '0'}
-                                    <span className="text-base font-normal text-muted-foreground">/{selectedOption.months === 1 ? 'month' : 'year'}</span>
+                                    <span className="text-base font-normal text-muted-foreground">/{selectedOption.months === 1 ? 'month' : (selectedOption.months === 12 ? 'year' : `${selectedOption.months} mo`)}</span>
                                 </div>
                             </div>
                             <div className="space-y-2 pt-4">
@@ -280,14 +281,18 @@ function CheckoutPageComponent({ planId, optionLabel }: { planId: string, option
 
 // This is the main page component that will be rendered by Next.js
 export default function CheckoutPage() {
+    return (
+        <Suspense fallback={<div className="flex items-center justify-center h-screen"><Loader2 className="h-8 w-8 animate-spin" /></div>}>
+            <CheckoutPageContent />
+        </Suspense>
+    )
+}
+
+function CheckoutPageContent() {
     const params = useParams();
     const searchParams = useSearchParams();
     const planId = params.planId as string;
     const optionLabel = searchParams.get('option');
 
-    return (
-        <Suspense fallback={<div className="flex items-center justify-center h-screen"><Loader2 className="h-8 w-8 animate-spin" /></div>}>
-            <CheckoutPageComponent planId={planId} optionLabel={optionLabel} />
-        </Suspense>
-    )
+    return <CheckoutPageComponent planId={planId} optionLabel={optionLabel} />;
 }
