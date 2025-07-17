@@ -2,7 +2,7 @@
 'use client';
 
 import { useState, useEffect, Suspense } from 'react';
-import { useRouter, useParams, useSearchParams } from 'next/navigation';
+import { useRouter, useParams, useSearchParams, usePathname } from 'next/navigation';
 import { useAuth } from '@/hooks/use-auth';
 import { getPlanById } from '@/lib/plan-service';
 import type { Plan, PaymentMethod, User as UserProfile, PricingOption } from '@/types';
@@ -81,16 +81,11 @@ function CheckoutPageSkeleton() {
 }
 
 
-function CheckoutPageComponent() {
+function CheckoutPageComponent({ planId, optionLabel }: { planId: string, optionLabel: string | null }) {
     const router = useRouter();
     const pathname = usePathname();
-    const params = useParams();
-    const searchParams = useSearchParams();
     const { toast } = useToast();
     const { user, loading: authLoading } = useAuth();
-
-    const planId = params.planId as string;
-    const optionLabel = searchParams.get('option');
     
     const [selectedPlan, setSelectedPlan] = useState<Plan | null>(null);
     const [selectedOption, setSelectedOption] = useState<PricingOption | null>(null);
@@ -184,7 +179,7 @@ function CheckoutPageComponent() {
     }
     
     if (!selectedPlan || !selectedOption || !userProfile) {
-        return null; // The useEffect hook will redirect on error
+        return null;
     }
 
     return (
@@ -302,9 +297,16 @@ function CheckoutPageComponent() {
 
 
 export default function CheckoutPage() {
+    const params = useParams();
+    const searchParams = useSearchParams();
+    const planId = params.planId as string;
+    const optionLabel = searchParams.get('option');
+
     return (
         <Suspense fallback={<CheckoutPageSkeleton />}>
-            <CheckoutPageComponent />
+            <CheckoutPageComponent planId={planId} optionLabel={optionLabel} />
         </Suspense>
     );
 }
+
+    
