@@ -48,6 +48,8 @@ export default function PricingPage() {
   if (loading || authLoading) {
     return <div className="flex justify-center items-center h-[50vh]"><Loader2 className="h-8 w-8 animate-spin" /></div>;
   }
+  
+  const currentPlan = userProfile ? plans.find(p => p.id === userProfile.planId) : null;
 
   return (
     <div className="bg-background text-foreground">
@@ -91,7 +93,7 @@ export default function PricingPage() {
             if (interval === 'year' && monthlyOption && yearlyOption) {
                 savings = (monthlyOption.price * 12) - yearlyOption.price;
             }
-
+            
             const currentPlanPrice = currentPlan ? currentPlan.pricingOptions[0]?.price ?? 0 : 0;
             const isUpgrade = displayOption.price > currentPlanPrice;
             const buttonText = isCurrentPlan
