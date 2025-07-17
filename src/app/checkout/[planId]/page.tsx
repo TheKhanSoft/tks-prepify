@@ -2,7 +2,7 @@
 'use client';
 
 import { useState, useEffect, Suspense } from 'react';
-import { useRouter, usePathname } from 'next/navigation';
+import { useRouter, usePathname, useParams, useSearchParams } from 'next/navigation';
 import { useAuth } from '@/hooks/use-auth';
 import { getPlanById } from '@/lib/plan-service';
 import type { Plan, PaymentMethod, User as UserProfile, PricingOption } from '@/types';
@@ -14,6 +14,8 @@ import { fetchPaymentMethods } from '@/lib/payment-method-service';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import { changeUserSubscription, getUserProfile } from '@/lib/user-service';
 import { Input } from '@/components/ui/input';
+import { Skeleton } from '@/components/ui/skeleton';
+
 
 const InfoRow = ({ label, value }: { label: string; value?: string | number }) => (
     <div className="flex justify-between text-sm">
@@ -31,6 +33,36 @@ const getIconForType = (type: string) => {
         default: return <Banknote className="h-5 w-5" />;
     }
 }
+
+function OrderSummarySkeleton() {
+    return (
+        <Card className="sticky top-24">
+            <CardHeader>
+                <Skeleton className="h-6 w-3/4" />
+                <Skeleton className="h-4 w-1/2" />
+            </CardHeader>
+            <CardContent className="space-y-4">
+                <div className="p-4 border rounded-lg bg-muted/50 space-y-2">
+                    <Skeleton className="h-8 w-1/2" />
+                    <Skeleton className="h-5 w-1/4" />
+                    <Skeleton className="h-10 w-1/3 mt-4" />
+                </div>
+                <div className="space-y-2 pt-4">
+                    <Skeleton className="h-5 w-1/3 mb-2" />
+                    <div className="space-y-2">
+                        <Skeleton className="h-4 w-full" />
+                        <Skeleton className="h-4 w-full" />
+                        <Skeleton className="h-4 w-2/3" />
+                    </div>
+                </div>
+            </CardContent>
+            <CardFooter>
+                 <Skeleton className="h-12 w-full" />
+            </CardFooter>
+        </Card>
+    );
+}
+
 
 function CheckoutPageComponent({ planId, optionLabel }: { planId: string, optionLabel: string | null }) {
     const router = useRouter();
@@ -75,7 +107,7 @@ function CheckoutPageComponent({ planId, optionLabel }: { planId: string, option
                 
                 const option = plan.pricingOptions.find(p => p.label === optionLabel);
                 if (!option) {
-                    toast({ title: "Error", description: "The selected pricing option is invalid.", variant: "destructive" });
+                    toast({ title: "Error", description: "The selected pricing option is invalid for this plan.", variant: "destructive" });
                     router.push(`/pricing`);
                     return;
                 }
@@ -105,7 +137,7 @@ function CheckoutPageComponent({ planId, optionLabel }: { planId: string, option
         if (!user || !selectedPlan || !selectedOption) return;
         setIsConfirming(true);
         try {
-            await changeUserSubscription(user.uid, selectedPlan.id, { 
+            await changeUserSubscription(user.id, selectedPlan.id, { 
               remarks: `User self-subscribed to ${selectedOption.label} via checkout.`
             });
             toast({
@@ -125,18 +157,8 @@ function CheckoutPageComponent({ planId, optionLabel }: { planId: string, option
     }
 
 
-    if (loading || authLoading) {
+    if (authLoading) {
         return <div className="flex items-center justify-center h-screen"><Loader2 className="h-8 w-8 animate-spin" /></div>;
-    }
-
-    if (!selectedPlan || !selectedOption) {
-         return (
-             <div className="flex items-center justify-center h-screen flex-col gap-4">
-                 <h1 className="text-2xl font-semibold">Could not load plan details</h1>
-                 <p className="text-muted-foreground">The selected plan or option might not exist or is unavailable.</p>
-                 <Button onClick={() => router.push('/pricing')}>Go to Pricing</Button>
-             </div>
-         );
     }
 
     return (
@@ -148,55 +170,59 @@ function CheckoutPageComponent({ planId, optionLabel }: { planId: string, option
                 </Button>
             </div>
             <div className="grid md:grid-cols-2 gap-8 items-start">
-                <Card className="sticky top-24">
-                    <CardHeader>
-                        <CardTitle>Order Summary</CardTitle>
-                        <CardDescription>You are purchasing the following plan.</CardDescription>
-                    </CardHeader>
-                    <CardContent className="space-y-4">
-                        <div className="p-4 border rounded-lg bg-muted/50">
-                            <h3 className="text-xl font-bold">{selectedPlan.name}</h3>
-                            <p className="text-muted-foreground">{selectedOption.label} Plan</p>
-                            <div className="mt-4 text-4xl font-extrabold">
-                                PKR {selectedOption?.price || '0'}
-                                <span className="text-base font-normal text-muted-foreground">/{selectedOption?.label}</span>
-                            </div>
-                        </div>
-                        <div className="space-y-2 pt-4">
-                            <h4 className="font-semibold mb-2">Features Included:</h4>
-                             <ul role="list" className="space-y-2 text-sm">
-                                {selectedPlan.features.map((feature, index) => (
-                                    <li key={index} className="flex items-center gap-2 text-muted-foreground">
-                                        <Check className="h-4 w-4 text-green-500" />
-                                        <span>{feature.text}</span>
-                                    </li>
-                                ))}
-                            </ul>
-                        </div>
-                         <Card className="mt-4 bg-transparent shadow-none">
-                            <CardHeader className="p-0 pb-2"><h4 className="font-semibold">User Details</h4></CardHeader>
-                            <CardContent className="p-0 space-y-1">
-                                <InfoRow label="Name" value={userProfile?.name || 'N/A'}/>
-                                <InfoRow label="Email" value={userProfile?.email || 'N/A'}/>
-                            </CardContent>
-                        </Card>
-                         <Card className="mt-4 bg-transparent shadow-none">
-                            <CardHeader className="p-0 pb-2"><h4 className="font-semibold">Apply Coupon</h4></CardHeader>
-                            <CardContent className="p-0 space-y-1">
-                                <div className="flex w-full max-w-sm items-center space-x-2">
-                                    <Input type="text" placeholder="Coupon Code" />
-                                    <Button type="submit">Apply</Button>
+                {loading || !selectedPlan || !selectedOption ? (
+                    <OrderSummarySkeleton />
+                ) : (
+                    <Card className="sticky top-24">
+                        <CardHeader>
+                            <CardTitle>Order Summary</CardTitle>
+                            <CardDescription>You are purchasing the following plan.</CardDescription>
+                        </CardHeader>
+                        <CardContent className="space-y-4">
+                            <div className="p-4 border rounded-lg bg-muted/50">
+                                <h3 className="text-xl font-bold">{selectedPlan.name}</h3>
+                                <p className="text-muted-foreground">{selectedOption.label} Plan</p>
+                                <div className="mt-4 text-4xl font-extrabold">
+                                    PKR {selectedOption?.price || '0'}
+                                    <span className="text-base font-normal text-muted-foreground">/{selectedOption?.label}</span>
                                 </div>
-                            </CardContent>
-                        </Card>
-                    </CardContent>
-                     <CardFooter>
-                        <Button className="w-full" size="lg" onClick={handleConfirmPurchase} disabled={isConfirming}>
-                            {isConfirming ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : null}
-                            Confirm Purchase
-                        </Button>
-                    </CardFooter>
-                </Card>
+                            </div>
+                            <div className="space-y-2 pt-4">
+                                <h4 className="font-semibold mb-2">Features Included:</h4>
+                                <ul role="list" className="space-y-2 text-sm">
+                                    {selectedPlan.features.map((feature, index) => (
+                                        <li key={index} className="flex items-center gap-2 text-muted-foreground">
+                                            <Check className="h-4 w-4 text-green-500" />
+                                            <span>{feature.text}</span>
+                                        </li>
+                                    ))}
+                                </ul>
+                            </div>
+                            <Card className="mt-4 bg-transparent shadow-none">
+                                <CardHeader className="p-0 pb-2"><h4 className="font-semibold">User Details</h4></CardHeader>
+                                <CardContent className="p-0 space-y-1">
+                                    <InfoRow label="Name" value={userProfile?.name || 'N/A'}/>
+                                    <InfoRow label="Email" value={userProfile?.email || 'N/A'}/>
+                                </CardContent>
+                            </Card>
+                            <Card className="mt-4 bg-transparent shadow-none">
+                                <CardHeader className="p-0 pb-2"><h4 className="font-semibold">Apply Coupon</h4></CardHeader>
+                                <CardContent className="p-0 space-y-1">
+                                    <div className="flex w-full max-w-sm items-center space-x-2">
+                                        <Input type="text" placeholder="Coupon Code" />
+                                        <Button type="submit">Apply</Button>
+                                    </div>
+                                </CardContent>
+                            </Card>
+                        </CardContent>
+                        <CardFooter>
+                            <Button className="w-full" size="lg" onClick={handleConfirmPurchase} disabled={isConfirming}>
+                                {isConfirming ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : null}
+                                Confirm Purchase
+                            </Button>
+                        </CardFooter>
+                    </Card>
+                )}
                 <Card>
                     <CardHeader>
                         <CardTitle className="flex items-center gap-2">Payment Details</CardTitle>
@@ -253,9 +279,11 @@ function CheckoutPageComponent({ planId, optionLabel }: { planId: string, option
 }
 
 // This is the main page component that will be rendered by Next.js
-export default function CheckoutPage({ params, searchParams }: { params: { planId: string }, searchParams: { [key: string]: string | string[] | undefined } }) {
-    const planId = params.planId;
-    const optionLabel = typeof searchParams.option === 'string' ? searchParams.option : null;
+export default function CheckoutPage() {
+    const params = useParams();
+    const searchParams = useSearchParams();
+    const planId = params.planId as string;
+    const optionLabel = searchParams.get('option');
 
     return (
         <Suspense fallback={<div className="flex items-center justify-center h-screen"><Loader2 className="h-8 w-8 animate-spin" /></div>}>

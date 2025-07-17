@@ -14,14 +14,6 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
-import {
   Dialog,
   DialogContent,
   DialogHeader,
@@ -34,7 +26,7 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2, PlusCircle, Trash2, Edit } from "lucide-react";
+import { Loader2, PlusCircle, Trash2, Edit, Banknote, Landmark, Wallet, MoreHorizontal, Power } from "lucide-react";
 import type { PaymentMethod, PaymentMethodType } from "@/types";
 import {
   fetchPaymentMethods,
@@ -43,6 +35,8 @@ import {
   deletePaymentMethod,
 } from "@/lib/payment-method-service";
 import { Badge } from "@/components/ui/badge";
+import { Skeleton } from "@/components/ui/skeleton";
+import { cn } from "@/lib/utils";
 
 const paymentMethodSchema = z.object({
   name: z.string().min(3, "Name is required."),
@@ -74,6 +68,43 @@ const paymentMethodSchema = z.object({
 
 type FormValues = z.infer<typeof paymentMethodSchema>;
 
+const getIconForType = (type: PaymentMethodType) => {
+    switch (type) {
+        case 'bank': return <Landmark className="h-6 w-6 text-blue-500" />;
+        case 'easypaisa': return <Banknote className="h-6 w-6 text-green-500" />;
+        case 'jazzcash': return <Banknote className="h-6 w-6 text-red-500" />;
+        case 'crypto': return <Wallet className="h-6 w-6 text-amber-500" />;
+        default: return <Banknote className="h-6 w-6" />;
+    }
+};
+
+const MethodCardSkeleton = () => (
+    <Card className="flex flex-col">
+        <CardHeader>
+            <Skeleton className="h-6 w-3/4" />
+            <Skeleton className="h-4 w-1/4" />
+        </CardHeader>
+        <CardContent className="space-y-2 flex-grow">
+            <Skeleton className="h-4 w-full" />
+            <Skeleton className="h-4 w-2/3" />
+        </CardContent>
+        <CardFooter className="flex justify-between items-center">
+            <Skeleton className="h-8 w-20" />
+            <Skeleton className="h-8 w-8" />
+        </CardFooter>
+    </Card>
+);
+
+const AddMethodCard = ({ onClick }: { onClick: () => void }) => (
+  <Card onClick={onClick} className="flex flex-col items-center justify-center border-2 border-dashed border-muted bg-transparent hover:bg-muted/50 hover:border-primary/50 transition-colors cursor-pointer min-h-[220px]">
+    <div className="text-center">
+      <PlusCircle className="mx-auto h-10 w-10 text-muted-foreground" />
+      <p className="mt-2 text-sm font-semibold text-muted-foreground">Add New Method</p>
+    </div>
+  </Card>
+);
+
+
 export default function PaymentMethodsPage() {
   const { toast } = useToast();
   const [methods, setMethods] = useState<PaymentMethod[]>([]);
@@ -103,9 +134,7 @@ export default function PaymentMethodsPage() {
     setLoading(false);
   }, [toast]);
 
-  useEffect(() => {
-    loadMethods();
-  }, [loadMethods]);
+  useEffect(() => { loadData(); }, [loadMethods]);
 
   const openDialog = (method: PaymentMethod | null = null) => {
     setEditingMethod(method);
@@ -161,26 +190,26 @@ export default function PaymentMethodsPage() {
     }
   }
 
-  const renderDetails = () => {
+  const renderDetailsForm = () => {
     if (!paymentType) return null;
     return (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {(paymentType === 'bank' || paymentType === 'easypaisa' || paymentType === 'jazzcash') && (
-                <FormField control={form.control} name="details.accountTitle" render={({ field }) => (<FormItem><FormLabel>Account Title</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>)} />
+                <FormField control={form.control} name="details.accountTitle" render={({ field }) => (<FormItem><FormLabel>Account Title</FormLabel><FormControl><Input {...field} value={field.value || ''}/></FormControl><FormMessage /></FormItem>)} />
             )}
             {(paymentType === 'bank' || paymentType === 'easypaisa' || paymentType === 'jazzcash') && (
-                <FormField control={form.control} name="details.accountNumber" render={({ field }) => (<FormItem><FormLabel>Account / Phone Number</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>)} />
+                <FormField control={form.control} name="details.accountNumber" render={({ field }) => (<FormItem><FormLabel>Account / Phone Number</FormLabel><FormControl><Input {...field} value={field.value || ''} /></FormControl><FormMessage /></FormItem>)} />
             )}
             {paymentType === 'bank' && (
                 <>
-                 <FormField control={form.control} name="details.bankName" render={({ field }) => (<FormItem><FormLabel>Bank Name</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>)} />
-                 <FormField control={form.control} name="details.iban" render={({ field }) => (<FormItem><FormLabel>IBAN (Optional)</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>)} />
+                 <FormField control={form.control} name="details.bankName" render={({ field }) => (<FormItem><FormLabel>Bank Name</FormLabel><FormControl><Input {...field} value={field.value || ''}/></FormControl><FormMessage /></FormItem>)} />
+                 <FormField control={form.control} name="details.iban" render={({ field }) => (<FormItem><FormLabel>IBAN (Optional)</FormLabel><FormControl><Input {...field} value={field.value || ''}/></FormControl><FormMessage /></FormItem>)} />
                 </>
             )}
              {paymentType === 'crypto' && (
                 <>
-                 <FormField control={form.control} name="details.walletAddress" render={({ field }) => (<FormItem><FormLabel>Wallet Address</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>)} />
-                 <FormField control={form.control} name="details.network" render={({ field }) => (<FormItem><FormLabel>Network</FormLabel><FormControl><Input placeholder="e.g., BTC, ETH, TRC-20" {...field} /></FormControl><FormMessage /></FormItem>)} />
+                 <FormField control={form.control} name="details.walletAddress" render={({ field }) => (<FormItem><FormLabel>Wallet Address</FormLabel><FormControl><Input {...field} value={field.value || ''}/></FormControl><FormMessage /></FormItem>)} />
+                 <FormField control={form.control} name="details.network" render={({ field }) => (<FormItem><FormLabel>Network</FormLabel><FormControl><Input placeholder="e.g., BTC, ETH, TRC-20" {...field} value={field.value || ''}/></FormControl><FormMessage /></FormItem>)} />
                 </>
             )}
         </div>
@@ -194,51 +223,45 @@ export default function PaymentMethodsPage() {
           <h1 className="text-3xl font-bold">Payment Methods</h1>
           <p className="text-muted-foreground">Manage payment gateways for plan subscriptions.</p>
         </div>
-        <Button onClick={() => openDialog()}><PlusCircle className="mr-2 h-4 w-4"/>Add New Method</Button>
       </div>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>All Payment Methods</CardTitle>
-        </CardHeader>
-        <CardContent>
-          {loading ? (
-             <div className="flex justify-center items-center py-16"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>
-          ) : (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead className="w-[40%]">Name</TableHead>
-                  <TableHead>Type</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead className="text-right">Actions</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {methods.length > 0 ? (
-                  methods.map(method => (
-                    <TableRow key={method.id}>
-                      <TableCell className="font-semibold">{method.name}</TableCell>
-                      <TableCell><Badge variant="outline" className="capitalize">{method.type}</Badge></TableCell>
-                      <TableCell>
-                        <Switch checked={method.enabled} onCheckedChange={() => handleToggleEnable(method)} />
-                      </TableCell>
-                      <TableCell className="text-right">
-                          <Button variant="ghost" size="icon" onClick={() => openDialog(method)}><Edit className="h-4 w-4"/></Button>
-                          <Button variant="ghost" size="icon" onClick={() => handleDelete(method.id)} className="text-destructive hover:text-destructive"><Trash2 className="h-4 w-4"/></Button>
-                      </TableCell>
-                    </TableRow>
-                  ))
-                ) : (
-                  <TableRow>
-                    <TableCell colSpan={4} className="h-24 text-center">No payment methods found.</TableCell>
-                  </TableRow>
-                )}
-              </TableBody>
-            </Table>
-          )}
-        </CardContent>
-      </Card>
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+        <AddMethodCard onClick={() => openDialog()} />
+        {loading ? (
+            Array.from({ length: 3 }).map((_, i) => <MethodCardSkeleton key={i} />)
+        ) : (
+            methods.map(method => (
+                <Card key={method.id} className="flex flex-col">
+                    <CardHeader className="flex-grow">
+                        <div className="flex justify-between items-start gap-4">
+                            <div>
+                                <div className="p-3 rounded-full bg-muted w-fit mb-4">{getIconForType(method.type)}</div>
+                                <CardTitle className="text-lg">{method.name}</CardTitle>
+                                <CardDescription className="capitalize">{method.type}</CardDescription>
+                            </div>
+                            <Badge variant={method.enabled ? "default" : "secondary"} className={cn(method.enabled && 'bg-green-600 hover:bg-green-700')}>{method.enabled ? "Enabled" : "Disabled"}</Badge>
+                        </div>
+                    </CardHeader>
+                    <CardContent className="text-sm text-muted-foreground space-y-1">
+                        {method.details.accountTitle && <p><strong>Title:</strong> {method.details.accountTitle}</p>}
+                        {method.details.accountNumber && <p><strong>Number:</strong> {method.details.accountNumber}</p>}
+                        {method.details.bankName && <p><strong>Bank:</strong> {method.details.bankName}</p>}
+                        {method.details.walletAddress && <p><strong>Address:</strong> <span className="break-all">{method.details.walletAddress}</span></p>}
+                        {method.details.network && <p><strong>Network:</strong> {method.details.network}</p>}
+                    </CardContent>
+                    <CardFooter className="flex justify-between items-center border-t pt-4 mt-4">
+                        <Button variant="ghost" size="sm" onClick={() => handleToggleEnable(method)} className="gap-2">
+                           <Power className="h-4 w-4" /> {method.enabled ? "Disable" : "Enable"}
+                        </Button>
+                        <div>
+                             <Button variant="ghost" size="icon" onClick={() => openDialog(method)}><Edit className="h-4 w-4"/></Button>
+                             <Button variant="ghost" size="icon" onClick={() => handleDelete(method.id)} className="text-destructive hover:text-destructive"><Trash2 className="h-4 w-4"/></Button>
+                        </div>
+                    </CardFooter>
+                </Card>
+            ))
+        )}
+      </div>
 
       <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
         <DialogContent className="sm:max-w-2xl">
@@ -253,7 +276,7 @@ export default function PaymentMethodsPage() {
                 <FormField control={form.control} name="type" render={({ field }) => (<FormItem><FormLabel>Type</FormLabel><Select onValueChange={field.onChange} defaultValue={field.value}><FormControl><SelectTrigger><SelectValue placeholder="Select a type" /></SelectTrigger></FormControl><SelectContent><SelectItem value="bank">Bank Transfer</SelectItem><SelectItem value="easypaisa">EasyPaisa</SelectItem><SelectItem value="jazzcash">JazzCash</SelectItem><SelectItem value="crypto">Crypto</SelectItem></SelectContent></Select><FormMessage /></FormItem>)} />
               </div>
               
-              {renderDetails()}
+              {renderDetailsForm()}
 
               <FormField control={form.control} name="enabled" render={({ field }) => (<FormItem className="flex flex-row items-center justify-between rounded-lg border p-4"><div className="space-y-0.5"><FormLabel>Enabled</FormLabel><FormDescription>If enabled, this method will be shown on the checkout page.</FormDescription></div><FormControl><Switch checked={field.value} onCheckedChange={field.onChange} /></FormControl></FormItem>)} />
 

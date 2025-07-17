@@ -97,8 +97,15 @@ export default function PricingPage() {
             }
             
             const currentPlanPrice = currentPlan ? (currentPlan.pricingOptions.find(p => p.months === displayOption.months)?.price ?? currentPlan.pricingOptions[0]?.price ?? 0) : -1;
-            const isUpgrade = displayOption.price > currentPlanPrice;
-            const isDowngrade = user && !isCurrentPlan && displayOption.price < currentPlanPrice;
+            
+            // Fix: Check if currentPlan exists before accessing properties
+            const currentPlanExists = !!currentPlan;
+            const priceOfCurrentPlanForInterval = currentPlanExists 
+              ? (currentPlan.pricingOptions.find(p => p.months === displayOption.months)?.price ?? currentPlan.pricingOptions[0]?.price ?? 0) 
+              : -1;
+
+            const isUpgrade = displayOption.price > priceOfCurrentPlanForInterval;
+            const isDowngrade = user && !isCurrentPlan && displayOption.price < priceOfCurrentPlanForInterval;
             
             let buttonText = "Choose Plan";
             if (user) {
