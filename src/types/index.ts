@@ -261,3 +261,22 @@ export interface HelpArticle {
   categoryId: string;
   order: number;
 }
+
+export type PaymentMethodType = 'bank' | 'easypaisa' | 'jazzcash' | 'crypto';
+
+export interface PaymentMethod {
+  id: string;
+  name: string;
+  type: PaymentMethodType;
+  enabled: boolean;
+  details: {
+    // Bank
+    bankName?: string;
+    accountTitle?: string;
+    accountNumber?: string;
+    iban?: string;
+    // Crypto
+    walletAddress?: string;
+    network?: string;
+  };
+}

@@ -5,14 +5,30 @@ import { useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { useAuth } from '@/hooks/use-auth';
 import { getPlanById } from '@/lib/plan-service';
-import { getUserProfile, changeUserSubscription } from '@/lib/user-service';
-import type { Plan, User as UserProfile } from '@/types';
-import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from '@/components/ui/card';
+import type { Plan, User as UserProfile, PaymentMethod } from '@/types';
+import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Loader2, Check, ArrowLeft, CreditCard } from 'lucide-react';
+import { Loader2, Check, ArrowLeft, Banknote, Landmark, Wallet } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
+import { fetchPaymentMethods } from '@/lib/payment-method-service';
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
+
+const InfoRow = ({ label, value }: { label: string; value?: string }) => (
+    <div className="flex justify-between text-sm">
+        <p className="text-muted-foreground">{label}</p>
+        <p className="font-medium text-right">{value || '-'}</p>
+    </div>
+);
+
+const getIconForType = (type: string) => {
+    switch (type) {
+        case 'bank': return <Landmark className="h-5 w-5" />;
+        case 'easypaisa': return <Banknote className="h-5 w-5 text-green-500" />;
+        case 'jazzcash': return <Banknote className="h-5 w-5 text-red-500" />;
+        case 'crypto': return <Wallet className="h-5 w-5 text-amber-500" />;
+        default: return <Banknote className="h-5 w-5" />;
+    }
+}
 
 export default function CheckoutPage() {
     const params = useParams();
@@ -22,10 +38,8 @@ export default function CheckoutPage() {
     const planId = params.planId as string;
 
     const [selectedPlan, setSelectedPlan] = useState<Plan | null>(null);
-    const [currentPlan, setCurrentPlan] = useState<Plan | null>(null);
-    const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
+    const [paymentMethods, setPaymentMethods] = useState<PaymentMethod[]>([]);
     const [loading, setLoading] = useState(true);
-    const [isSubmitting, setIsSubmitting] = useState(false);
     
     useEffect(() => {
         if (authLoading) return;
@@ -37,24 +51,21 @@ export default function CheckoutPage() {
         const loadData = async () => {
             setLoading(true);
             try {
-                const plan = await getPlanById(planId);
+                const [plan, methods] = await Promise.all([
+                    getPlanById(planId),
+                    fetchPaymentMethods(true) // Fetch only enabled methods
+                ]);
+                
                 if (!plan) {
                     toast({ title: "Error", description: "This plan could not be found.", variant: "destructive" });
                     router.push('/pricing');
                     return;
                 }
                 setSelectedPlan(plan);
+                setPaymentMethods(methods);
                 
-                const profile = await getUserProfile(user.uid);
-                setUserProfile(profile);
-
-                if (profile?.planId) {
-                    const current = await getPlanById(profile.planId);
-                    setCurrentPlan(current);
-                }
-
             } catch (error) {
-                toast({ title: "Error", description: "Could not load plan details.", variant: "destructive" });
+                toast({ title: "Error", description: "Could not load page details.", variant: "destructive" });
             } finally {
                 setLoading(false);
             }
@@ -63,27 +74,6 @@ export default function CheckoutPage() {
 
     }, [planId, user, authLoading, router, toast]);
 
-    const handleConfirmPurchase = async () => {
-        if (!user || !selectedPlan) return;
-        setIsSubmitting(true);
-        try {
-            await changeUserSubscription(user.uid, selectedPlan.id, { remarks: "User upgraded via checkout." });
-            toast({
-                title: "Purchase Successful!",
-                description: `You are now subscribed to the ${selectedPlan.name} plan.`,
-            });
-            router.push('/account/dashboard');
-        } catch (error: any) {
-            toast({
-                title: "Purchase Failed",
-                description: error.message || "Could not complete the purchase. Please try again.",
-                variant: "destructive"
-            });
-        } finally {
-            setIsSubmitting(false);
-        }
-    };
-
     if (loading || authLoading) {
         return <div className="flex items-center justify-center h-screen"><Loader2 className="h-8 w-8 animate-spin" /></div>;
     }
@@ -91,6 +81,8 @@ export default function CheckoutPage() {
     if (!selectedPlan) {
         return null;
     }
+
+    const pricingOption = selectedPlan.pricingOptions[0]; // Assuming one for now
 
     return (
         <div className="container mx-auto max-w-4xl py-12">
@@ -101,7 +93,7 @@ export default function CheckoutPage() {
                 </Button>
             </div>
             <div className="grid md:grid-cols-2 gap-8 items-start">
-                <Card>
+                <Card className="sticky top-24">
                     <CardHeader>
                         <CardTitle>Order Summary</CardTitle>
                         <CardDescription>You are purchasing the following plan.</CardDescription>
@@ -111,8 +103,8 @@ export default function CheckoutPage() {
                             <h3 className="text-xl font-bold">{selectedPlan.name}</h3>
                             <p className="text-muted-foreground">{selectedPlan.description}</p>
                             <div className="mt-4 text-4xl font-extrabold">
-                                PKR {selectedPlan.pricingOptions[0]?.price || '0'}
-                                <span className="text-base font-normal text-muted-foreground">/{selectedPlan.pricingOptions[0]?.label || 'unit'}</span>
+                                PKR {pricingOption?.price || '0'}
+                                <span className="text-base font-normal text-muted-foreground">/{pricingOption?.label || 'unit'}</span>
                             </div>
                         </div>
                         <div>
@@ -130,35 +122,53 @@ export default function CheckoutPage() {
                 </Card>
                 <Card>
                     <CardHeader>
-                        <CardTitle className="flex items-center gap-2"><CreditCard className="h-5 w-5"/> Payment Details</CardTitle>
-                        <CardDescription>This is a simulated payment form.</CardDescription>
+                        <CardTitle className="flex items-center gap-2">Payment Details</CardTitle>
+                        <CardDescription>Please complete your payment using one of the methods below.</CardDescription>
                     </CardHeader>
                      <CardContent className="space-y-4">
-                        <div className="space-y-2">
-                            <Label htmlFor="card-number">Card Number</Label>
-                            <Input id="card-number" placeholder="**** **** **** 1234" disabled />
-                        </div>
-                        <div className="grid grid-cols-2 gap-4">
-                            <div className="space-y-2">
-                                <Label htmlFor="expiry-date">Expiry Date</Label>
-                                <Input id="expiry-date" placeholder="MM/YY" disabled />
-                            </div>
-                             <div className="space-y-2">
-                                <Label htmlFor="cvc">CVC</Label>
-                                <Input id="cvc" placeholder="123" disabled />
-                            </div>
-                        </div>
-                        <div className="space-y-2">
-                            <Label htmlFor="card-name">Name on Card</Label>
-                            <Input id="card-name" placeholder="John Doe" disabled />
-                        </div>
+                       <Accordion type="single" collapsible className="w-full">
+                         {paymentMethods.map(method => (
+                            <AccordionItem value={method.id} key={method.id}>
+                                <AccordionTrigger className="font-semibold text-base">
+                                   <div className="flex items-center gap-3">
+                                        {getIconForType(method.type)}
+                                        {method.name}
+                                   </div>
+                                </AccordionTrigger>
+                                <AccordionContent>
+                                    <div className="p-4 bg-muted/50 rounded-lg space-y-2">
+                                        {method.type === 'bank' && (
+                                            <>
+                                                <InfoRow label="Bank Name" value={method.details.bankName} />
+                                                <InfoRow label="Account Title" value={method.details.accountTitle} />
+                                                <InfoRow label="Account Number" value={method.details.accountNumber} />
+                                                <InfoRow label="IBAN" value={method.details.iban} />
+                                            </>
+                                        )}
+                                        {(method.type === 'easypaisa' || method.type === 'jazzcash') && (
+                                            <>
+                                                <InfoRow label="Account Title" value={method.details.accountTitle} />
+                                                <InfoRow label="Account Number" value={method.details.accountNumber} />
+                                            </>
+                                        )}
+                                        {method.type === 'crypto' && (
+                                            <>
+                                                <InfoRow label="Network" value={method.details.network} />
+                                                <InfoRow label="Wallet Address" value={method.details.walletAddress} />
+                                            </>
+                                        )}
+                                        <p className="text-xs text-muted-foreground pt-4">After payment, please send a screenshot of the transaction to our support team for verification.</p>
+                                    </div>
+                                </AccordionContent>
+                            </AccordionItem>
+                         ))}
+                       </Accordion>
+                       {paymentMethods.length === 0 && (
+                           <div className="text-center text-muted-foreground py-8">
+                               No payment methods are currently available. Please contact support.
+                           </div>
+                       )}
                     </CardContent>
-                    <CardFooter>
-                         <Button className="w-full" size="lg" onClick={handleConfirmPurchase} disabled={isSubmitting}>
-                            {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                            Confirm Purchase
-                        </Button>
-                    </CardFooter>
                 </Card>
             </div>
         </div>
