@@ -2,18 +2,20 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { useParams, useRouter } from 'next/navigation';
+import { useParams, useRouter, usePathname } from 'next/navigation';
 import { useAuth } from '@/hooks/use-auth';
 import { getPlanById } from '@/lib/plan-service';
-import type { Plan, PaymentMethod } from '@/types';
+import type { Plan, PaymentMethod, User as UserProfile } from '@/types';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Loader2, Check, ArrowLeft, Banknote, Landmark, Wallet } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { fetchPaymentMethods } from '@/lib/payment-method-service';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
+import { changeUserSubscription, getUserProfile } from '@/lib/user-service';
+import { format } from 'date-fns';
 
-const InfoRow = ({ label, value }: { label: string; value?: string }) => (
+const InfoRow = ({ label, value }: { label: string; value?: string | number }) => (
     <div className="flex justify-between text-sm">
         <p className="text-muted-foreground">{label}</p>
         <p className="font-medium text-right">{value || '-'}</p>
@@ -33,27 +35,31 @@ const getIconForType = (type: string) => {
 export default function CheckoutPage() {
     const params = useParams();
     const router = useRouter();
+    const pathname = usePathname();
     const { toast } = useToast();
     const { user, loading: authLoading } = useAuth();
     const planId = params.planId as string;
 
     const [selectedPlan, setSelectedPlan] = useState<Plan | null>(null);
+    const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
     const [paymentMethods, setPaymentMethods] = useState<PaymentMethod[]>([]);
     const [loading, setLoading] = useState(true);
+    const [isConfirming, setIsConfirming] = useState(false);
     
     useEffect(() => {
         if (authLoading) return;
         if (!user) {
-            router.push(`/login?redirect=/checkout/${planId}`);
+            router.push(`/login?redirect=${pathname}`);
             return;
         }
 
         const loadData = async () => {
             setLoading(true);
             try {
-                const [plan, methods] = await Promise.all([
+                const [plan, methods, profile] = await Promise.all([
                     getPlanById(planId),
-                    fetchPaymentMethods(true) // Fetch only enabled methods
+                    fetchPaymentMethods(true),
+                    getUserProfile(user.uid),
                 ]);
                 
                 if (!plan) {
@@ -61,8 +67,16 @@ export default function CheckoutPage() {
                     router.push('/pricing');
                     return;
                 }
+                
+                if (plan.id === profile?.planId) {
+                    toast({ title: "Already Subscribed", description: "You are already subscribed to this plan.", variant: "default" });
+                    router.push('/account/subscription');
+                    return;
+                }
+
                 setSelectedPlan(plan);
                 setPaymentMethods(methods);
+                setUserProfile(profile);
                 
             } catch (error) {
                 toast({ title: "Error", description: "Could not load page details.", variant: "destructive" });
@@ -72,7 +86,29 @@ export default function CheckoutPage() {
         }
         loadData();
 
-    }, [planId, user, authLoading, router, toast]);
+    }, [planId, user, authLoading, router, toast, pathname]);
+
+    const handleConfirmPurchase = async () => {
+        if (!user || !selectedPlan) return;
+        setIsConfirming(true);
+        try {
+            await changeUserSubscription(user.uid, selectedPlan.id, { remarks: "User self-subscribed via checkout." });
+            toast({
+                title: "Purchase Successful!",
+                description: `You have successfully subscribed to the ${selectedPlan.name} plan.`
+            });
+            router.push('/account/dashboard');
+        } catch (error: any) {
+            toast({
+                title: 'Purchase Failed',
+                description: error.message || "Could not complete your purchase. Please try again.",
+                variant: 'destructive'
+            });
+        } finally {
+            setIsConfirming(false);
+        }
+    }
+
 
     if (loading || authLoading) {
         return <div className="flex items-center justify-center h-screen"><Loader2 className="h-8 w-8 animate-spin" /></div>;
@@ -124,7 +160,20 @@ export default function CheckoutPage() {
                                 ))}
                             </ul>
                         </div>
+                         <Card className="mt-4 bg-transparent shadow-none">
+                            <CardHeader className="p-0 pb-2"><h4 className="font-semibold">User Details</h4></CardHeader>
+                            <CardContent className="p-0 space-y-1">
+                                <InfoRow label="Name" value={userProfile?.name || 'N/A'}/>
+                                <InfoRow label="Email" value={userProfile?.email || 'N/A'}/>
+                            </CardContent>
+                        </Card>
                     </CardContent>
+                     <CardFooter>
+                        <Button className="w-full" size="lg" onClick={handleConfirmPurchase} disabled={isConfirming}>
+                            {isConfirming ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : null}
+                            Confirm Purchase
+                        </Button>
+                    </CardFooter>
                 </Card>
                 <Card>
                     <CardHeader>
@@ -180,3 +229,5 @@ export default function CheckoutPage() {
         </div>
     );
 }
+
+    

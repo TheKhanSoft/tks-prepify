@@ -94,7 +94,7 @@ export default function PricingPage() {
                 savings = (monthlyOption.price * 12) - yearlyOption.price;
             }
             
-            const currentPlanPrice = currentPlan ? currentPlan.pricingOptions[0]?.price ?? 0 : 0;
+            const currentPlanPrice = currentPlan ? (currentPlan.pricingOptions.find(p => p.months === displayOption.months)?.price ?? currentPlan.pricingOptions[0]?.price ?? 0) : 0;
             const isUpgrade = displayOption.price > currentPlanPrice;
             const buttonText = isCurrentPlan
                 ? "Your Current Plan"
@@ -167,3 +167,5 @@ export default function PricingPage() {
     </div>
   );
 }
+
+    
