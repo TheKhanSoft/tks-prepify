@@ -28,6 +28,8 @@ const docToDiscount = (doc: DocumentData): Discount => {
     isActive: data.isActive,
     appliesToAllPlans: data.appliesToAllPlans,
     applicablePlanIds: data.applicablePlanIds || [],
+    appliesToAllDurations: data.appliesToAllDurations,
+    applicableDurations: data.applicableDurations || [],
     startDate: serializeDate(data.startDate),
     endDate: serializeDate(data.endDate),
   };

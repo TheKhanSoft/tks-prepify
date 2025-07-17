@@ -1,5 +1,5 @@
 
-"use client";
+'use client';
 
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
@@ -9,18 +9,63 @@ import { fetchPlans } from '@/lib/plan-service';
 import { Check, Loader2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Badge } from '@/components/ui/badge';
-import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import type { Plan, User as UserProfile } from '@/types';
+import type { Plan, User as UserProfile, PricingOption } from '@/types';
 import { useAuth } from '@/hooks/use-auth';
 import { getUserProfile } from '@/lib/user-service';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+
+const PlanActionButton = ({ user, currentPlan, targetPlan, option, isCurrentPlan, isUpgrade, isDowngrade }: {
+    user: UserProfile | null,
+    currentPlan: Plan | null,
+    targetPlan: Plan,
+    option: PricingOption,
+    isCurrentPlan: boolean,
+    isUpgrade: boolean,
+    isDowngrade: boolean,
+}) => {
+    let buttonText = `Choose ${option.label}`;
+    if (user) {
+        if (isCurrentPlan) buttonText = "Your Current Plan";
+        else if (isUpgrade) buttonText = `Upgrade to ${option.label}`;
+        else if (isDowngrade) buttonText = "Downgrade";
+    }
+
+    const checkoutLink = user
+      ? `/checkout/${targetPlan.id}?option=${encodeURIComponent(option.label)}`
+      : '/signup';
+
+    if (isDowngrade) {
+        return (
+            <Tooltip>
+                <TooltipTrigger asChild>
+                    <span tabIndex={0} className="w-full">
+                        <Button size="lg" className="w-full" variant={targetPlan.popular ? 'default' : 'outline'} disabled>
+                            {buttonText}
+                        </Button>
+                    </span>
+                </TooltipTrigger>
+                <TooltipContent>
+                    <p>Please contact support to downgrade your plan.</p>
+                </TooltipContent>
+            </Tooltip>
+        );
+    }
+
+    return (
+        <Button asChild size="lg" className="w-full" variant={targetPlan.popular ? 'default' : 'outline'} disabled={isCurrentPlan}>
+            <Link href={checkoutLink}>
+                {buttonText}
+            </Link>
+        </Button>
+    );
+};
+
 
 export default function PricingPage() {
   const { user, loading: authLoading } = useAuth();
   const [plans, setPlans] = useState<Plan[]>([]);
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
-  const [interval, setInterval] = useState<'month' | 'year'>('month');
 
   useEffect(() => {
     const loadData = async () => {
@@ -68,19 +113,8 @@ export default function PricingPage() {
           </p>
         </div>
 
-        {plans.length > 0 && (
-            <div className="mt-16 flex justify-center">
-                <Tabs defaultValue="month" onValueChange={(value) => setInterval(value as any)}>
-                    <TabsList className="grid w-full grid-cols-2">
-                        <TabsTrigger value="month">Monthly</TabsTrigger>
-                        <TabsTrigger value="year">Annually</TabsTrigger>
-                    </TabsList>
-                </Tabs>
-            </div>
-        )}
-        
         <div className={cn(
-          "isolate mx-auto mt-10 grid max-w-md gap-8 lg:mx-0 lg:max-w-none",
+          "isolate mx-auto mt-16 grid max-w-md gap-8 lg:mx-0 lg:max-w-none",
           plans.length === 1 && "lg:grid-cols-1",
           plans.length === 2 && "lg:grid-cols-2",
           plans.length >= 3 && "lg:grid-cols-3",
@@ -89,57 +123,14 @@ export default function PricingPage() {
             const isCurrentPlan = userProfile?.planId === plan.id;
             const monthlyOption = plan.pricingOptions.find(p => p.months === 1);
             const yearlyOption = plan.pricingOptions.find(p => p.months === 12);
-            
-            // Determine the option to display based on the interval toggle
-            // If the preferred interval doesn't exist, fall back to the other, or the first available option.
-            const displayOption = (interval === 'year' && yearlyOption)
-              ? yearlyOption
-              : (interval === 'month' && monthlyOption)
-                ? monthlyOption
-                : yearlyOption || monthlyOption || plan.pricingOptions[0];
+            const otherOptions = plan.pricingOptions.filter(p => p.months !== 1 && p.months !== 12);
 
-            if (!displayOption) return null; // Don't render card if no valid pricing option
+            const getLowestPrice = (options: PricingOption[]): number => {
+                if (!options || options.length === 0) return -1;
+                return Math.min(...options.map(o => o.price));
+            };
 
-            let savings = 0;
-            if (interval === 'year' && monthlyOption && yearlyOption) {
-                savings = (monthlyOption.price * 12) - yearlyOption.price;
-            }
-            
-            const priceOfCurrentPlanForInterval = currentPlan?.pricingOptions.find(p => p.months === displayOption.months)?.price ??
-                (currentPlan ? (currentPlan.pricingOptions.find(p=>p.months === 1)?.price ?? currentPlan.pricingOptions[0]?.price) : -1);
-
-            const isUpgrade = user && currentPlan && !isCurrentPlan && displayOption.price > priceOfCurrentPlanForInterval;
-            const isDowngrade = user && currentPlan && !isCurrentPlan && displayOption.price < priceOfCurrentPlanForInterval;
-            
-            let buttonText = "Choose Plan";
-            if (user) {
-                if (isCurrentPlan) buttonText = "Your Current Plan";
-                else if (isDowngrade) buttonText = "Downgrade";
-                else if (isUpgrade) buttonText = "Upgrade Plan";
-            }
-            
-            const checkoutLink = user ? `/checkout/${plan.id}?option=${encodeURIComponent(displayOption.label)}` : '/signup';
-            
-            const buttonAction = isDowngrade ? (
-                <Tooltip>
-                    <TooltipTrigger asChild>
-                        <span tabIndex={0} className="w-full">
-                            <Button size="lg" className="w-full" variant={plan.popular ? 'default' : 'outline'} disabled>
-                                {buttonText}
-                            </Button>
-                        </span>
-                    </TooltipTrigger>
-                    <TooltipContent>
-                        <p>Please contact support to downgrade your plan.</p>
-                    </TooltipContent>
-                </Tooltip>
-            ) : (
-                <Button asChild size="lg" className="w-full" variant={plan.popular ? 'default' : 'outline'} disabled={isCurrentPlan}>
-                    <Link href={checkoutLink}>
-                        {buttonText}
-                    </Link>
-                </Button>
-            );
+            const currentPlanPrice = getLowestPrice(currentPlan?.pricingOptions || []);
 
             return (
                 <Card key={plan.id} className={cn(
@@ -155,18 +146,6 @@ export default function PricingPage() {
                         ) : plan.popular && <Badge>Most Popular</Badge>}
                     </div>
                     <CardDescription className="mt-4">{plan.description}</CardDescription>
-                    <div className="mt-6 flex items-baseline gap-x-1">
-                    <span className="text-5xl font-bold tracking-tight">PKR {displayOption.price}</span>
-                    <span className="text-sm font-semibold leading-6 text-muted-foreground">/{displayOption.months === 1 ? 'month' : (displayOption.months === 12 ? 'year' : `${displayOption.months} mo`)}</span>
-                    </div>
-                     {displayOption.badge && (
-                        <Badge className="mt-2 bg-accent/20 text-accent-foreground border-accent/50 hover:bg-accent/30">{displayOption.badge}</Badge>
-                    )}
-                     {savings > 0 && (
-                        <p className="mt-1 text-sm text-green-600 font-semibold">
-                            You save PKR {savings.toFixed(2)} a year!
-                        </p>
-                    )}
                 </CardHeader>
                 <CardContent className="p-8 pt-0 flex-1">
                     <ul role="list" className="space-y-4 text-sm leading-6">
@@ -184,8 +163,35 @@ export default function PricingPage() {
                       ))}
                     </ul>
                 </CardContent>
-                <CardFooter className="p-8 pt-0">
-                    {buttonAction}
+                <CardFooter className="p-8 pt-0 mt-auto">
+                    <div className="w-full space-y-4">
+                        {[...(monthlyOption ? [monthlyOption] : []), ...(yearlyOption ? [yearlyOption] : []), ...otherOptions].map(option => {
+                           const targetPrice = option.price;
+                           const isUpgrade = user && currentPlan && !isCurrentPlan && targetPrice > currentPlanPrice;
+                           const isDowngrade = user && currentPlan && !isCurrentPlan && targetPrice < currentPlanPrice;
+                           
+                           return (
+                               <div key={option.label} className="text-center">
+                                    <div className="flex items-baseline justify-center gap-x-1">
+                                       <span className="text-4xl font-bold tracking-tight">PKR {option.price}</span>
+                                       <span className="text-sm font-semibold leading-6 text-muted-foreground">/{option.months === 1 ? 'month' : (option.months === 12 ? 'year' : `${option.months} mo`)}</span>
+                                    </div>
+                                    {option.badge && <Badge className="mt-2">{option.badge}</Badge>}
+                                    <div className="mt-4">
+                                       <PlanActionButton 
+                                            user={userProfile}
+                                            currentPlan={currentPlan}
+                                            targetPlan={plan}
+                                            option={option}
+                                            isCurrentPlan={isCurrentPlan}
+                                            isUpgrade={isUpgrade}
+                                            isDowngrade={isDowngrade}
+                                       />
+                                    </div>
+                               </div>
+                           )
+                        })}
+                    </div>
                 </CardFooter>
                 </Card>
             )

@@ -290,6 +290,8 @@ export interface Discount {
   isActive: boolean;
   appliesToAllPlans: boolean;
   applicablePlanIds?: string[];
+  appliesToAllDurations: boolean;
+  applicableDurations?: string[];
   startDate?: string | null; // ISO string
   endDate?: string | null; // ISO string
 }

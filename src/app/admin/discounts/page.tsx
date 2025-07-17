@@ -2,7 +2,7 @@
 "use client";
 
 import React, { useState, useEffect, useCallback } from "react";
-import { useForm, useFieldArray } from "react-hook-form";
+import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import { Button } from "@/components/ui/button";
@@ -38,7 +38,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Switch } from "@/components/ui/switch";
 import { Checkbox } from "@/components/ui/checkbox";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2, PlusCircle, Trash2, Edit, Percent, Tag, Settings, Calendar, ClipboardCopy } from "lucide-react";
+import { Loader2, PlusCircle, Trash2, Edit, Percent, Tag, Settings, Calendar as CalendarIcon, ClipboardCopy } from "lucide-react";
 import { fetchDiscounts, addDiscount, updateDiscount, deleteDiscount, type Discount } from "@/lib/discount-service";
 import { fetchPlans, type Plan } from "@/lib/plan-service";
 import { Badge } from "@/components/ui/badge";
@@ -46,8 +46,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { Calendar as CalendarIcon } from "lucide-react";
-import { Calendar as CalendarComponent } from "@/components/ui/calendar";
+import { Calendar } from "@/components/ui/calendar";
 
 const discountFormSchema = z.object({
   name: z.string().min(3, "Name is required."),
@@ -55,8 +54,13 @@ const discountFormSchema = z.object({
   type: z.enum(['percentage', 'flat']),
   value: z.coerce.number().min(0, "Value must be a non-negative number."),
   isActive: z.boolean().default(true),
+  
   appliesToAllPlans: z.boolean().default(true),
   applicablePlanIds: z.array(z.string()).optional(),
+
+  appliesToAllDurations: z.boolean().default(true),
+  applicableDurations: z.array(z.string()).optional(),
+
   startDate: z.date().optional().nullable(),
   endDate: z.date().optional().nullable(),
 }).refine(data => {
@@ -71,7 +75,14 @@ const discountFormSchema = z.object({
 }, {
     message: "Please select at least one plan.",
     path: ["applicablePlanIds"],
+}).refine(data => {
+    if (!data.appliesToAllDurations) return data.applicableDurations && data.applicableDurations.length > 0;
+    return true;
+}, {
+    message: "Please select at least one duration.",
+    path: ["applicableDurations"],
 });
+
 
 type FormValues = z.infer<typeof discountFormSchema>;
 
@@ -91,6 +102,7 @@ export default function DiscountsPage() {
   });
 
   const appliesToAllPlans = form.watch("appliesToAllPlans");
+  const appliesToAllDurations = form.watch("appliesToAllDurations");
 
   const loadData = useCallback(async () => {
     setLoading(true);
@@ -119,6 +131,8 @@ export default function DiscountsPage() {
       isActive: true,
       appliesToAllPlans: true,
       applicablePlanIds: [],
+      appliesToAllDurations: true,
+      applicableDurations: [],
     });
     setIsDialogOpen(true);
   };
@@ -133,6 +147,7 @@ export default function DiscountsPage() {
     const payload: Partial<Discount> = {
       ...data,
       applicablePlanIds: data.appliesToAllPlans ? [] : data.applicablePlanIds,
+      applicableDurations: data.appliesToAllDurations ? [] : data.applicableDurations,
       startDate: data.startDate?.toISOString(),
       endDate: data.endDate?.toISOString(),
     };
@@ -171,6 +186,16 @@ export default function DiscountsPage() {
     setDeletingDiscountId(id);
     setIsDeleteAlertOpen(true);
   }
+
+  const uniqueDurations = useMemo(() => {
+    const allDurations = new Set<string>();
+    plans.forEach(plan => {
+        plan.pricingOptions.forEach(opt => {
+            allDurations.add(opt.label);
+        });
+    });
+    return Array.from(allDurations);
+  }, [plans]);
 
   return (
     <div className="space-y-6">
@@ -251,48 +276,91 @@ export default function DiscountsPage() {
               </div>
               
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                 <FormField control={form.control} name="startDate" render={({ field }) => (<FormItem className="flex flex-col"><FormLabel>Start Date (Optional)</FormLabel><Popover><PopoverTrigger asChild><FormControl><Button variant={"outline"} className={cn("pl-3 text-left font-normal", !field.value && "text-muted-foreground")}><CalendarIcon className="mr-2 h-4 w-4" />{field.value ? format(field.value, "PPP") : <span>Pick a date</span>}</Button></FormControl></PopoverTrigger><PopoverContent className="w-auto p-0" align="start"><CalendarComponent mode="single" selected={field.value || undefined} onSelect={field.onChange} initialFocus /></PopoverContent></Popover><FormMessage /></FormItem>)} />
-                <FormField control={form.control} name="endDate" render={({ field }) => (<FormItem className="flex flex-col"><FormLabel>End Date (Optional)</FormLabel><Popover><PopoverTrigger asChild><FormControl><Button variant={"outline"} className={cn("pl-3 text-left font-normal", !field.value && "text-muted-foreground")}><CalendarIcon className="mr-2 h-4 w-4" />{field.value ? format(field.value, "PPP") : <span>Pick a date</span>}</Button></FormControl></PopoverTrigger><PopoverContent className="w-auto p-0" align="start"><CalendarComponent mode="single" selected={field.value || undefined} onSelect={field.onChange} initialFocus /></PopoverContent></Popover><FormMessage /></FormItem>)} />
+                 <FormField control={form.control} name="startDate" render={({ field }) => (<FormItem className="flex flex-col"><FormLabel>Start Date (Optional)</FormLabel><Popover><PopoverTrigger asChild><FormControl><Button variant={"outline"} className={cn("pl-3 text-left font-normal", !field.value && "text-muted-foreground")}><CalendarIcon className="mr-2 h-4 w-4" />{field.value ? format(field.value, "PPP") : <span>Pick a date</span>}</Button></FormControl></PopoverTrigger><PopoverContent className="w-auto p-0" align="start"><Calendar mode="single" selected={field.value || undefined} onSelect={field.onChange} initialFocus /></PopoverContent></Popover><FormMessage /></FormItem>)} />
+                <FormField control={form.control} name="endDate" render={({ field }) => (<FormItem className="flex flex-col"><FormLabel>End Date (Optional)</FormLabel><Popover><PopoverTrigger asChild><FormControl><Button variant={"outline"} className={cn("pl-3 text-left font-normal", !field.value && "text-muted-foreground")}><CalendarIcon className="mr-2 h-4 w-4" />{field.value ? format(field.value, "PPP") : <span>Pick a date</span>}</Button></FormControl></PopoverTrigger><PopoverContent className="w-auto p-0" align="start"><Calendar mode="single" selected={field.value || undefined} onSelect={field.onChange} initialFocus /></PopoverContent></Popover><FormMessage /></FormItem>)} />
               </div>
 
-              <FormField control={form.control} name="appliesToAllPlans" render={({ field }) => (<FormItem className="flex flex-row items-center space-x-3 space-y-0 p-3 rounded-md border bg-muted/50"><FormControl><Switch checked={field.value} onCheckedChange={field.onChange} /></FormControl><FormLabel>Apply to all plans</FormLabel></FormItem>)} />
-                
-              {!appliesToAllPlans && (
-                 <FormField
-                    control={form.control}
-                    name="applicablePlanIds"
-                    render={() => (
-                      <FormItem>
-                        <FormLabel>Select Plans</FormLabel>
-                        <div className="max-h-40 overflow-y-auto space-y-2 rounded-md border p-4">
-                          {plans.map((plan) => (
-                            <FormField
-                              key={plan.id}
-                              control={form.control}
-                              name="applicablePlanIds"
-                              render={({ field }) => (
-                                <FormItem key={plan.id} className="flex flex-row items-start space-x-3 space-y-0">
-                                  <FormControl>
-                                    <Checkbox
-                                      checked={field.value?.includes(plan.id)}
-                                      onCheckedChange={(checked) => {
-                                        return checked
-                                          ? field.onChange([...(field.value || []), plan.id])
-                                          : field.onChange(field.value?.filter((value) => value !== plan.id));
-                                      }}
-                                    />
-                                  </FormControl>
-                                  <FormLabel className="font-normal">{plan.name}</FormLabel>
-                                </FormItem>
-                              )}
-                            />
-                          ))}
-                        </div>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-              )}
+              <div className="space-y-4">
+                 <FormField control={form.control} name="appliesToAllPlans" render={({ field }) => (<FormItem className="flex flex-row items-center space-x-3 space-y-0 p-3 rounded-md border bg-muted/50"><FormControl><Switch checked={field.value} onCheckedChange={field.onChange} /></FormControl><FormLabel>Apply to all plans</FormLabel></FormItem>)} />
+                    
+                  {!appliesToAllPlans && (
+                     <FormField
+                        control={form.control}
+                        name="applicablePlanIds"
+                        render={() => (
+                          <FormItem>
+                            <FormLabel>Select Plans</FormLabel>
+                            <div className="max-h-40 overflow-y-auto space-y-2 rounded-md border p-4">
+                              {plans.map((plan) => (
+                                <FormField
+                                  key={plan.id}
+                                  control={form.control}
+                                  name="applicablePlanIds"
+                                  render={({ field }) => (
+                                    <FormItem key={plan.id} className="flex flex-row items-start space-x-3 space-y-0">
+                                      <FormControl>
+                                        <Checkbox
+                                          checked={field.value?.includes(plan.id)}
+                                          onCheckedChange={(checked) => {
+                                            return checked
+                                              ? field.onChange([...(field.value || []), plan.id])
+                                              : field.onChange(field.value?.filter((value) => value !== plan.id));
+                                          }}
+                                        />
+                                      </FormControl>
+                                      <FormLabel className="font-normal">{plan.name}</FormLabel>
+                                    </FormItem>
+                                  )}
+                                />
+                              ))}
+                            </div>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                  )}
+              </div>
+              
+               <div className="space-y-4">
+                  <FormField control={form.control} name="appliesToAllDurations" render={({ field }) => (<FormItem className="flex flex-row items-center space-x-3 space-y-0 p-3 rounded-md border bg-muted/50"><FormControl><Switch checked={field.value} onCheckedChange={field.onChange} /></FormControl><FormLabel>Apply to all plan durations</FormLabel></FormItem>)} />
+
+                   {!appliesToAllDurations && (
+                     <FormField
+                        control={form.control}
+                        name="applicableDurations"
+                        render={() => (
+                          <FormItem>
+                            <FormLabel>Select Durations</FormLabel>
+                            <div className="max-h-40 overflow-y-auto space-y-2 rounded-md border p-4">
+                              {uniqueDurations.map((duration) => (
+                                <FormField
+                                  key={duration}
+                                  control={form.control}
+                                  name="applicableDurations"
+                                  render={({ field }) => (
+                                    <FormItem key={duration} className="flex flex-row items-start space-x-3 space-y-0">
+                                      <FormControl>
+                                        <Checkbox
+                                          checked={field.value?.includes(duration)}
+                                          onCheckedChange={(checked) => {
+                                            return checked
+                                              ? field.onChange([...(field.value || []), duration])
+                                              : field.onChange(field.value?.filter((value) => value !== duration));
+                                          }}
+                                        />
+                                      </FormControl>
+                                      <FormLabel className="font-normal">{duration}</FormLabel>
+                                    </FormItem>
+                                  )}
+                                />
+                              ))}
+                            </div>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                  )}
+               </div>
 
               <FormField control={form.control} name="isActive" render={({ field }) => (<FormItem className="flex flex-row items-center justify-between rounded-lg border p-4"><div className="space-y-0.5"><FormLabel>Active</FormLabel></div><FormControl><Switch checked={field.value} onCheckedChange={field.onChange} /></FormControl></FormItem>)} />
 
