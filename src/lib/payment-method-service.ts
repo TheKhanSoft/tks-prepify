@@ -31,14 +31,17 @@ const docToPaymentMethod = (doc: DocumentData): PaymentMethod => {
 
 export const fetchPaymentMethods = cache(async (enabledOnly = false): Promise<PaymentMethod[]> => {
   const methodsCol = collection(db, 'payment_methods');
-  let q;
-  if (enabledOnly) {
-    q = query(methodsCol, where('enabled', '==', true), orderBy('name'));
-  } else {
-    q = query(methodsCol, orderBy('name'));
-  }
+  // Always order by name, as this is a simple index.
+  const q = query(methodsCol, orderBy('name'));
   const snapshot = await getDocs(q);
-  return snapshot.docs.map(docToPaymentMethod);
+  const allMethods = snapshot.docs.map(docToPaymentMethod);
+
+  // If enabledOnly is true, filter the results in the code.
+  if (enabledOnly) {
+    return allMethods.filter(method => method.enabled);
+  }
+
+  return allMethods;
 });
 
 export async function getPaymentMethodById(id: string): Promise<PaymentMethod | null> {
