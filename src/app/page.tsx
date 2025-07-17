@@ -11,6 +11,8 @@ import Image from 'next/image';
 import type { Category } from '@/types';
 import { PaperCard } from '@/components/common/PaperCard';
 import ReactMarkdown from 'react-markdown';
+import { Header } from '@/components/common/Header';
+import { Footer } from '@/components/common/Footer';
 
 // Helper function to recursively find all featured categories from the tree
 function getAllFeaturedCategories(categories: Category[]): Category[] {
@@ -38,10 +40,12 @@ export default async function Home() {
   const featuredPapers = allPapers.filter(p => p.featured && p.published).slice(0, 3);
   
   return (
-    <>
+    <div className="flex flex-col min-h-screen bg-background">
+      <Header settings={settings} />
+      <main className="flex-grow">
       {/* Hero Section */}
       <section className="bg-card">
-        <div className="container mx-auto px-16 py-16 md:py-24 grid md:grid-cols-2 gap-8 items-center">
+        <div className="container mx-auto px-6 sm:px-10 lg:px-16 py-16 md:py-24 grid md:grid-cols-2 gap-8 items-center">
           <div className="space-y-6">
             <h1 className="text-4xl md:text-5xl font-bold font-headline leading-tight">
               {settings.heroTitlePrefix} <span className="text-primary">{settings.heroTitleHighlight}</span> {settings.heroTitleSuffix}
@@ -72,7 +76,7 @@ export default async function Home() {
       </section>
 
       {/* Categories Section */}
-      <section id="categories" className="container mx-auto px-16 py-16 md:py-24">
+      <section id="categories" className="container mx-auto px-6 sm:px-10 lg:px-16 py-16 md:py-24">
         <div className="text-center mb-12">
           <h2 className="text-3xl md:text-4xl font-bold font-headline">Explore Featured Categories</h2>
           <p className="text-lg text-muted-foreground mt-2">Find question papers tailored to your subjects of interest.</p>
@@ -134,7 +138,7 @@ export default async function Home() {
 
       {/* Latest Papers Section */}
       <section className="bg-card">
-        <div className="container mx-auto px-16 py-16 md:py-24">
+        <div className="container mx-auto px-6 sm:px-10 lg:px-16 py-16 md:py-24">
           <div className="flex justify-between items-center mb-12">
             <div className="text-left">
               <h2 className="text-3xl md:text-4xl font-bold font-headline">Latest Question Papers</h2>
@@ -154,6 +158,8 @@ export default async function Home() {
           </div>
         </div>
       </section>
-    </>
+      </main>
+      <Footer settings={settings} />
+    </div>
   );
 }

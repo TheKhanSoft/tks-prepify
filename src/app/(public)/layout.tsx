@@ -4,16 +4,12 @@ import { Header } from "@/components/common/Header";
 import { Footer } from "@/components/common/Footer";
 import { fetchSettings } from "@/lib/settings-service";
 
-export default async function LegalLayout({ children }: { children: ReactNode }) {
+export default async function PublicLayout({ children }: { children: ReactNode }) {
   const settings = await fetchSettings();
   return (
     <div className="flex flex-col min-h-screen bg-background">
       <Header settings={settings} />
-      <main className="flex-grow">
-        <div className="container mx-auto max-w-4xl px-6 sm:px-10 lg:px-16 py-12 md:py-16">
-            {children}
-        </div>
-      </main>
+      <main className="flex-grow">{children}</main>
       <Footer settings={settings} />
     </div>
   );
