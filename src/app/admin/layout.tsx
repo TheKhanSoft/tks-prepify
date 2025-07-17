@@ -15,7 +15,7 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { LayoutDashboard, FileText, Folder, Home, Users, Settings, Bell, Search, Mail, FileSliders, ChevronRight, Database, Coins, LogOut, ClipboardList, LifeBuoy, Download, BarChart3, UserCog, BookOpen, Loader2, ShieldAlert, X, Banknote } from 'lucide-react';
+import { LayoutDashboard, FileText, Folder, Home, Users, Settings, Bell, Search, Mail, FileSliders, ChevronRight, Database, Coins, LogOut, ClipboardList, LifeBuoy, Download, BarChart3, UserCog, BookOpen, Loader2, ShieldAlert, X, Banknote, Percent } from 'lucide-react';
 
 // --- Service, Type & Hook Imports ---
 import type { Settings as AppSettings } from '@/types';
@@ -297,6 +297,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
             
             <NavMenuLabel>E-commerce</NavMenuLabel>
             <NavItem href="/admin/plans" tooltip="Plans" icon={<Coins className="h-4 w-4" />}>Plans</NavItem>
+            <NavItem href="/admin/discounts" tooltip="Discounts" icon={<Percent className="h-4 w-4" />}>Discounts</NavItem>
             <NavItem href="/admin/payments" tooltip="Payments" icon={<Banknote className="h-4 w-4" />}>Payment Methods</NavItem>
             <NavItem href="/admin/downloads" tooltip="Downloads" icon={<Download className="h-4 w-4" />}>Downloads</NavItem>
             <SidebarSeparator className="my-2" />

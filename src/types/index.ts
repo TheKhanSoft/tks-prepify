@@ -280,3 +280,16 @@ export interface PaymentMethod {
     network?: string;
   };
 }
+
+export interface Discount {
+  id: string;
+  name: string;
+  code?: string; // If undefined, it's an automatic discount
+  type: 'percentage' | 'flat';
+  value: number; // The percentage or flat amount
+  isActive: boolean;
+  appliesToAllPlans: boolean;
+  applicablePlanIds?: string[];
+  startDate?: string | null; // ISO string
+  endDate?: string | null; // ISO string
+}

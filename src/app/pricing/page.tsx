@@ -88,7 +88,8 @@ export default function PricingPage() {
             const yearlyOption = plan.pricingOptions.find(p => p.months === 12);
             
             const displayOption = interval === 'year' && yearlyOption ? yearlyOption : monthlyOption;
-
+            
+            // If the selected interval doesn't have a corresponding pricing option, don't render the card.
             if (!displayOption) return null;
 
             let savings = 0;
@@ -96,9 +97,8 @@ export default function PricingPage() {
                 savings = (monthlyOption.price * 12) - yearlyOption.price;
             }
             
-            // Correctly find the current plan's price for the selected interval
             const currentPlanForInterval = currentPlan?.pricingOptions.find(p => p.months === displayOption.months);
-            const priceOfCurrentPlanForInterval = currentPlanForInterval?.price ?? (currentPlan ? currentPlan.pricingOptions[0]?.price : -1);
+            const priceOfCurrentPlanForInterval = currentPlanForInterval?.price ?? (currentPlan ? (currentPlan.pricingOptions.find(p=>p.months === 1)?.price ?? currentPlan.pricingOptions[0]?.price) : -1);
 
             const isUpgrade = priceOfCurrentPlanForInterval !== -1 && displayOption.price > priceOfCurrentPlanForInterval;
             const isDowngrade = user && !isCurrentPlan && priceOfCurrentPlanForInterval !== -1 && displayOption.price < priceOfCurrentPlanForInterval;
@@ -109,6 +109,8 @@ export default function PricingPage() {
                 else if (isDowngrade) buttonText = "Downgrade";
                 else buttonText = "Upgrade Plan";
             }
+            
+            const checkoutLink = user ? `/checkout/${plan.id}?option=${displayOption.label}` : '/signup';
             
             const buttonAction = isDowngrade ? (
                 <Tooltip>
@@ -125,7 +127,7 @@ export default function PricingPage() {
                 </Tooltip>
             ) : (
                 <Button asChild size="lg" className="w-full" variant={plan.popular ? 'default' : 'outline'} disabled={isCurrentPlan}>
-                    <Link href={user ? `/checkout/${plan.id}?option=${displayOption.label}` : '/signup'}>
+                    <Link href={checkoutLink}>
                         {buttonText}
                     </Link>
                 </Button>
