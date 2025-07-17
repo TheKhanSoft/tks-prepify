@@ -13,6 +13,7 @@ import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import type { Plan, User as UserProfile } from '@/types';
 import { useAuth } from '@/hooks/use-auth';
 import { getUserProfile } from '@/lib/user-service';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 
 export default function PricingPage() {
   const { user, loading: authLoading } = useAuth();
@@ -39,8 +40,8 @@ export default function PricingPage() {
 
   const sortedPlans = React.useMemo(() => {
     return [...plans].sort((a,b) => {
-      const aPrice = a.pricingOptions[0]?.price ?? 0;
-      const bPrice = b.pricingOptions[0]?.price ?? 0;
+      const aPrice = a.pricingOptions.find(p => p.months === 1)?.price ?? a.pricingOptions[0]?.price ?? 0;
+      const bPrice = b.pricingOptions.find(p => p.months === 1)?.price ?? b.pricingOptions[0]?.price ?? 0;
       return aPrice - bPrice;
     });
   }, [plans]);
@@ -52,6 +53,7 @@ export default function PricingPage() {
   const currentPlan = userProfile ? plans.find(p => p.id === userProfile.planId) : null;
 
   return (
+    <TooltipProvider>
     <div className="bg-background text-foreground">
       <div className="container mx-auto max-w-7xl px-6 py-16 sm:py-24 lg:px-8">
         <div className="mx-auto max-w-4xl text-center">
@@ -94,14 +96,37 @@ export default function PricingPage() {
                 savings = (monthlyOption.price * 12) - yearlyOption.price;
             }
             
-            const currentPlanPrice = currentPlan ? (currentPlan.pricingOptions.find(p => p.months === displayOption.months)?.price ?? currentPlan.pricingOptions[0]?.price ?? 0) : 0;
+            const currentPlanPrice = currentPlan ? (currentPlan.pricingOptions.find(p => p.months === displayOption.months)?.price ?? currentPlan.pricingOptions[0]?.price ?? 0) : -1;
             const isUpgrade = displayOption.price > currentPlanPrice;
-            const buttonText = isCurrentPlan
-                ? "Your Current Plan"
-                : user 
-                ? (isUpgrade ? "Upgrade Plan" : "Downgrade Plan")
-                : "Choose Plan";
-
+            const isDowngrade = user && !isCurrentPlan && displayOption.price < currentPlanPrice;
+            
+            let buttonText = "Choose Plan";
+            if (user) {
+                if (isCurrentPlan) buttonText = "Your Current Plan";
+                else if (isDowngrade) buttonText = "Downgrade";
+                else buttonText = "Upgrade Plan";
+            }
+            
+            const buttonAction = isDowngrade ? (
+                <Tooltip>
+                    <TooltipTrigger asChild>
+                        <span tabIndex={0} className="w-full">
+                            <Button size="lg" className="w-full" variant={plan.popular ? 'default' : 'outline'} disabled>
+                                {buttonText}
+                            </Button>
+                        </span>
+                    </TooltipTrigger>
+                    <TooltipContent>
+                        <p>Please contact support to downgrade your plan.</p>
+                    </TooltipContent>
+                </Tooltip>
+            ) : (
+                <Button asChild size="lg" className="w-full" variant={plan.popular ? 'default' : 'outline'} disabled={isCurrentPlan}>
+                    <Link href={user ? `/checkout/${plan.id}` : '/signup'}>
+                        {buttonText}
+                    </Link>
+                </Button>
+            );
 
             return (
                 <Card key={plan.id} className={cn(
@@ -147,11 +172,7 @@ export default function PricingPage() {
                     </ul>
                 </CardContent>
                 <CardFooter className="p-8 pt-0">
-                    <Button asChild size="lg" className="w-full" variant={plan.popular ? 'default' : 'outline'} disabled={isCurrentPlan}>
-                        <Link href={user ? `/checkout/${plan.id}` : '/signup'}>
-                            {buttonText}
-                        </Link>
-                    </Button>
+                    {buttonAction}
                 </CardFooter>
                 </Card>
             )
@@ -165,7 +186,6 @@ export default function PricingPage() {
         )}
       </div>
     </div>
+    </TooltipProvider>
   );
 }
-
-    
