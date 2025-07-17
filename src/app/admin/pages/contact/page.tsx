@@ -16,10 +16,13 @@ import {
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2, BookText, Contact } from "lucide-react";
-import React, { useState, useEffect } from "react";
+import { Loader2, BookText, Contact, Eye, RefreshCw, Save, Mail, Phone, MapPin } from "lucide-react";
+import React, { useState, useEffect, useCallback, useMemo } from "react";
 import { fetchSettings, updateSettings } from "@/lib/settings-service";
 import { Textarea } from "@/components/ui/textarea";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import ReactMarkdown from 'react-markdown';
+import { cn } from "@/lib/utils";
 
 const contactFormSchema = z.object({
   contactTitle: z.string().optional(),
@@ -35,50 +38,90 @@ export default function ContactSettingsPage() {
     const { toast } = useToast();
     const [loading, setLoading] = useState(true);
     const [isSubmitting, setIsSubmitting] = useState(false);
+    const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
+    const [showPreview, setShowPreview] = useState(false);
 
     const form = useForm<ContactFormValues>({
         resolver: zodResolver(contactFormSchema),
         defaultValues: {}
     });
 
+    const watchedValues = form.watch();
+
     useEffect(() => {
-        const loadSettings = async () => {
-            setLoading(true);
-            try {
-                const settings = await fetchSettings();
-                form.reset(settings);
-            } catch (error) {
-                toast({
-                    title: "Error",
-                    description: "Could not load settings. Please try again.",
-                    variant: "destructive",
-                });
-            } finally {
-                setLoading(false);
-            }
-        };
-        loadSettings();
+        const subscription = form.watch(() => setHasUnsavedChanges(true));
+        return () => subscription.unsubscribe();
+    }, [form]);
+
+    const loadSettings = useCallback(async () => {
+        setLoading(true);
+        try {
+            const settings = await fetchSettings();
+            form.reset(settings);
+            setHasUnsavedChanges(false);
+        } catch (error) {
+            toast({ title: "Error", description: "Could not load settings.", variant: "destructive" });
+        } finally {
+            setLoading(false);
+        }
     }, [form, toast]);
+
+    useEffect(() => {
+        loadSettings();
+    }, [loadSettings]);
 
     async function onSubmit(data: ContactFormValues) {
         setIsSubmitting(true);
         try {
             await updateSettings(data);
-            toast({
-                title: "Settings Saved",
-                description: "Your Contact page settings have been updated.",
-            });
+            setHasUnsavedChanges(false);
+            toast({ title: "Settings Saved", description: "Your Contact page settings have been updated." });
         } catch (error: any) {
-            console.error("Error saving settings:", error);
-            toast({
-                title: "Save Failed",
-                description: "Failed to save settings. Please try again.",
-                variant: "destructive"
-            });
+            toast({ title: "Save Failed", description: "Failed to save settings.", variant: "destructive" });
         } finally {
             setIsSubmitting(false);
         }
     }
+
+    const PreviewSection = useMemo(() => {
+        if (!showPreview) return null;
+
+        return (
+            <Card className="mt-6 border-dashed">
+                <CardHeader>
+                    <CardTitle className="flex items-center gap-2 text-primary">
+                        <Eye className="h-5 w-5" /> Live Preview
+                    </CardTitle>
+                </CardHeader>
+                <CardContent>
+                    <div className="bg-background rounded-lg p-4 sm:p-8">
+                       <div className="container mx-auto px-6 sm:px-10 lg:px-16 py-12 md:py-16">
+                            <div className="text-center mb-16">
+                                <h1 className="text-4xl md:text-5xl font-bold font-headline">{watchedValues.contactTitle}</h1>
+                                <div className="prose prose-lg dark:prose-invert text-muted-foreground mt-4 max-w-3xl mx-auto">
+                                <ReactMarkdown>{watchedValues.contactSubtitle || ''}</ReactMarkdown>
+                                </div>
+                            </div>
+                            <div className="md:col-span-2 space-y-6">
+                                <h3 className="text-2xl font-bold">Our Contact Information</h3>
+                                <div className="space-y-4">
+                                    {watchedValues.contactEmail && (
+                                        <div className="flex items-start gap-4 rounded-lg border p-4"><div className="flex-shrink-0 rounded-full bg-primary/10 p-3"><Mail className="h-6 w-6 text-primary" /></div><div><h4 className="font-semibold">Email</h4><p className="text-muted-foreground break-all">{watchedValues.contactEmail}</p></div></div>
+                                    )}
+                                    {watchedValues.contactPhone && (
+                                        <div className="flex items-start gap-4 rounded-lg border p-4"><div className="flex-shrink-0 rounded-full bg-primary/10 p-3"><Phone className="h-6 w-6 text-primary" /></div><div><h4 className="font-semibold">Phone</h4><p className="text-muted-foreground">{watchedValues.contactPhone}</p></div></div>
+                                    )}
+                                    {watchedValues.contactAddress && (
+                                        <div className="flex items-start gap-4 rounded-lg border p-4"><div className="flex-shrink-0 rounded-full bg-primary/10 p-3"><MapPin className="h-6 w-6 text-primary" /></div><div><h4 className="font-semibold">Address</h4><p className="text-muted-foreground">{watchedValues.contactAddress}</p></div></div>
+                                    )}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </CardContent>
+            </Card>
+        );
+    }, [showPreview, watchedValues]);
 
     if (loading) {
         return (
@@ -90,10 +133,21 @@ export default function ContactSettingsPage() {
 
     return (
         <div className="space-y-6 max-w-4xl">
-            <div>
-                <h1 className="text-3xl font-bold">Page Content: Contact Us</h1>
-                <p className="text-muted-foreground">Manage the content displayed on your Contact Us page.</p>
+            <div className="flex flex-col sm:flex-row justify-between sm:items-start gap-4">
+                <div>
+                    <h1 className="text-3xl font-bold">Page Content: Contact Us</h1>
+                    <p className="text-muted-foreground">Manage the content displayed on your Contact Us page.</p>
+                </div>
+                 <div className="flex items-center gap-2">
+                    <Button variant="outline" size="sm" onClick={() => setShowPreview(!showPreview)} className="gap-2"><Eye className="h-4 w-4" />{showPreview ? 'Hide' : 'Show'} Preview</Button>
+                    <Button variant="outline" size="sm" onClick={loadSettings} disabled={loading} className="gap-2"><RefreshCw className={cn("h-4 w-4", loading && "animate-spin")} />Refresh</Button>
+                </div>
             </div>
+            {hasUnsavedChanges && (
+                <Alert className="border-amber-200 bg-amber-50/50 text-amber-800">
+                    <AlertDescription>You have unsaved changes. Don't forget to save before leaving.</AlertDescription>
+                </Alert>
+            )}
             <Form {...form}>
                 <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
                      <Card>
@@ -119,10 +173,11 @@ export default function ContactSettingsPage() {
                         </CardContent>
                     </Card>
 
-                    <div className="flex justify-end">
-                        <Button type="submit" disabled={isSubmitting || loading}>
-                        {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                        Save Settings
+                    {PreviewSection}
+
+                    <div className="flex justify-end pt-6">
+                        <Button type="submit" disabled={isSubmitting || loading} className="min-w-[140px]">
+                        {isSubmitting ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Saving...</> : <><Save className="mr-2 h-4 w-4" />Save Settings</>}
                         </Button>
                     </div>
                 </form>

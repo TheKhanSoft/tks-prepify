@@ -17,10 +17,16 @@ import {
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2, PlusCircle, Trash2, BookText, Mountain, Users } from "lucide-react";
-import React, { useState, useEffect } from "react";
+import { Loader2, PlusCircle, Trash2, BookText, Mountain, Users, Eye, RefreshCw, Save } from "lucide-react";
+import React, { useState, useEffect, useCallback, useMemo } from "react";
 import { fetchSettings, updateSettings } from "@/lib/settings-service";
 import { Textarea } from "@/components/ui/textarea";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import Image from "next/image";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import ReactMarkdown from 'react-markdown';
+import { cn } from "@/lib/utils";
+
 
 const aboutFormSchema = z.object({
   aboutTitle: z.string().optional(),
@@ -42,6 +48,8 @@ export default function AboutSettingsPage() {
     const { toast } = useToast();
     const [loading, setLoading] = useState(true);
     const [isSubmitting, setIsSubmitting] = useState(false);
+    const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
+    const [showPreview, setShowPreview] = useState(false);
 
     const form = useForm<AboutFormValues>({
         resolver: zodResolver(aboutFormSchema),
@@ -50,29 +58,34 @@ export default function AboutSettingsPage() {
         }
     });
 
+    const watchedValues = form.watch();
+
     const { fields: teamFields, append: appendTeam, remove: removeTeam } = useFieldArray({
         control: form.control,
         name: "teamMembers",
     });
 
     useEffect(() => {
-        const loadSettings = async () => {
-            setLoading(true);
-            try {
-                const settings = await fetchSettings();
-                form.reset(settings);
-            } catch (error) {
-                toast({
-                    title: "Error",
-                    description: "Could not load settings. Please try again.",
-                    variant: "destructive",
-                });
-            } finally {
-                setLoading(false);
-            }
-        };
-        loadSettings();
+        const subscription = form.watch(() => setHasUnsavedChanges(true));
+        return () => subscription.unsubscribe();
+    }, [form]);
+
+    const loadSettings = useCallback(async () => {
+        setLoading(true);
+        try {
+            const settings = await fetchSettings();
+            form.reset(settings);
+            setHasUnsavedChanges(false);
+        } catch (error) {
+            toast({ title: "Error", description: "Could not load settings.", variant: "destructive" });
+        } finally {
+            setLoading(false);
+        }
     }, [form, toast]);
+
+    useEffect(() => {
+        loadSettings();
+    }, [loadSettings]);
 
     async function onSubmit(data: AboutFormValues) {
         setIsSubmitting(true);
@@ -83,22 +96,75 @@ export default function AboutSettingsPage() {
             };
             
             await updateSettings(settingsData);
-            
-            toast({
-                title: "Settings Saved",
-                description: "Your About page settings have been updated.",
-            });
+            setHasUnsavedChanges(false);
+            toast({ title: "Settings Saved", description: "Your About page settings have been updated." });
         } catch (error: any) {
-            console.error("Error saving settings:", error);
-            toast({
-                title: "Save Failed",
-                description: "Failed to save settings. Please try again.",
-                variant: "destructive"
-            });
+            toast({ title: "Save Failed", description: "Failed to save settings.", variant: "destructive" });
         } finally {
             setIsSubmitting(false);
         }
     }
+
+    const PreviewSection = useMemo(() => {
+        if (!showPreview) return null;
+
+        return (
+            <Card className="mt-6 border-dashed">
+                <CardHeader>
+                    <CardTitle className="flex items-center gap-2 text-primary">
+                        <Eye className="h-5 w-5" /> Live Preview
+                    </CardTitle>
+                </CardHeader>
+                <CardContent>
+                    <div className="bg-background rounded-lg p-4 sm:p-8">
+                       <div className="container mx-auto px-6 sm:px-10 lg:px-16 py-12 md:py-16">
+                            <div className="text-center mb-16">
+                                <h1 className="text-4xl md:text-5xl font-bold font-headline">{watchedValues.aboutTitle}</h1>
+                                <div className="prose prose-lg dark:prose-invert text-muted-foreground mt-4 max-w-3xl mx-auto">
+                                <ReactMarkdown>{watchedValues.aboutSubtitle || ''}</ReactMarkdown>
+                                </div>
+                            </div>
+                            <div className="grid md:grid-cols-2 gap-12 items-center mb-20">
+                                <div className="prose dark:prose-invert">
+                                <h2 className="text-3xl font-bold mb-4">Our Mission</h2>
+                                <ReactMarkdown className="text-muted-foreground leading-relaxed">
+                                    {watchedValues.aboutMission || ''}
+                                </ReactMarkdown>
+                                </div>
+                                <div className="prose dark:prose-invert">
+                                <h2 className="text-3xl font-bold mb-4">Our Vision</h2>
+                                <ReactMarkdown className="text-muted-foreground leading-relaxed">
+                                    {watchedValues.aboutVision || ''}
+                                </ReactMarkdown>
+                                </div>
+                            </div>
+
+                            {watchedValues.teamMembers && watchedValues.teamMembers.length > 0 && (
+                                <div className="text-center">
+                                    <h2 className="text-3xl font-bold font-headline mb-12">{watchedValues.aboutTeamTitle}</h2>
+                                    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-8 max-w-4xl mx-auto">
+                                    {watchedValues.teamMembers.map((member, index) => (
+                                        <Card key={index} className="text-center">
+                                        <CardContent className="p-6">
+                                            <Avatar className="h-24 w-24 mx-auto mb-4">
+                                            <AvatarImage src={member.avatar} alt={member.name} data-ai-hint={member.hint} />
+                                            <AvatarFallback>{member.name.charAt(0)}</AvatarFallback>
+                                            </Avatar>
+                                            <h3 className="text-xl font-semibold">{member.name}</h3>
+                                            <p className="text-primary">{member.role}</p>
+                                        </CardContent>
+                                        </Card>
+                                    ))}
+                                    </div>
+                                </div>
+                            )}
+                        </div>
+                    </div>
+                </CardContent>
+            </Card>
+        );
+    }, [showPreview, watchedValues]);
+
 
     if (loading) {
         return (
@@ -110,10 +176,21 @@ export default function AboutSettingsPage() {
 
     return (
         <div className="space-y-6 max-w-4xl">
-            <div>
-                <h1 className="text-3xl font-bold">Page Content: About Us</h1>
-                <p className="text-muted-foreground">Manage the content displayed on your About Us page.</p>
+            <div className="flex flex-col sm:flex-row justify-between sm:items-start gap-4">
+                <div>
+                    <h1 className="text-3xl font-bold">Page Content: About Us</h1>
+                    <p className="text-muted-foreground">Manage the content displayed on your About Us page.</p>
+                </div>
+                 <div className="flex items-center gap-2">
+                    <Button variant="outline" size="sm" onClick={() => setShowPreview(!showPreview)} className="gap-2"><Eye className="h-4 w-4" />{showPreview ? 'Hide' : 'Show'} Preview</Button>
+                    <Button variant="outline" size="sm" onClick={loadSettings} disabled={loading} className="gap-2"><RefreshCw className={cn("h-4 w-4", loading && "animate-spin")} />Refresh</Button>
+                </div>
             </div>
+             {hasUnsavedChanges && (
+                <Alert className="border-amber-200 bg-amber-50/50 text-amber-800">
+                    <AlertDescription>You have unsaved changes. Don't forget to save before leaving.</AlertDescription>
+                </Alert>
+            )}
             <Form {...form}>
                 <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
                     <Card>
@@ -160,10 +237,11 @@ export default function AboutSettingsPage() {
                         </CardContent>
                     </Card>
 
-                    <div className="flex justify-end">
-                        <Button type="submit" disabled={isSubmitting || loading}>
-                        {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                        Save Settings
+                    {PreviewSection}
+
+                    <div className="flex justify-end pt-6">
+                        <Button type="submit" disabled={isSubmitting || loading} className="min-w-[140px]">
+                        {isSubmitting ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Saving...</> : <><Save className="mr-2 h-4 w-4" />Save Settings</>}
                         </Button>
                     </div>
                 </form>
