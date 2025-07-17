@@ -5,7 +5,7 @@ import { useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { useAuth } from '@/hooks/use-auth';
 import { getPlanById } from '@/lib/plan-service';
-import type { Plan, User as UserProfile, PaymentMethod } from '@/types';
+import type { Plan, PaymentMethod } from '@/types';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Loader2, Check, ArrowLeft, Banknote, Landmark, Wallet } from 'lucide-react';
@@ -79,7 +79,13 @@ export default function CheckoutPage() {
     }
 
     if (!selectedPlan) {
-        return null;
+         return (
+             <div className="flex items-center justify-center h-screen flex-col gap-4">
+                 <h1 className="text-2xl font-semibold">Could not load plan</h1>
+                 <p className="text-muted-foreground">The selected plan might not exist or is unavailable.</p>
+                 <Button onClick={() => router.push('/pricing')}>Go to Pricing</Button>
+             </div>
+         );
     }
 
     const pricingOption = selectedPlan.pricingOptions[0]; // Assuming one for now
