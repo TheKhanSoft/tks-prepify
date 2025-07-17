@@ -103,7 +103,7 @@ export default function PrivacySettingsPage() {
                 <p className="text-muted-foreground">Manage the content displayed on your {PAGE_TITLE} page.</p>
             </div>
             <Form {...form}>
-                <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8 max-w-4xl">
+                <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
                      <Card>
                         <CardHeader>
                             <CardTitle>{PAGE_TITLE} Content</CardTitle>

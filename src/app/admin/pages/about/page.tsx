@@ -17,7 +17,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2, PlusCircle, Trash2 } from "lucide-react";
+import { Loader2, PlusCircle, Trash2, BookText, Mountain, Users } from "lucide-react";
 import React, { useState, useEffect } from "react";
 import { fetchSettings, updateSettings } from "@/lib/settings-service";
 import { Textarea } from "@/components/ui/textarea";
@@ -109,43 +109,62 @@ export default function AboutSettingsPage() {
     }
 
     return (
-        <div className="space-y-6">
+        <div className="space-y-6 max-w-4xl">
             <div>
                 <h1 className="text-3xl font-bold">Page Content: About Us</h1>
                 <p className="text-muted-foreground">Manage the content displayed on your About Us page.</p>
             </div>
             <Form {...form}>
                 <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
-                    <div className="rounded-lg border bg-card text-card-foreground shadow-sm">
-                        <Card>
-                            <CardHeader><CardTitle>About Page Content</CardTitle><CardDescription>Manage the content displayed on your About Us page.</CardDescription></CardHeader>
-                            <CardContent className="space-y-6">
-                                <FormField control={form.control} name="aboutTitle" render={({ field }) => (<FormItem><FormLabel>Title</FormLabel><FormControl><Input {...field} value={field.value || ''} /></FormControl></FormItem>)} />
-                                <FormField control={form.control} name="aboutSubtitle" render={({ field }) => (<FormItem><FormLabel>Subtitle</FormLabel><FormControl><Textarea {...field} value={field.value || ''} /></FormControl></FormItem>)} />
-                                <FormField control={form.control} name="aboutMission" render={({ field }) => (<FormItem><FormLabel>Our Mission</FormLabel><FormControl><Textarea {...field} value={field.value || ''} rows={4} /></FormControl></FormItem>)} />
-                                <FormField control={form.control} name="aboutVision" render={({ field }) => (<FormItem><FormLabel>Our Vision</FormLabel><FormControl><Textarea {...field} value={field.value || ''} rows={4} /></FormControl></FormItem>)} />
-                                
-                                <div className="space-y-4 pt-4 border-t">
-                                    <FormField control={form.control} name="aboutTeamTitle" render={({ field }) => (<FormItem><FormLabel>Team Section Title</FormLabel><FormControl><Input {...field} value={field.value || ''} /></FormControl></FormItem>)} />
-                                    {teamFields.map((item, index) => (
-                                        <div key={item.id} className="flex flex-col gap-4 p-4 border rounded-lg relative">
-                                            <Button type="button" variant="ghost" size="icon" className="absolute top-2 right-2 text-destructive hover:text-destructive hover:bg-destructive/10" onClick={() => removeTeam(index)}><Trash2 className="h-4 w-4" /><span className="sr-only">Remove Member</span></Button>
-                                            <FormField control={form.control} name={`teamMembers.${index}.name`} render={({ field }) => (<FormItem><FormLabel>Member Name</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>)} />
-                                            <FormField control={form.control} name={`teamMembers.${index}.role`} render={({ field }) => (<FormItem><FormLabel>Member Role</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>)} />
-                                            <FormField control={form.control} name={`teamMembers.${index}.avatar`} render={({ field }) => (<FormItem><FormLabel>Avatar Image URL</FormLabel><FormControl><Input {...field} placeholder="https://..." /></FormControl><FormMessage /></FormItem>)} />
-                                            <FormField control={form.control} name={`teamMembers.${index}.hint`} render={({ field }) => (<FormItem><FormLabel>Avatar AI Hint</FormLabel><FormControl><Input {...field} /></FormControl><FormDescription>One or two keywords for AI image search (e.g., 'male portrait').</FormDescription><FormMessage /></FormItem>)} />
-                                        </div>
-                                    ))}
-                                    <Button type="button" variant="outline" onClick={() => appendTeam({ name: '', role: '', avatar: '', hint: '' })}><PlusCircle className="mr-2 h-4 w-4" />Add Team Member</Button>
-                                </div>
-                            </CardContent>
-                        </Card>
-                        <div className="flex justify-end">
-                            <Button type="submit" disabled={isSubmitting || loading}>
-                            {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                            Save Settings
-                            </Button>
-                        </div>
+                    <Card>
+                        <CardHeader>
+                            <CardTitle className="flex items-center gap-2"><BookText className="h-5 w-5" /> Page Content</CardTitle>
+                            <CardDescription>Manage the main title and subtitle of the page.</CardDescription>
+                        </CardHeader>
+                        <CardContent className="space-y-6">
+                            <FormField control={form.control} name="aboutTitle" render={({ field }) => (<FormItem><FormLabel>Title</FormLabel><FormControl><Input {...field} value={field.value || ''} /></FormControl></FormItem>)} />
+                            <FormField control={form.control} name="aboutSubtitle" render={({ field }) => (<FormItem><FormLabel>Subtitle</FormLabel><FormControl><Textarea {...field} value={field.value || ''} /></FormControl></FormItem>)} />
+                        </CardContent>
+                    </Card>
+
+                    <Card>
+                        <CardHeader>
+                             <CardTitle className="flex items-center gap-2"><Mountain className="h-5 w-5" /> Our Story</CardTitle>
+                             <CardDescription>Share your mission and vision with your users.</CardDescription>
+                        </CardHeader>
+                        <CardContent className="space-y-6">
+                            <FormField control={form.control} name="aboutMission" render={({ field }) => (<FormItem><FormLabel>Our Mission</FormLabel><FormControl><Textarea {...field} value={field.value || ''} rows={4} /></FormControl></FormItem>)} />
+                            <FormField control={form.control} name="aboutVision" render={({ field }) => (<FormItem><FormLabel>Our Vision</FormLabel><FormControl><Textarea {...field} value={field.value || ''} rows={4} /></FormControl></FormItem>)} />
+                        </CardContent>
+                    </Card>
+
+                    <Card>
+                        <CardHeader>
+                           <CardTitle className="flex items-center gap-2"><Users className="h-5 w-5" /> Team Section</CardTitle>
+                           <CardDescription>Introduce the people behind your platform.</CardDescription>
+                        </CardHeader>
+                        <CardContent className="space-y-6">
+                            <FormField control={form.control} name="aboutTeamTitle" render={({ field }) => (<FormItem><FormLabel>Section Title</FormLabel><FormControl><Input {...field} value={field.value || ''} placeholder="e.g., Meet the Team" /></FormControl></FormItem>)} />
+                            <div className="space-y-4">
+                                {teamFields.map((item, index) => (
+                                    <div key={item.id} className="flex flex-col gap-4 p-4 border rounded-lg relative">
+                                        <Button type="button" variant="ghost" size="icon" className="absolute top-2 right-2 text-destructive hover:text-destructive hover:bg-destructive/10" onClick={() => removeTeam(index)}><Trash2 className="h-4 w-4" /><span className="sr-only">Remove Member</span></Button>
+                                        <FormField control={form.control} name={`teamMembers.${index}.name`} render={({ field }) => (<FormItem><FormLabel>Member Name</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>)} />
+                                        <FormField control={form.control} name={`teamMembers.${index}.role`} render={({ field }) => (<FormItem><FormLabel>Member Role</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>)} />
+                                        <FormField control={form.control} name={`teamMembers.${index}.avatar`} render={({ field }) => (<FormItem><FormLabel>Avatar Image URL</FormLabel><FormControl><Input {...field} placeholder="https://..." /></FormControl><FormMessage /></FormItem>)} />
+                                        <FormField control={form.control} name={`teamMembers.${index}.hint`} render={({ field }) => (<FormItem><FormLabel>Avatar AI Hint</FormLabel><FormControl><Input {...field} /></FormControl><FormDescription>One or two keywords for AI image search (e.g., 'male portrait').</FormDescription><FormMessage /></FormItem>)} />
+                                    </div>
+                                ))}
+                                <Button type="button" variant="outline" onClick={() => appendTeam({ name: '', role: '', avatar: '', hint: '' })}><PlusCircle className="mr-2 h-4 w-4" />Add Team Member</Button>
+                            </div>
+                        </CardContent>
+                    </Card>
+
+                    <div className="flex justify-end">
+                        <Button type="submit" disabled={isSubmitting || loading}>
+                        {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                        Save Settings
+                        </Button>
                     </div>
                 </form>
             </Form>
