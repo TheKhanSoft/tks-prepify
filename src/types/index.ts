@@ -114,6 +114,10 @@ export interface UserPlan {
   endDate: string | null; // ISO string, null for unlimited plans
   status: UserPlanStatus;
   remarks?: string;
+  originalPrice?: number;
+  paidAmount?: number;
+  discountId?: string;
+  discountCode?: string;
 }
 
 export interface SocialLink {

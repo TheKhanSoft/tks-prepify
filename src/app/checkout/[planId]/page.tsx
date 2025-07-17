@@ -1,25 +1,27 @@
 
 'use client';
 
-import { useState, useEffect, Suspense } from 'react';
+import { useState, useEffect, Suspense, useCallback } from 'react';
 import { useRouter, useParams, useSearchParams, usePathname } from 'next/navigation';
 import { useAuth } from '@/hooks/use-auth';
 import { getPlanById } from '@/lib/plan-service';
-import type { Plan, PaymentMethod, User as UserProfile, PricingOption } from '@/types';
+import type { Plan, PaymentMethod, User as UserProfile, PricingOption, PaymentMethodType, Discount } from '@/types';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Loader2, Check, ArrowLeft, Banknote, Landmark, Wallet } from 'lucide-react';
+import { Loader2, Check, ArrowLeft, Banknote, Landmark, Wallet, X, Tag } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { fetchPaymentMethods } from '@/lib/payment-method-service';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import { changeUserSubscription, getUserProfile } from '@/lib/user-service';
 import { Input } from '@/components/ui/input';
 import { Skeleton } from '@/components/ui/skeleton';
+import { Separator } from '@/components/ui/separator';
+import { validateDiscountCode } from '@/lib/discount-service';
 
 // --- Reusable UI Components ---
 
-const InfoRow = ({ label, value }: { label: string; value?: string | number }) => (
-    <div className="flex justify-between text-sm">
+const InfoRow = ({ label, value, className }: { label: string; value?: string | number; className?: string }) => (
+    <div className={cn("flex justify-between text-sm", className)}>
         <p className="text-muted-foreground">{label}</p>
         <p className="font-medium text-right">{value || '-'}</p>
     </div>
@@ -33,6 +35,33 @@ const getIconForType = (type: string) => {
         case 'crypto': return <Wallet className="h-5 w-5 text-amber-500" />;
         default: return <Banknote className="h-5 w-5" />;
     }
+};
+
+const groupPaymentMethods = (methods: PaymentMethod[]) => {
+    const groups: { [key in PaymentMethodType | 'other']?: PaymentMethod[] } = {};
+    const groupOrder: (PaymentMethodType | 'other')[] = ['bank', 'easypaisa', 'jazzcash', 'crypto', 'other'];
+    const groupLabels: Record<PaymentMethodType | 'other', string> = {
+        bank: 'Bank Transfers',
+        easypaisa: 'Mobile Wallets',
+        jazzcash: 'Mobile Wallets',
+        crypto: 'Cryptocurrency',
+        other: 'Other Methods'
+    };
+
+    methods.forEach(method => {
+        const groupKey = (method.type === 'easypaisa' || method.type === 'jazzcash') ? 'easypaisa' : method.type;
+        if (!groups[groupKey]) {
+            groups[groupKey] = [];
+        }
+        groups[groupKey]!.push(method);
+    });
+
+    return groupOrder
+        .map(key => ({
+            label: groupLabels[key],
+            methods: groups[key] || []
+        }))
+        .filter(group => group.methods.length > 0);
 };
 
 function CheckoutPageSkeleton() {
@@ -80,7 +109,6 @@ function CheckoutPageSkeleton() {
     );
 }
 
-
 function CheckoutPageComponent({ planId, optionLabel }: { planId: string, optionLabel: string | null }) {
     const router = useRouter();
     const pathname = usePathname();
@@ -93,7 +121,12 @@ function CheckoutPageComponent({ planId, optionLabel }: { planId: string, option
     const [paymentMethods, setPaymentMethods] = useState<PaymentMethod[]>([]);
     const [loading, setLoading] = useState(true);
     const [isConfirming, setIsConfirming] = useState(false);
-    
+
+    // Discount state
+    const [couponCode, setCouponCode] = useState('');
+    const [isApplyingCoupon, setIsApplyingCoupon] = useState(false);
+    const [appliedDiscount, setAppliedDiscount] = useState<Discount | null>(null);
+
     useEffect(() => {
         if (authLoading) return;
 
@@ -146,22 +179,50 @@ function CheckoutPageComponent({ planId, optionLabel }: { planId: string, option
         };
         
         loadData();
-
     }, [planId, optionLabel, user, authLoading, router, toast, pathname]);
+    
+    const handleApplyCoupon = useCallback(async () => {
+        if (!couponCode || !selectedPlan || !selectedOption) return;
+        setIsApplyingCoupon(true);
+        try {
+            const result = await validateDiscountCode(couponCode, selectedPlan.id, selectedOption.label);
+            if (result.success && result.discount) {
+                setAppliedDiscount(result.discount);
+                toast({ title: "Coupon Applied!", description: result.message });
+            } else {
+                toast({ title: "Invalid Coupon", description: result.message, variant: "destructive" });
+                setCouponCode('');
+            }
+        } catch (error) {
+            toast({ title: "Error", description: "Could not apply coupon.", variant: "destructive" });
+        } finally {
+            setIsApplyingCoupon(false);
+        }
+    }, [couponCode, selectedPlan, selectedOption, toast]);
+
+    const handleRemoveCoupon = () => {
+        setAppliedDiscount(null);
+        setCouponCode('');
+        toast({ title: "Coupon Removed" });
+    };
+
 
     const handleConfirmPurchase = async () => {
         if (!user || !selectedPlan || !selectedOption) return;
         setIsConfirming(true);
         try {
             await changeUserSubscription(user.id, selectedPlan.id, { 
-              endDate: null, 
-              remarks: `User self-subscribed to ${selectedOption.label} via checkout.`
+              endDate: null,
+              pricingOption: selectedOption,
+              discount: appliedDiscount,
+              status: 'pending',
+              remarks: `User initiated checkout for ${selectedOption.label}. Awaiting payment.`
             });
             toast({
-                title: "Purchase Successful!",
-                description: `You have successfully subscribed to the ${selectedPlan.name} plan.`
+                title: "Purchase Request Sent!",
+                description: `Your subscription to the ${selectedPlan.name} plan is now pending payment confirmation.`
             });
-            router.push('/account/dashboard');
+            router.push('/account/subscription');
         } catch (error: any) {
             toast({
                 title: 'Purchase Failed',
@@ -172,7 +233,22 @@ function CheckoutPageComponent({ planId, optionLabel }: { planId: string, option
             setIsConfirming(false);
         }
     };
-
+    
+    const { originalPrice, discountAmount, finalPrice } = useMemo(() => {
+        const price = selectedOption?.price ?? 0;
+        let discount = 0;
+        if (appliedDiscount) {
+            if (appliedDiscount.type === 'percentage') {
+                discount = price * (appliedDiscount.value / 100);
+            } else { // flat
+                discount = appliedDiscount.value;
+            }
+        }
+        const final = Math.max(0, price - discount);
+        return { originalPrice: price, discountAmount: discount, finalPrice: final };
+    }, [selectedOption, appliedDiscount]);
+    
+    const groupedMethods = useMemo(() => groupPaymentMethods(paymentMethods), [paymentMethods]);
 
     if (authLoading || loading) {
         return <CheckoutPageSkeleton />;
@@ -200,43 +276,38 @@ function CheckoutPageComponent({ planId, optionLabel }: { planId: string, option
                         <div className="p-4 border rounded-lg bg-muted/50">
                             <h3 className="text-xl font-bold">{selectedPlan.name}</h3>
                             <p className="text-muted-foreground">{selectedOption.label} Plan</p>
-                            <div className="mt-4 text-4xl font-extrabold">
-                                PKR {selectedOption.price}
-                                <span className="text-base font-normal text-muted-foreground">/{selectedOption.months === 1 ? 'month' : (selectedOption.months >= 12 ? 'year' : `${selectedOption.months} mo`)}</span>
-                            </div>
                         </div>
                         <div className="space-y-2 pt-4">
-                            <h4 className="font-semibold mb-2">Features Included:</h4>
-                            <ul role="list" className="space-y-2 text-sm">
-                                {selectedPlan.features.map((feature, index) => (
-                                    <li key={index} className="flex items-center gap-2 text-muted-foreground">
-                                        <Check className="h-4 w-4 text-green-500" />
-                                        <span>{feature.text}</span>
-                                    </li>
-                                ))}
-                            </ul>
+                            <InfoRow label="Base Price" value={`PKR ${originalPrice.toFixed(2)}`} />
+                            {appliedDiscount && (
+                                <>
+                                    <InfoRow label={`Discount (${appliedDiscount.name})`} value={`- PKR ${discountAmount.toFixed(2)}`} className="text-green-600"/>
+                                    <Separator/>
+                                    <InfoRow label="Total Amount" value={`PKR ${finalPrice.toFixed(2)}`} className="font-bold text-lg" />
+                                </>
+                            )}
                         </div>
-                        <Card className="mt-4 bg-transparent shadow-none">
-                            <CardHeader className="p-0 pb-2"><h4 className="font-semibold">User Details</h4></CardHeader>
-                            <CardContent className="p-0 space-y-1">
-                                <InfoRow label="Name" value={userProfile.name || 'N/A'}/>
-                                <InfoRow label="Email" value={userProfile.email || 'N/A'}/>
-                            </CardContent>
-                        </Card>
-                        <Card className="mt-4 bg-transparent shadow-none">
-                            <CardHeader className="p-0 pb-2"><h4 className="font-semibold">Apply Coupon</h4></CardHeader>
-                            <CardContent className="p-0 space-y-1">
-                                <div className="flex w-full max-w-sm items-center space-x-2">
-                                    <Input type="text" placeholder="Coupon Code" />
-                                    <Button type="submit">Apply</Button>
+                        <div className="pt-4 space-y-2">
+                             <h4 className="font-semibold mb-2">Apply Coupon</h4>
+                             {appliedDiscount ? (
+                                <div className="flex items-center justify-between p-3 border rounded-lg bg-green-50 text-green-700">
+                                    <p className="font-semibold flex items-center gap-2"><Tag className="h-4 w-4"/>Code "{appliedDiscount.code}" applied!</p>
+                                    <Button variant="ghost" size="icon" className="h-7 w-7 text-green-700" onClick={handleRemoveCoupon}><X className="h-4 w-4"/></Button>
                                 </div>
-                            </CardContent>
-                        </Card>
+                             ) : (
+                                <div className="flex w-full items-center space-x-2">
+                                    <Input type="text" placeholder="Coupon Code" value={couponCode} onChange={e => setCouponCode(e.target.value)} disabled={isApplyingCoupon}/>
+                                    <Button type="submit" onClick={handleApplyCoupon} disabled={!couponCode || isApplyingCoupon}>
+                                       {isApplyingCoupon && <Loader2 className="mr-2 h-4 w-4 animate-spin"/>} Apply
+                                    </Button>
+                                </div>
+                             )}
+                        </div>
                     </CardContent>
                     <CardFooter>
                         <Button className="w-full" size="lg" onClick={handleConfirmPurchase} disabled={isConfirming}>
                             {isConfirming ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : null}
-                            Confirm Purchase
+                            Confirm Purchase (PKR {finalPrice.toFixed(2)})
                         </Button>
                     </CardFooter>
                 </Card>
@@ -247,40 +318,31 @@ function CheckoutPageComponent({ planId, optionLabel }: { planId: string, option
                     </CardHeader>
                      <CardContent className="space-y-4">
                        <Accordion type="single" collapsible className="w-full">
-                         {paymentMethods.map(method => (
-                            <AccordionItem value={method.id} key={method.id}>
-                                <AccordionTrigger className="font-semibold text-base">
-                                   <div className="flex items-center gap-3">
-                                        {getIconForType(method.type)}
-                                        {method.name}
-                                   </div>
-                                </AccordionTrigger>
-                                <AccordionContent>
-                                    <div className="p-4 bg-muted/50 rounded-lg space-y-2">
-                                        {method.type === 'bank' && (
-                                            <>
-                                                <InfoRow label="Bank Name" value={method.details.bankName} />
-                                                <InfoRow label="Account Title" value={method.details.accountTitle} />
-                                                <InfoRow label="Account Number" value={method.details.accountNumber} />
-                                                <InfoRow label="IBAN" value={method.details.iban} />
-                                            </>
-                                        )}
-                                        {(method.type === 'easypaisa' || method.type === 'jazzcash') && (
-                                            <>
-                                                <InfoRow label="Account Title" value={method.details.accountTitle} />
-                                                <InfoRow label="Account Number" value={method.details.accountNumber} />
-                                            </>
-                                        )}
-                                        {method.type === 'crypto' && (
-                                            <>
-                                                <InfoRow label="Network" value={method.details.network} />
-                                                <InfoRow label="Wallet Address" value={method.details.walletAddress} />
-                                            </>
-                                        )}
-                                        <p className="text-xs text-muted-foreground pt-4">After payment, please send a screenshot of the transaction to our support team for verification.</p>
-                                    </div>
-                                </AccordionContent>
-                            </AccordionItem>
+                         {groupedMethods.map(group => (
+                             <div key={group.label} className="space-y-2">
+                                 <h4 className="font-semibold text-muted-foreground px-1">{group.label}</h4>
+                                 {group.methods.map(method => (
+                                     <AccordionItem value={method.id} key={method.id}>
+                                         <AccordionTrigger className="font-semibold text-base">
+                                            <div className="flex items-center gap-3">
+                                                 {getIconForType(method.type)}
+                                                 {method.name}
+                                            </div>
+                                         </AccordionTrigger>
+                                         <AccordionContent>
+                                             <div className="p-4 bg-muted/50 rounded-lg space-y-2">
+                                                 {method.details.accountTitle && <InfoRow label="Account Title" value={method.details.accountTitle} />}
+                                                 {method.details.accountNumber && <InfoRow label="Account Number" value={method.details.accountNumber} />}
+                                                 {method.details.bankName && <InfoRow label="Bank Name" value={method.details.bankName} />}
+                                                 {method.details.iban && <InfoRow label="IBAN" value={method.details.iban} />}
+                                                 {method.details.network && <InfoRow label="Network" value={method.details.network} />}
+                                                 {method.details.walletAddress && <InfoRow label="Wallet Address" value={method.details.walletAddress} />}
+                                                 <p className="text-xs text-muted-foreground pt-4">After payment, please send a screenshot of the transaction to our support team for verification.</p>
+                                             </div>
+                                         </AccordionContent>
+                                     </AccordionItem>
+                                 ))}
+                             </div>
                          ))}
                        </Accordion>
                        {paymentMethods.length === 0 && (
@@ -295,7 +357,6 @@ function CheckoutPageComponent({ planId, optionLabel }: { planId: string, option
     );
 }
 
-
 export default function CheckoutPage() {
     const params = useParams();
     const searchParams = useSearchParams();
@@ -308,5 +369,3 @@ export default function CheckoutPage() {
         </Suspense>
     );
 }
-
-    

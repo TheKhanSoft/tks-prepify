@@ -3,7 +3,7 @@
 
 import { doc, setDoc, serverTimestamp, getDoc, collection, getDocs, updateDoc, DocumentData, Timestamp, writeBatch, query, where, orderBy } from 'firebase/firestore';
 import { db } from './firebase';
-import type { User, Plan, UserPlan, UserPlanStatus } from '@/types';
+import type { User, Plan, UserPlan, UserPlanStatus, PricingOption, Discount } from '@/types';
 import { fetchPlans } from './plan-service';
 
 const SUPER_ADMIN_EMAIL = 'thekhansoft@gmail.com';
@@ -150,9 +150,12 @@ export const assignUserRole = async (userId: string, role: string) => {
 export async function changeUserSubscription(
   userId: string,
   newPlanId: string,
-  options?: {
+  options: {
     endDate?: Date | null;
     remarks?: string;
+    pricingOption?: PricingOption;
+    discount?: Discount | null;
+    status?: UserPlanStatus;
   }
 ) {
   if (!userId || !newPlanId) {
@@ -167,12 +170,12 @@ export async function changeUserSubscription(
 
   const batch = writeBatch(db);
 
-  // Find the user's current plan in the history to mark it as migrated
+  // Find the user's current plan in the history to mark it as migrated (if it's active)
   const userPlansCol = collection(db, 'user_plans');
   const q = query(userPlansCol, where("userId", "==", userId), where("status", "==", "active"));
   const currentPlanSnapshot = await getDocs(q);
 
-  if (!currentPlanSnapshot.empty) {
+  if (!currentPlanSnapshot.empty && options.status !== 'pending') {
     const currentPlanDoc = currentPlanSnapshot.docs[0];
     batch.update(currentPlanDoc.ref, { status: 'migrated', remarks: `Migrated to ${newPlan.name} by admin.` });
   }
@@ -180,8 +183,12 @@ export async function changeUserSubscription(
   // Calculate new expiry date if not provided by admin
   let newExpiryDate: Date | null = options?.endDate ?? null;
 
-  if (options?.endDate === undefined) { // Check if it was not provided at all
-    if (newPlan.name.toLowerCase() !== 'free explorer' && newPlan.pricingOptions.length > 0) {
+  if (options.endDate === undefined && options.pricingOption) { 
+    const now = new Date();
+    newExpiryDate = new Date(now.setMonth(now.getMonth() + options.pricingOption.months));
+  } else if (options.endDate === undefined) {
+    // Fallback for admin changes without a pricing option
+     if (newPlan.name.toLowerCase() !== 'free explorer' && newPlan.pricingOptions.length > 0) {
       const shortestDurationOption = newPlan.pricingOptions.sort((a, b) => a.months - b.months)[0];
       if (shortestDurationOption) {
         const now = new Date();
@@ -190,6 +197,7 @@ export async function changeUserSubscription(
     }
   }
 
+  const { pricingOption, discount, ...restOfOptions } = options;
 
   // Add the new plan record to history
   const newUserPlanRef = doc(collection(db, 'user_plans'));
@@ -199,16 +207,25 @@ export async function changeUserSubscription(
     planName: newPlan.name,
     subscriptionDate: serverTimestamp(),
     endDate: newExpiryDate,
-    status: 'active',
-    remarks: options?.remarks || 'Plan assigned by admin.',
+    status: options.status || 'active',
+    remarks: options.remarks || 'Plan assigned by admin.',
+    // Store pricing info for the record
+    originalPrice: pricingOption?.price,
+    paidAmount: discount 
+      ? Math.max(0, (pricingOption?.price || 0) - (discount.type === 'flat' ? discount.value : (pricingOption?.price || 0) * (discount.value / 100))) 
+      : pricingOption?.price,
+    discountId: discount?.id,
+    discountCode: discount?.code,
   });
 
-  // Update the main user document with the new plan details
-  const userDocRef = doc(db, 'users', userId);
-  batch.update(userDocRef, {
-    planId: newPlan.id,
-    planExpiryDate: newExpiryDate,
-  });
+  // Only update the main user document if the new status is 'active'
+  if (options.status !== 'pending') {
+    const userDocRef = doc(db, 'users', userId);
+    batch.update(userDocRef, {
+      planId: newPlan.id,
+      planExpiryDate: newExpiryDate,
+    });
+  }
 
   await batch.commit();
 }
