@@ -87,7 +87,7 @@ function CheckoutPageComponent({ planId, optionLabel }: { planId: string, option
 
         const loadData = async () => {
             if (!planId || !optionLabel) {
-                 toast({ title: "Error loading plan", description: "The selected plan or option might not exist or is unavailable.", variant: "destructive" });
+                 toast({ title: "Error loading plan details", description: "The selected plan or option might not exist or is unavailable.", variant: "destructive" });
                  router.push('/pricing');
                  return;
             }
@@ -138,7 +138,7 @@ function CheckoutPageComponent({ planId, optionLabel }: { planId: string, option
         setIsConfirming(true);
         try {
             await changeUserSubscription(user.id, selectedPlan.id, { 
-              endDate: null, // Let backend calculate based on plan
+              endDate: null, 
               remarks: `User self-subscribed to ${selectedOption.label} via checkout.`
             });
             toast({

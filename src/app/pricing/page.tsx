@@ -13,21 +13,26 @@ import type { Plan, User as UserProfile, PricingOption } from '@/types';
 import { useAuth } from '@/hooks/use-auth';
 import { getUserProfile } from '@/lib/user-service';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import { Switch } from '@/components/ui/switch';
+import { Label } from '@/components/ui/label';
 
-const PlanActionButton = ({ user, currentPlan, targetPlan, option, isCurrentPlan, isUpgrade, isDowngrade }: {
+const PlanActionButton = ({ user, currentPlan, targetPlan, option, isCurrentPlan }: {
     user: UserProfile | null,
     currentPlan: Plan | null,
     targetPlan: Plan,
     option: PricingOption,
     isCurrentPlan: boolean,
-    isUpgrade: boolean,
-    isDowngrade: boolean,
 }) => {
-    let buttonText = `Choose ${option.label}`;
+    
+    const isUpgrade = user && currentPlan && !isCurrentPlan && (option.price > (currentPlan.pricingOptions.find(p => p.months === option.months)?.price ?? 0));
+    const isDowngrade = user && currentPlan && !isCurrentPlan && (option.price < (currentPlan.pricingOptions.find(p => p.months === option.months)?.price ?? 0));
+
+    let buttonText = "Get Started";
     if (user) {
         if (isCurrentPlan) buttonText = "Your Current Plan";
-        else if (isUpgrade) buttonText = `Upgrade to ${option.label}`;
+        else if (isUpgrade) buttonText = `Upgrade Plan`;
         else if (isDowngrade) buttonText = `Downgrade`;
+        else buttonText = "Switch Plan";
     }
 
     const checkoutLink = user
@@ -66,6 +71,7 @@ export default function PricingPage() {
   const [plans, setPlans] = useState<Plan[]>([]);
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
+  const [billingInterval, setBillingInterval] = useState<'monthly' | 'annually'>('monthly');
 
   useEffect(() => {
     const loadData = async () => {
@@ -113,21 +119,29 @@ export default function PricingPage() {
           </p>
         </div>
 
+        <div className="mt-16 flex justify-center items-center space-x-4">
+            <Label htmlFor="billing-interval">Monthly</Label>
+            <Switch
+                id="billing-interval"
+                checked={billingInterval === 'annually'}
+                onCheckedChange={(checked) => setBillingInterval(checked ? 'annually' : 'monthly')}
+            />
+            <Label htmlFor="billing-interval">Annually</Label>
+        </div>
+
         <div className={cn(
-          "isolate mx-auto mt-16 grid max-w-md gap-8 lg:mx-0 lg:max-w-none",
+          "isolate mx-auto mt-10 grid max-w-md gap-8 lg:mx-0 lg:max-w-none",
           plans.length === 1 && "lg:grid-cols-1",
           plans.length === 2 && "lg:grid-cols-2",
           plans.length >= 3 && "lg:grid-cols-3",
         )}>
           {sortedPlans.map((plan) => {
             const isCurrentPlan = userProfile?.planId === plan.id;
-            
-            const getLowestPrice = (options: PricingOption[]): number => {
-                if (!options || options.length === 0) return -1;
-                return Math.min(...options.map(o => o.price));
-            };
+            const option = plan.pricingOptions.find(p => 
+                billingInterval === 'monthly' ? p.months < 12 : p.months >= 12
+            ) || plan.pricingOptions[0];
 
-            const currentPlanLowestPrice = getLowestPrice(currentPlan?.pricingOptions || []);
+            if (!option) return null; // Don't render plan if it has no suitable pricing option
 
             return (
                 <Card key={plan.id} className={cn(
@@ -143,6 +157,11 @@ export default function PricingPage() {
                         ) : plan.popular && <Badge>Most Popular</Badge>}
                     </div>
                     <CardDescription className="mt-4">{plan.description}</CardDescription>
+                    <div className="mt-6 flex items-baseline justify-center gap-x-1">
+                       <span className="text-4xl font-bold tracking-tight">PKR {option.price}</span>
+                       <span className="text-sm font-semibold leading-6 text-muted-foreground">/{option.months === 1 ? 'month' : (option.months === 12 ? 'year' : `${option.months} mo`)}</span>
+                    </div>
+                    {option.badge && <div className="text-center mt-2"><Badge>{option.badge}</Badge></div>}
                 </CardHeader>
                 <CardContent className="p-8 pt-0 flex-1">
                     <ul role="list" className="space-y-4 text-sm leading-6">
@@ -161,34 +180,13 @@ export default function PricingPage() {
                     </ul>
                 </CardContent>
                 <CardFooter className="p-8 pt-0 mt-auto">
-                    <div className="w-full space-y-4">
-                        {plan.pricingOptions.map(option => {
-                           const targetPrice = option.price;
-                           const isUpgrade = user && currentPlan && !isCurrentPlan && targetPrice > currentPlanLowestPrice;
-                           const isDowngrade = user && currentPlan && !isCurrentPlan && targetPrice < currentPlanLowestPrice;
-                           
-                           return (
-                               <div key={option.label} className="text-center">
-                                    <div className="flex items-baseline justify-center gap-x-1">
-                                       <span className="text-4xl font-bold tracking-tight">PKR {option.price}</span>
-                                       <span className="text-sm font-semibold leading-6 text-muted-foreground">/{option.months === 1 ? 'month' : (option.months === 12 ? 'year' : `${option.months} mo`)}</span>
-                                    </div>
-                                    {option.badge && <Badge className="mt-2">{option.badge}</Badge>}
-                                    <div className="mt-4">
-                                       <PlanActionButton 
-                                            user={userProfile}
-                                            currentPlan={currentPlan}
-                                            targetPlan={plan}
-                                            option={option}
-                                            isCurrentPlan={isCurrentPlan}
-                                            isUpgrade={!!isUpgrade}
-                                            isDowngrade={!!isDowngrade}
-                                       />
-                                    </div>
-                               </div>
-                           )
-                        })}
-                    </div>
+                    <PlanActionButton 
+                        user={userProfile}
+                        currentPlan={currentPlan}
+                        targetPlan={plan}
+                        option={option}
+                        isCurrentPlan={isCurrentPlan}
+                    />
                 </CardFooter>
                 </Card>
             )
