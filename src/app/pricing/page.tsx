@@ -24,8 +24,12 @@ const PlanActionButton = ({ user, currentPlan, targetPlan, option, isCurrentPlan
     isCurrentPlan: boolean,
 }) => {
     
-    const isUpgrade = user && currentPlan && !isCurrentPlan && (option.price > (currentPlan.pricingOptions.find(p => p.months === option.months)?.price ?? 0));
-    const isDowngrade = user && currentPlan && !isCurrentPlan && (option.price < (currentPlan.pricingOptions.find(p => p.months === option.months)?.price ?? 0));
+    // Check if there is a monthly option to compare against for upgrade/downgrade logic
+    const monthlyOptionForCurrent = currentPlan?.pricingOptions.find(p => p.months === 1);
+    const monthlyPriceForCurrent = monthlyOptionForCurrent?.price ?? Infinity;
+    
+    const isUpgrade = user && currentPlan && !isCurrentPlan && option.price > monthlyPriceForCurrent;
+    const isDowngrade = user && currentPlan && !isCurrentPlan && option.price < monthlyPriceForCurrent;
 
     let buttonText = "Get Started";
     if (user) {
@@ -137,11 +141,16 @@ export default function PricingPage() {
         )}>
           {sortedPlans.map((plan) => {
             const isCurrentPlan = userProfile?.planId === plan.id;
-            const option = plan.pricingOptions.find(p => 
-                billingInterval === 'monthly' ? p.months < 12 : p.months >= 12
-            ) || plan.pricingOptions[0];
+            
+            const monthlyOption = plan.pricingOptions.find(p => p.months === 1);
+            const yearlyOption = plan.pricingOptions.find(p => p.months >= 12);
+            
+            const option = billingInterval === 'annually' ? (yearlyOption || monthlyOption) : (monthlyOption || yearlyOption);
+            if (!option) return null; // Don't render if no suitable option exists
 
-            if (!option) return null; // Don't render plan if it has no suitable pricing option
+            const savings = (monthlyOption && yearlyOption && billingInterval === 'annually')
+              ? (monthlyOption.price * 12) - yearlyOption.price
+              : 0;
 
             return (
                 <Card key={plan.id} className={cn(
@@ -159,8 +168,9 @@ export default function PricingPage() {
                     <CardDescription className="mt-4">{plan.description}</CardDescription>
                     <div className="mt-6 flex items-baseline justify-center gap-x-1">
                        <span className="text-4xl font-bold tracking-tight">PKR {option.price}</span>
-                       <span className="text-sm font-semibold leading-6 text-muted-foreground">/{option.months === 1 ? 'month' : (option.months === 12 ? 'year' : `${option.months} mo`)}</span>
+                       <span className="text-sm font-semibold leading-6 text-muted-foreground">/{option.months === 1 ? 'month' : (option.months >= 12 ? 'year' : `${option.months} mo`)}</span>
                     </div>
+                    {savings > 0 && <div className="text-center mt-2 text-primary font-semibold">Save PKR {savings}</div>}
                     {option.badge && <div className="text-center mt-2"><Badge>{option.badge}</Badge></div>}
                 </CardHeader>
                 <CardContent className="p-8 pt-0 flex-1">
