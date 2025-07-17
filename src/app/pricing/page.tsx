@@ -1,7 +1,7 @@
 
 "use client";
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
@@ -10,24 +10,34 @@ import { Check, Loader2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import type { Plan } from '@/types';
+import type { Plan, User as UserProfile } from '@/types';
+import { useAuth } from '@/hooks/use-auth';
+import { getUserProfile } from '@/lib/user-service';
 
 export default function PricingPage() {
-  const [plans, setPlans] = React.useState<Plan[]>([]);
-  const [loading, setLoading] = React.useState(true);
+  const { user, loading: authLoading } = useAuth();
+  const [plans, setPlans] = useState<Plan[]>([]);
+  const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
+  const [loading, setLoading] = useState(true);
   const [interval, setInterval] = useState<'month' | 'year'>('month');
 
-  React.useEffect(() => {
-    const loadPlans = async () => {
+  useEffect(() => {
+    const loadData = async () => {
       setLoading(true);
       const fetchedPlans = await fetchPlans(true); // Fetch only published plans
       setPlans(fetchedPlans);
+      
+      if (user && !authLoading) {
+        const profile = await getUserProfile(user.uid);
+        setUserProfile(profile);
+      }
+      
       setLoading(false);
     };
-    loadPlans();
-  }, []);
+    loadData();
+  }, [user, authLoading]);
 
-  if (loading) {
+  if (loading || authLoading) {
     return <div className="flex justify-center items-center h-[50vh]"><Loader2 className="h-8 w-8 animate-spin" /></div>;
   }
 
@@ -61,6 +71,7 @@ export default function PricingPage() {
           plans.length >= 3 && "lg:grid-cols-3",
         )}>
           {plans.map((plan) => {
+            const isCurrentPlan = userProfile?.planId === plan.id;
             const monthlyOption = plan.pricingOptions.find(p => p.months === 1);
             const yearlyOption = plan.pricingOptions.find(p => p.months === 12);
             
@@ -75,13 +86,16 @@ export default function PricingPage() {
 
             return (
                 <Card key={plan.id} className={cn(
-                "flex flex-col rounded-3xl",
-                plan.popular ? "ring-2 ring-primary border-primary shadow-2xl" : "shadow-lg"
+                    "flex flex-col rounded-3xl",
+                    plan.popular && !isCurrentPlan && "ring-2 ring-primary border-primary shadow-2xl",
+                    isCurrentPlan && "ring-2 ring-blue-500 border-blue-500 shadow-2xl"
                 )}>
                 <CardHeader className="p-8">
                     <div className="flex items-center justify-between gap-4">
                         <h3 className="text-2xl font-semibold leading-8">{plan.name}</h3>
-                        {plan.popular && <Badge>Most Popular</Badge>}
+                        {isCurrentPlan ? (
+                             <Badge variant="default" className="bg-blue-600 hover:bg-blue-700">Current Plan</Badge>
+                        ) : plan.popular && <Badge>Most Popular</Badge>}
                     </div>
                     <CardDescription className="mt-4">{plan.description}</CardDescription>
                     <div className="mt-6 flex items-baseline gap-x-1">
@@ -114,9 +128,13 @@ export default function PricingPage() {
                     </ul>
                 </CardContent>
                 <CardFooter className="p-8 pt-0">
-                    <Button asChild size="lg" className="w-full" variant={plan.popular ? 'default' : 'outline'}>
-                        <Link href="/signup">Choose Plan</Link>
-                    </Button>
+                    {isCurrentPlan ? (
+                         <Button size="lg" className="w-full" disabled>Your Current Plan</Button>
+                    ) : (
+                        <Button asChild size="lg" className="w-full" variant={plan.popular ? 'default' : 'outline'}>
+                            <Link href="/signup">Choose Plan</Link>
+                        </Button>
+                    )}
                 </CardFooter>
                 </Card>
             )
