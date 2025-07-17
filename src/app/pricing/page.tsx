@@ -24,12 +24,8 @@ const PlanActionButton = ({ user, currentPlan, targetPlan, option, isCurrentPlan
     isCurrentPlan: boolean,
 }) => {
     
-    // Check if there is a monthly option to compare against for upgrade/downgrade logic
-    const monthlyOptionForCurrent = currentPlan?.pricingOptions.find(p => p.months === 1);
-    const monthlyPriceForCurrent = monthlyOptionForCurrent?.price ?? Infinity;
-    
-    const isUpgrade = user && currentPlan && !isCurrentPlan && option.price > monthlyPriceForCurrent;
-    const isDowngrade = user && currentPlan && !isCurrentPlan && option.price < monthlyPriceForCurrent;
+    const isUpgrade = user && currentPlan && !isCurrentPlan && option.price > (currentPlan.pricingOptions.find(p => p.months === option.months)?.price ?? 0);
+    const isDowngrade = user && currentPlan && !isCurrentPlan && option.price < (currentPlan.pricingOptions.find(p => p.months === option.months)?.price ?? 0);
 
     let buttonText = "Get Started";
     if (user) {
