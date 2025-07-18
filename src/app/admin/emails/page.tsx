@@ -19,13 +19,14 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
 import { Loader2, Eye, Save, Code, AlertCircle, RefreshCw } from "lucide-react";
-import { getEmailTemplate, updateEmailTemplate } from "@/lib/email-service";
+import { getEmailTemplate, updateEmailTemplate, emailTemplatePlaceholders, TemplateDetails } from "@/lib/email-service";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Switch } from "@/components/ui/switch";
 import { fetchSettings } from "@/lib/settings-service";
 import { format } from "date-fns";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
+import { cn } from "@/lib/utils";
 
 const emailTemplateSchema = z.object({
   subject: z.string().min(1, "Subject is required."),
@@ -35,32 +36,14 @@ const emailTemplateSchema = z.object({
 
 type EmailTemplateFormValues = z.infer<typeof emailTemplateSchema>;
 
-const TEMPLATE_ID = "order-confirmation";
-
-const placeholders = [
-    { key: '{{userName}}', description: "The user's full name." },
-    { key: '{{orderId}}', description: "The unique ID of the order." },
-    { key: '{{planName}}', description: "The name of the purchased plan." },
-    { key: '{{duration}}', description: "The duration label of the plan (e.g., Monthly)." },
-    { key: '{{orderDate}}', description: "The date the order was placed." },
-    { key: '{{orderStatus}}', description: "The current status of the order (e.g., Pending)." },
-    { key: '{{originalPrice}}', description: "The base price before discounts." },
-    { key: '{{discountAmount}}', description: "The amount discounted, if any." },
-    { key: '{{finalAmount}}', description: "The final amount to be paid." },
-    { key: '{{paymentMethod}}', description: "The payment method chosen by the user." },
-    { key: '{{siteName}}', description: "The name of your site from global settings." },
-    { key: '{{contactEmail}}', description: "Your support email from global settings." },
-];
-
 export default function EmailTemplatesPage() {
   const { toast } = useToast();
   const [loading, setLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [activeTab, setActiveTab] = useState<keyof typeof emailTemplatePlaceholders>("order-confirmation");
   const [viewMode, setViewMode] = useState<'edit' | 'preview'>('edit');
-  const [settings, setSettings] = useState<{siteName: string, contactEmail: string} | null>(null);
-  const [previewHtml, setPreviewHtml] = useState('');
-  const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
-
+  const [settings, setSettings] = useState<{ siteName: string; contactEmail: string } | null>(null);
+  
   const form = useForm<EmailTemplateFormValues>({
     resolver: zodResolver(emailTemplateSchema),
     defaultValues: { subject: "", body: "", isEnabled: true },
@@ -68,12 +51,12 @@ export default function EmailTemplatesPage() {
 
   const watchedBody = form.watch("body");
 
-  // Load initial template and settings
-  const loadTemplate = useCallback(async () => {
+  // Load template and settings
+  const loadTemplate = useCallback(async (templateId: keyof typeof emailTemplatePlaceholders) => {
     setLoading(true);
     try {
       const [template, appSettings] = await Promise.all([
-        getEmailTemplate(TEMPLATE_ID),
+        getEmailTemplate(templateId),
         fetchSettings()
       ]);
       if (template) {
@@ -83,7 +66,6 @@ export default function EmailTemplatesPage() {
         siteName: appSettings.siteName || 'TKS Prepify',
         contactEmail: appSettings.contactEmail || 'support@example.com'
       });
-      setHasUnsavedChanges(false);
     } catch (error) {
       toast({ title: "Error", description: "Could not load the email template.", variant: "destructive" });
     } finally {
@@ -92,48 +74,48 @@ export default function EmailTemplatesPage() {
   }, [form, toast]);
 
   useEffect(() => {
-    loadTemplate();
-  }, [loadTemplate]);
-  
-  // Track unsaved changes
-  useEffect(() => {
-    const subscription = form.watch(() => setHasUnsavedChanges(true));
-    return () => subscription.unsubscribe();
-  }, [form]);
-  
-  // Update preview when body or settings change
-  useEffect(() => {
+    loadTemplate(activeTab);
+  }, [loadTemplate, activeTab]);
+
+  const previewHtml = useMemo(() => {
     let preview = watchedBody || "";
     if (settings) {
-        const exampleReplacements = {
-            '{{userName}}': 'John Doe',
-            '{{orderId}}': 'ORD-SAMPLE-123',
-            '{{planName}}': 'Premium Plan',
-            '{{duration}}': 'Yearly',
-            '{{orderDate}}': format(new Date(), 'PPP'),
-            '{{orderStatus}}': 'Pending',
-            '{{originalPrice}}': '1200.00',
-            '{{discountAmount}}': '200.00',
-            '{{finalAmount}}': '1000.00',
-            '{{paymentMethod}}': 'Bank Transfer',
-            '{{siteName}}': settings.siteName,
-            '{{contactEmail}}': settings.contactEmail,
-        };
-        
-        for (const [key, value] of Object.entries(exampleReplacements)) {
-            preview = preview.replace(new RegExp(key.replace(/\{/g, '\\{').replace(/\}/g, '\\}'), 'g'), value);
-        }
-    }
-    setPreviewHtml(preview);
-  }, [watchedBody, settings]);
+      const allPlaceholders = {
+        ...emailTemplatePlaceholders.common,
+        ...emailTemplatePlaceholders[activeTab].placeholders
+      };
 
+      const exampleReplacements: Record<string, string> = {
+        '{{userName}}': 'John Doe',
+        '{{resetLink}}': '#',
+        '{{orderId}}': 'ORD-SAMPLE-123',
+        '{{planName}}': 'Premium Plan',
+        '{{duration}}': 'Yearly',
+        '{{orderDate}}': format(new Date(), 'PPP'),
+        '{{orderStatus}}': 'Completed',
+        '{{originalPrice}}': '1200.00',
+        '{{discountAmount}}': '200.00',
+        '{{finalAmount}}': '1000.00',
+        '{{paymentMethod}}': 'Bank Transfer',
+        '{{expiryDate}}': format(new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), 'PPP'), // 30 days from now
+        '{{siteName}}': settings.siteName,
+        '{{contactEmail}}': settings.contactEmail,
+        '{{adminRemarks}}': 'Your subscription was extended as a token of our appreciation.'
+      };
+        
+      for (const [key] of Object.entries(allPlaceholders)) {
+        const value = exampleReplacements[key] || `[${key.replace(/[{}]/g, '')}]`;
+        preview = preview.replace(new RegExp(key.replace(/\{/g, '\\{').replace(/\}/g, '\\}'), 'g'), value);
+      }
+    }
+    return preview;
+  }, [watchedBody, settings, activeTab]);
 
   async function onSubmit(data: EmailTemplateFormValues) {
     setIsSubmitting(true);
     try {
-      await updateEmailTemplate(TEMPLATE_ID, data);
-      setHasUnsavedChanges(false);
-      toast({ title: "Template Saved", description: "The order confirmation email template has been updated." });
+      await updateEmailTemplate(activeTab, data);
+      toast({ title: "Template Saved", description: "The email template has been updated." });
     } catch (error) {
       toast({ title: "Error", description: "Failed to save the template.", variant: "destructive" });
     } finally {
@@ -141,126 +123,107 @@ export default function EmailTemplatesPage() {
     }
   }
 
+  const currentTemplateDetails = emailTemplatePlaceholders[activeTab];
+
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+    <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 items-start">
       <div className="lg:col-span-2 space-y-6">
         <div>
-            <h1 className="text-3xl font-bold">Email Templates</h1>
-            <p className="text-muted-foreground">Manage the content of automated emails sent to users.</p>
+          <h1 className="text-3xl font-bold">Email Templates</h1>
+          <p className="text-muted-foreground">Manage the content of automated emails sent to users.</p>
         </div>
-        
-        {hasUnsavedChanges && (
-            <Alert className="border-amber-200 bg-amber-50/50 text-amber-800">
-                <AlertCircle className="h-4 w-4" />
-                <AlertDescription>You have unsaved changes. Don't forget to save before leaving.</AlertDescription>
-            </Alert>
-        )}
-
-        <Form {...form}>
+        <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as any)} className="w-full">
+          <TabsList className="grid w-full grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 h-auto flex-wrap justify-start">
+            {Object.keys(emailTemplatePlaceholders).filter(k => k !== 'common').map(key => (
+              <TabsTrigger key={key} value={key} className="capitalize text-xs">
+                {emailTemplatePlaceholders[key as keyof typeof emailTemplatePlaceholders].label}
+              </TabsTrigger>
+            ))}
+          </TabsList>
+          
+          <Form {...form}>
             <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
-            <Tabs defaultValue="order-confirmation" className="w-full">
-              <TabsList>
-                <TabsTrigger value="order-confirmation">Order Confirmation</TabsTrigger>
-              </TabsList>
-              <TabsContent value="order-confirmation">
+              <TabsContent value={activeTab} className="mt-4">
                 <Card>
-                    <CardHeader>
-                    <div className="flex justify-between items-center">
-                        <div>
-                            <CardTitle>Order Confirmation Email</CardTitle>
-                            <CardDescription>This email is sent to users after they place an order.</CardDescription>
-                        </div>
-                        <FormField
-                            control={form.control}
-                            name="isEnabled"
-                            render={({ field }) => (
-                            <FormItem className="flex items-center gap-2 space-y-0">
-                                <FormControl>
-                                <Switch checked={field.value} onCheckedChange={field.onChange} disabled={loading || isSubmitting} />
-                                </FormControl>
-                                <FormLabel>Enabled</FormLabel>
-                            </FormItem>
-                            )}
-                        />
+                  <CardHeader>
+                    <div className="flex justify-between items-start">
+                      <div>
+                        <CardTitle>{currentTemplateDetails.label}</CardTitle>
+                        <CardDescription>{currentTemplateDetails.description}</CardDescription>
+                      </div>
+                      <FormField
+                        control={form.control}
+                        name="isEnabled"
+                        render={({ field }) => (
+                          <FormItem className="flex items-center gap-2 space-y-0 shrink-0">
+                            <FormControl>
+                              <Switch checked={field.value} onCheckedChange={field.onChange} disabled={loading || isSubmitting} />
+                            </FormControl>
+                            <FormLabel>Enabled</FormLabel>
+                          </FormItem>
+                        )}
+                      />
                     </div>
-                    </CardHeader>
-                    <CardContent className="space-y-6">
+                  </CardHeader>
+                  <CardContent className="space-y-6">
                     {loading ? (
-                        <div className="space-y-4">
-                            <Skeleton className="h-10 w-full" />
-                            <Skeleton className="h-40 w-full" />
-                        </div>
+                      <div className="space-y-4">
+                        <Skeleton className="h-10 w-full" />
+                        <Skeleton className="h-40 w-full" />
+                      </div>
                     ) : (
-                        <>
-                        <FormField
-                            control={form.control}
-                            name="subject"
-                            render={({ field }) => (
-                            <FormItem>
-                                <FormLabel>Email Subject</FormLabel>
-                                <FormControl><Input {...field} /></FormControl>
-                                <FormMessage />
-                            </FormItem>
-                            )}
-                        />
+                      <>
+                        <FormField control={form.control} name="subject" render={({ field }) => (<FormItem><FormLabel>Email Subject</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>)} />
                         <div className="space-y-2">
-                            <div className="flex justify-between items-center">
-                                <FormLabel>Email Body</FormLabel>
-                                <div className="flex items-center gap-2">
-                                    <Button type="button" size="sm" variant={viewMode === 'edit' ? 'secondary' : 'ghost'} onClick={() => setViewMode('edit')}><Code className="h-4 w-4 mr-2" />HTML</Button>
-                                    <Button type="button" size="sm" variant={viewMode === 'preview' ? 'secondary' : 'ghost'} onClick={() => setViewMode('preview')}><Eye className="h-4 w-4 mr-2" />Preview</Button>
-                                </div>
+                          <div className="flex justify-between items-center">
+                            <FormLabel>Email Body (HTML)</FormLabel>
+                            <div className="flex items-center gap-2">
+                                <Button type="button" size="sm" variant={viewMode === 'edit' ? 'secondary' : 'ghost'} onClick={() => setViewMode('edit')}><Code className="h-4 w-4 mr-2" />HTML</Button>
+                                <Button type="button" size="sm" variant={viewMode === 'preview' ? 'secondary' : 'ghost'} onClick={() => setViewMode('preview')}><Eye className="h-4 w-4 mr-2" />Preview</Button>
                             </div>
-                            {viewMode === 'preview' ? (
-                                <div className="p-4 border rounded-md min-h-[400px] bg-white overflow-auto" dangerouslySetInnerHTML={{ __html: previewHtml }} />
-                            ) : (
-                                <FormField
-                                    control={form.control}
-                                    name="body"
-                                    render={({ field }) => (
-                                        <FormItem>
-                                        <FormControl><Textarea {...field} rows={25} className="font-mono text-xs" /></FormControl>
-                                        <FormMessage />
-                                        </FormItem>
-                                    )}
-                                />
-                            )}
+                          </div>
+                          {viewMode === 'preview' ? (
+                              <div className="p-4 border rounded-md min-h-[400px] bg-white overflow-auto" dangerouslySetInnerHTML={{ __html: previewHtml }} />
+                          ) : (
+                              <FormField control={form.control} name="body" render={({ field }) => (<FormItem><FormControl><Textarea {...field} rows={25} className="font-mono text-xs" /></FormControl><FormMessage /></FormItem>)} />
+                          )}
                         </div>
-                        </>
+                      </>
                     )}
-                    </CardContent>
+                  </CardContent>
                 </Card>
               </TabsContent>
-            </Tabs>
-            
-            <div className="flex justify-end gap-2">
-                <Button type="button" variant="outline" onClick={loadTemplate} disabled={loading || isSubmitting}>
-                  <RefreshCw className="mr-2 h-4 w-4" />
-                  Discard Changes
-                </Button>
-                <Button type="submit" disabled={isSubmitting || loading || !hasUnsavedChanges}>
-                {isSubmitting ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Saving...</> : <><Save className="mr-2 h-4 w-4" /> Save Template</>}
-                </Button>
-            </div>
+              <div className="flex justify-end gap-2">
+                <Button type="button" variant="outline" onClick={() => loadTemplate(activeTab)} disabled={loading || isSubmitting}><RefreshCw className="mr-2 h-4 w-4" />Discard Changes</Button>
+                <Button type="submit" disabled={isSubmitting || loading}><Save className="mr-2 h-4 w-4" /> Save Template</Button>
+              </div>
             </form>
-        </Form>
+          </Form>
+        </Tabs>
       </div>
       <div className="lg:col-span-1">
         <Card className="sticky top-24">
-            <CardHeader>
-                <CardTitle>Available Placeholders</CardTitle>
-                <CardDescription>Use these in your subject and body. They will be replaced with real data.</CardDescription>
-            </CardHeader>
-            <CardContent>
-                <ul className="space-y-3">
-                    {placeholders.map(p => (
-                        <li key={p.key}>
-                            <code className="font-mono text-sm font-semibold text-primary">{p.key}</code>
-                            <p className="text-xs text-muted-foreground">{p.description}</p>
-                        </li>
-                    ))}
-                </ul>
-            </CardContent>
+          <CardHeader><CardTitle>Available Placeholders</CardTitle><CardDescription>Use these in your subject and body. They will be replaced with real data.</CardDescription></CardHeader>
+          <CardContent>
+            <h4 className="font-semibold mb-2">For This Email:</h4>
+            <ul className="space-y-3 mb-6">
+              {Object.entries(currentTemplateDetails.placeholders).map(([key, desc]) => (
+                <li key={key}>
+                  <code className="font-mono text-sm font-semibold text-primary">{key}</code>
+                  <p className="text-xs text-muted-foreground">{desc}</p>
+                </li>
+              ))}
+            </ul>
+             <h4 className="font-semibold mb-2">Common Placeholders:</h4>
+            <ul className="space-y-3">
+              {Object.entries(emailTemplatePlaceholders.common.placeholders).map(([key, desc]) => (
+                <li key={key}>
+                  <code className="font-mono text-sm font-semibold text-primary">{key}</code>
+                  <p className="text-xs text-muted-foreground">{desc}</p>
+                </li>
+              ))}
+            </ul>
+          </CardContent>
         </Card>
       </div>
     </div>
