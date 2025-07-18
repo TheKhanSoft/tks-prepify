@@ -1,0 +1,117 @@
+
+'use client';
+
+import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
+import { Loader2, ShoppingCart } from 'lucide-react';
+import { useAuth } from "@/hooks/use-auth";
+import { fetchOrdersForUser } from "@/lib/order-service";
+import type { Order } from "@/types";
+import { useEffect, useState } from "react";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { format } from "date-fns";
+import { Badge } from "@/components/ui/badge";
+import { cn } from "@/lib/utils";
+
+const statusConfig: { [key in Order['status']]: { color: string; label: string } } = {
+    pending: { color: 'bg-amber-100 text-amber-800 border-amber-200', label: 'Pending' },
+    completed: { color: 'bg-green-100 text-green-800 border-green-200', label: 'Completed' },
+    failed: { color: 'bg-red-100 text-red-800 border-red-200', label: 'Failed' },
+    refunded: { color: 'bg-gray-100 text-gray-800 border-gray-200', label: 'Refunded' },
+};
+
+export default function OrdersPage() {
+    const { user, loading: authLoading } = useAuth();
+    const [orders, setOrders] = useState<Order[]>([]);
+    const [loading, setLoading] = useState(true);
+
+    useEffect(() => {
+        if (authLoading) return;
+        if (!user) {
+            setLoading(false);
+            return;
+        }
+
+        const loadOrders = async () => {
+            setLoading(true);
+            try {
+                const fetchedOrders = await fetchOrdersForUser(user.uid);
+                setOrders(fetchedOrders);
+            } catch (err) {
+                // Handle error, e.g., show a toast
+            } finally {
+                setLoading(false);
+            }
+        };
+
+        loadOrders();
+    }, [user, authLoading]);
+    
+    if (loading || authLoading) {
+        return (
+            <div className="flex justify-center items-center h-full min-h-[calc(100vh-20rem)]">
+                <Loader2 className="h-8 w-8 animate-spin text-primary" />
+            </div>
+        );
+    }
+    
+    return (
+        <div className="space-y-6">
+            <div>
+                <h1 className="text-3xl font-bold">My Orders</h1>
+                <p className="text-muted-foreground">A history of all your plan purchases.</p>
+            </div>
+            
+            <Card>
+                <CardHeader>
+                    <CardTitle>Order History</CardTitle>
+                    <CardDescription>
+                        You have placed {orders.length} order{orders.length !== 1 ? 's' : ''}.
+                    </CardDescription>
+                </CardHeader>
+                <CardContent>
+                    <Table>
+                        <TableHeader>
+                            <TableRow>
+                                <TableHead>Order ID</TableHead>
+                                <TableHead>Plan</TableHead>
+                                <TableHead>Amount</TableHead>
+                                <TableHead>Status</TableHead>
+                                <TableHead>Date</TableHead>
+                            </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                            {orders.length > 0 ? (
+                                orders.map(order => {
+                                    const statusInfo = statusConfig[order.status] || { color: 'bg-gray-100 text-gray-800', label: 'Unknown' };
+                                    return (
+                                        <TableRow key={order.id}>
+                                            <TableCell className="font-mono text-xs">{order.id}</TableCell>
+                                            <TableCell className="font-medium">{order.planName}</TableCell>
+                                            <TableCell>PKR {order.finalAmount.toLocaleString()}</TableCell>
+                                            <TableCell>
+                                                <Badge className={cn("capitalize", statusInfo.color)}>
+                                                    {statusInfo.label}
+                                                </Badge>
+                                            </TableCell>
+                                            <TableCell>{format(new Date(order.createdAt), "PPP")}</TableCell>
+                                        </TableRow>
+                                    )
+                                })
+                            ) : (
+                                <TableRow>
+                                    <TableCell colSpan={5} className="h-48 text-center">
+                                         <div className="flex flex-col items-center justify-center text-muted-foreground">
+                                            <ShoppingCart className="h-12 w-12 mb-4" />
+                                            <h3 className="text-lg font-semibold">No Orders Found</h3>
+                                            <p className="mt-1">You haven't purchased any plans yet.</p>
+                                        </div>
+                                    </TableCell>
+                                </TableRow>
+                            )}
+                        </TableBody>
+                    </Table>
+                </CardContent>
+            </Card>
+        </div>
+    );
+}

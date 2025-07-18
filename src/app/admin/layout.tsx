@@ -15,7 +15,7 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { LayoutDashboard, FileText, Folder, Home, Users, Settings, Bell, Search, Mail, FileSliders, ChevronRight, Database, Coins, LogOut, ClipboardList, LifeBuoy, Download, BarChart3, UserCog, BookOpen, Loader2, ShieldAlert, X, Banknote, Percent, ShoppingCart } from 'lucide-react';
+import { LayoutDashboard, FileText, Folder, Home, Users, Settings, Bell, Search, Mail, FileSliders, ChevronRight, Database, Coins, LogOut, ClipboardList, LifeBuoy, Download, BarChart3, UserCog, BookOpen, Loader2, ShieldAlert, X, Banknote, Percent, ShoppingCart, Send as SendIcon } from 'lucide-react';
 
 // --- Service, Type & Hook Imports ---
 import type { Settings as AppSettings } from '@/types';
@@ -319,6 +319,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
             
             <NavMenuLabel>Communication</NavMenuLabel>
             <NavItem href="/admin/messages" tooltip="Messages" icon={<Mail />} badgeContent={unreadSummary.count > 0 ? unreadSummary.count : undefined} badgeDestructive={unreadSummary.hasPriority}>Messages</NavItem>
+            <NavItem href="/admin/emails" tooltip="Emails" icon={<SendIcon />}>Emails</NavItem>
             <NavItem href="/admin/help" tooltip="Help Center" icon={<LifeBuoy />}>Help Center</NavItem>
             <SidebarSeparator className="my-2" />
             

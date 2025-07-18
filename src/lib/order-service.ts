@@ -6,8 +6,12 @@ import {
   doc,
   addDoc,
   getDoc,
+  getDocs,
   serverTimestamp,
   DocumentData,
+  query,
+  where,
+  orderBy,
 } from 'firebase/firestore';
 import { db } from './firebase';
 import type { Order } from '@/types';
@@ -81,4 +85,20 @@ export async function getOrderById(orderId: string, userId: string): Promise<Ord
     }
     
     return order;
+}
+
+/**
+ * Fetches all orders for a specific user.
+ */
+export async function fetchOrdersForUser(userId: string): Promise<Order[]> {
+    if (!userId) return [];
+    
+    const ordersCol = collection(db, 'orders');
+    const q = query(ordersCol, where("userId", "==", userId), orderBy("createdAt", "desc"));
+
+    const snapshot = await getDocs(q);
+    if (snapshot.empty) {
+        return [];
+    }
+    return snapshot.docs.map(docToOrder);
 }

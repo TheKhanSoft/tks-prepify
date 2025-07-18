@@ -1,5 +1,4 @@
 
-
 export interface Category {
   id: string;
   name: string;
@@ -319,4 +318,11 @@ export interface Order {
     paymentMethodType: PaymentMethodType;
     createdAt: string; // ISO String
     status: OrderStatus;
+}
+
+export interface EmailTemplate {
+    id: string;
+    subject: string;
+    body: string;
+    isEnabled: boolean;
 }
