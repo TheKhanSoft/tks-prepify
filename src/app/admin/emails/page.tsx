@@ -48,6 +48,7 @@ const placeholders = [
     { key: '{{finalAmount}}', description: "The final amount to be paid." },
     { key: '{{paymentMethod}}', description: "The payment method chosen by the user." },
     { key: '{{siteName}}', description: "The name of your site from global settings." },
+    { key: '{{contactEmail}}', description: "Your support email from global settings." },
 ];
 
 export default function EmailTemplatesPage() {
@@ -55,7 +56,7 @@ export default function EmailTemplatesPage() {
   const [loading, setLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isHtmlView, setIsHtmlView] = useState(false);
-  const [siteName, setSiteName] = useState('');
+  const [settings, setSettings] = useState<{siteName: string, contactEmail: string} | null>(null);
 
   const form = useForm<EmailTemplateFormValues>({
     resolver: zodResolver(emailTemplateSchema),
@@ -67,14 +68,17 @@ export default function EmailTemplatesPage() {
   const loadTemplate = useCallback(async () => {
     setLoading(true);
     try {
-      const [template, settings] = await Promise.all([
+      const [template, appSettings] = await Promise.all([
         getEmailTemplate(TEMPLATE_ID),
         fetchSettings()
       ]);
       if (template) {
         form.reset(template);
       }
-      setSiteName(settings.siteName);
+      setSettings({
+        siteName: appSettings.siteName || 'TKS Prepify',
+        contactEmail: appSettings.contactEmail || 'support@example.com'
+      });
     } catch (error) {
       toast({ title: "Error", description: "Could not load the email template.", variant: "destructive" });
     } finally {
@@ -99,15 +103,16 @@ export default function EmailTemplatesPage() {
         '{{discountAmount}}': '200.00',
         '{{finalAmount}}': '1000.00',
         '{{paymentMethod}}': 'Bank Transfer',
-        '{{siteName}}': siteName || 'TKS Prepify',
+        '{{siteName}}': settings?.siteName || 'TKS Prepify',
+        '{{contactEmail}}': settings?.contactEmail || 'support@example.com',
     };
     
     for (const [key, value] of Object.entries(exampleReplacements)) {
-        preview = preview.replace(new RegExp(key, 'g'), value);
+        preview = preview.replace(new RegExp(key.replace(/\{/g, '\\{').replace(/\}/g, '\\}'), 'g'), value);
     }
     return preview;
     
-  }, [watchedBody, siteName]);
+  }, [watchedBody, settings]);
 
 
   async function onSubmit(data: EmailTemplateFormValues) {
