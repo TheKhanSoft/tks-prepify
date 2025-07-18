@@ -242,6 +242,10 @@ const docToUserPlan = (doc: DocumentData): UserPlan => {
     endDate: serializeDate(data.endDate),
     status: data.status,
     remarks: data.remarks || '',
+    originalPrice: data.originalPrice,
+    paidAmount: data.paidAmount,
+    discountId: data.discountId,
+    discountCode: data.discountCode,
   };
 };
 
@@ -270,4 +274,25 @@ export async function updateUserPlanHistoryRecord(
   if (!historyId) throw new Error("History record ID is required.");
   const historyDocRef = doc(db, 'user_plans', historyId);
   await updateDoc(historyDocRef, data);
+}
+
+// Admin function to fetch all records
+export type UserPlanHistoryRecord = UserPlan & { userName?: string; userEmail?: string };
+export async function fetchAllUserPlanHistory(): Promise<UserPlanHistoryRecord[]> {
+  const [plans, users] = await Promise.all([
+    getDocs(query(collection(db, 'user_plans'), orderBy('subscriptionDate', 'desc'))),
+    getDocs(collection(db, 'users'))
+  ]);
+
+  const userMap = new Map(users.docs.map(doc => [doc.id, { name: doc.data().name, email: doc.data().email }]));
+
+  return plans.docs.map(doc => {
+    const planData = docToUserPlan(doc);
+    const userData = userMap.get(planData.userId);
+    return {
+      ...planData,
+      userName: userData?.name,
+      userEmail: userData?.email,
+    };
+  });
 }

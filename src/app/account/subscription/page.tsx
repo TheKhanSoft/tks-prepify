@@ -124,18 +124,17 @@ export default function SubscriptionPage() {
         );
     }
 
-    if (!plan || !userProfile) {
+    if (!userProfile) {
         return (
             <div className="text-center">
-                <p>Could not load subscription details.</p>
-                <Link href="/pricing">
-                    <Button className="mt-4">View Plans</Button>
-                </Link>
+                <p>Could not load user profile.</p>
             </div>
         );
     }
 
-    const quotaFeatures = plan.features.filter(f => f.isQuota);
+    const currentPlan = plans.find(p => p.id === userProfile.planId);
+    const hasActivePlan = !!currentPlan;
+    const quotaFeatures = currentPlan?.features.filter(f => f.isQuota) || [];
 
     return (
         <div className="space-y-8">
@@ -147,8 +146,8 @@ export default function SubscriptionPage() {
             <Card>
                 <CardHeader className="flex flex-row items-start md:items-center justify-between gap-4">
                     <div>
-                        <CardTitle className="text-2xl">{plan.name}</CardTitle>
-                        <CardDescription>{plan.description}</CardDescription>
+                        <CardTitle className="text-2xl">{currentPlan?.name || 'No Active Plan'}</CardTitle>
+                        <CardDescription>{currentPlan?.description || "You don't have an active subscription."}</CardDescription>
                     </div>
                     <Button asChild>
                         <Link href="/pricing">
@@ -156,76 +155,80 @@ export default function SubscriptionPage() {
                         </Link>
                     </Button>
                 </CardHeader>
-                <CardContent className="grid gap-8 md:grid-cols-2">
-                   <div>
-                        <h4 className="font-semibold text-lg mb-4">Plan Features</h4>
-                        <ul className="space-y-3">
-                            {plan.features.map((feature, index) => (
-                                <li key={index} className="flex items-center gap-3">
-                                    <Check className="h-5 w-5 text-green-500" />
-                                    <span>{feature.text}</span>
-                                </li>
-                            ))}
-                        </ul>
-                    </div>
-                     <div className="space-y-6 rounded-lg border bg-muted/50 p-6">
-                        <h4 className="font-semibold text-lg">Current Usage</h4>
-                         {quotaFeatures.length > 0 ? (
-                            quotaFeatures.map((feature: PlanFeature, index) => {
-                                const usageKey = (feature.key || '') + (feature.period ? `_${feature.period}` : '');
-                                const usageInfo = usage[usageKey];
+                {hasActivePlan && (
+                    <>
+                        <CardContent className="grid gap-8 md:grid-cols-2">
+                        <div>
+                                <h4 className="font-semibold text-lg mb-4">Plan Features</h4>
+                                <ul className="space-y-3">
+                                    {currentPlan.features.map((feature, index) => (
+                                        <li key={index} className="flex items-center gap-3">
+                                            <Check className="h-5 w-5 text-green-500" />
+                                            <span>{feature.text}</span>
+                                        </li>
+                                    ))}
+                                </ul>
+                            </div>
+                            <div className="space-y-6 rounded-lg border bg-muted/50 p-6">
+                                <h4 className="font-semibold text-lg">Current Usage</h4>
+                                {quotaFeatures.length > 0 ? (
+                                    quotaFeatures.map((feature: PlanFeature, index) => {
+                                        const usageKey = (feature.key || '') + (feature.period ? `_${feature.period}` : '');
+                                        const usageInfo = usage[usageKey];
 
-                                if (loadingUsage) {
-                                    return <Skeleton key={index} className="h-10 w-full" />
-                                }
+                                        if (loadingUsage) {
+                                            return <Skeleton key={index} className="h-10 w-full" />
+                                        }
 
-                                if (!usageInfo) return null;
+                                        if (!usageInfo) return null;
 
-                                const { used, limit, resetDate } = usageInfo;
-                                const percentage = limit > 0 ? (used / limit) * 100 : (limit === -1 ? 0 : 100);
+                                        const { used, limit, resetDate } = usageInfo;
+                                        const percentage = limit > 0 ? (used / limit) * 100 : (limit === -1 ? 0 : 100);
 
-                                return (
-                                    <div key={index}>
-                                        <div className="flex justify-between items-center mb-1">
-                                            <p className="font-medium text-sm capitalize">{feature.text.split('(')[0] || feature.key}</p>
-                                            <p className="text-xs text-muted-foreground">
-                                                <span className="font-semibold text-foreground">{used}</span> / {limit === -1 ? 'Unlimited' : limit}
-                                            </p>
-                                        </div>
-                                        <Progress value={percentage} aria-label={`${feature.text} usage`} />
-                                        {feature.period === 'lifetime' ? (
-                                             <p className="text-xs text-muted-foreground mt-1 capitalize">Does not reset</p>
-                                        ) : resetDate ? (
-                                            <p className="text-xs text-muted-foreground mt-1 capitalize">
-                                                Resets on {format(resetDate, 'PPP HH:mm:ss')}
-                                            </p>
-                                        ) : (
-                                            <p className="text-xs text-muted-foreground mt-1 capitalize">Resets {feature.period}</p>
-                                        )}
-                                    </div>
-                                )
-                            })
-                        ) : (
-                            <p className="text-muted-foreground text-sm">This plan does not have any usage quotas.</p>
-                        )}
-                    </div>
-                </CardContent>
-                 <CardFooter className="border-t pt-4 mt-6">
-                    {userProfile.planExpiryDate ? (
-                        <p className="text-sm text-muted-foreground">
-                            Your plan will renew on <strong>{format(new Date(userProfile.planExpiryDate), 'PPP HH:mm:ss')}</strong>.
-                        </p>
-                    ) : (
-                        <p className="text-sm text-muted-foreground">
-                            You have <strong>Lifetime Access</strong> to this plan.
-                        </p>
-                    )}
-                 </CardFooter>
+                                        return (
+                                            <div key={index}>
+                                                <div className="flex justify-between items-center mb-1">
+                                                    <p className="font-medium text-sm capitalize">{feature.text.split('(')[0] || feature.key}</p>
+                                                    <p className="text-xs text-muted-foreground">
+                                                        <span className="font-semibold text-foreground">{used}</span> / {limit === -1 ? 'Unlimited' : limit}
+                                                    </p>
+                                                </div>
+                                                <Progress value={percentage} aria-label={`${feature.text} usage`} />
+                                                {feature.period === 'lifetime' ? (
+                                                    <p className="text-xs text-muted-foreground mt-1 capitalize">Does not reset</p>
+                                                ) : resetDate ? (
+                                                    <p className="text-xs text-muted-foreground mt-1 capitalize">
+                                                        Resets on {format(resetDate, 'PPP HH:mm:ss')}
+                                                    </p>
+                                                ) : (
+                                                    <p className="text-xs text-muted-foreground mt-1 capitalize">Resets {feature.period}</p>
+                                                )}
+                                            </div>
+                                        )
+                                    })
+                                ) : (
+                                    <p className="text-muted-foreground text-sm">This plan does not have any usage quotas.</p>
+                                )}
+                            </div>
+                        </CardContent>
+                        <CardFooter className="border-t pt-4 mt-6">
+                            {userProfile.planExpiryDate ? (
+                                <p className="text-sm text-muted-foreground">
+                                    Your plan will renew on <strong>{format(new Date(userProfile.planExpiryDate), 'PPP HH:mm:ss')}</strong>.
+                                </p>
+                            ) : (
+                                <p className="text-sm text-muted-foreground">
+                                    You have <strong>Lifetime Access</strong> to this plan.
+                                </p>
+                            )}
+                        </CardFooter>
+                    </>
+                )}
             </Card>
 
              <Card>
                 <CardHeader>
-                    <CardTitle>Billing History</CardTitle>
+                    <CardTitle>Billing History & Orders</CardTitle>
                     <CardDescription>A record of your past and current subscriptions.</CardDescription>
                 </CardHeader>
                 <CardContent>
@@ -234,8 +237,8 @@ export default function SubscriptionPage() {
                             <TableRow>
                                 <TableHead>Plan</TableHead>
                                 <TableHead>Status</TableHead>
-                                <TableHead>Start Date</TableHead>
-                                <TableHead>End Date</TableHead>
+                                <TableHead>Date</TableHead>
+                                <TableHead>Expires</TableHead>
                             </TableRow>
                         </TableHeader>
                         <TableBody>
@@ -244,10 +247,10 @@ export default function SubscriptionPage() {
                                     <TableRow key={ph.id}>
                                         <TableCell className="font-medium">{ph.planName}</TableCell>
                                         <TableCell>
-                                            <Badge variant={ph.status === 'active' ? 'default' : 'secondary'} className={cn(ph.status === 'active' && 'bg-green-600 hover:bg-green-700')}>{ph.status.charAt(0).toUpperCase() + ph.status.slice(1)}</Badge>
+                                            <Badge variant={ph.status === 'active' ? 'default' : 'secondary'} className={cn(ph.status === 'active' && 'bg-green-600 hover:bg-green-700', ph.status === 'pending' && 'bg-amber-500 hover:bg-amber-600')}>{ph.status.charAt(0).toUpperCase() + ph.status.slice(1)}</Badge>
                                         </TableCell>
-                                        <TableCell>{format(new Date(ph.subscriptionDate), 'PPP HH:mm:ss')}</TableCell>
-                                        <TableCell>{ph.endDate ? format(new Date(ph.endDate), 'PPP HH:mm:ss') : 'N/A'}</TableCell>
+                                        <TableCell>{format(new Date(ph.subscriptionDate), 'PPP')}</TableCell>
+                                        <TableCell>{ph.endDate ? format(new Date(ph.endDate), 'PPP') : 'N/A'}</TableCell>
                                     </TableRow>
                                 ))
                             ) : (

@@ -180,7 +180,7 @@ export default function PricingPage() {
         </div>
 
         {/* Billing Toggle */}
-        <div className="mt-16 mb-6 flex justify-center">
+        <div className="mt-16 mb-6 flex justify-center p-0 ">
           <div className="relative z-10">
             <Tabs defaultValue="monthly" onValueChange={(value) => setBillingInterval(value as 'monthly' | 'annually')}>
               <TabsList className="grid w-full grid-cols-2 min-w-[320px] bg-white/80 dark:bg-slate-800/80 backdrop-blur-sm shadow-lg border">
