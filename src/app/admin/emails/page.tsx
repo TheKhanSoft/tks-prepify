@@ -9,7 +9,6 @@ import { Button } from "@/components/ui/button";
 import {
   Form,
   FormControl,
-  FormDescription,
   FormField,
   FormItem,
   FormLabel,
@@ -19,10 +18,11 @@ import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2, Eye, Code, Save } from "lucide-react";
+import { Loader2, Eye, Save } from "lucide-react";
 import { getEmailTemplate, updateEmailTemplate } from "@/lib/email-service";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Switch } from "@/components/ui/switch";
+import { format } from "date-fns";
 
 const emailTemplateSchema = z.object({
   subject: z.string().min(1, "Subject is required."),
@@ -68,17 +68,26 @@ export default function EmailTemplatesPage() {
   const previewHtml = useMemo(() => {
     if (!watchedBody) return "";
     // Safely replace placeholders with static example data for the preview
-    return watchedBody
-        .replace(/{{userName}}/g, "John Doe")
-        .replace(/{{orderId}}/g, "OD-123-ABC")
-        .replace(/{{planName}}/g, "Premium Plan")
-        .replace(/{{duration}}/g, "Yearly")
-        .replace(/{{orderDate}}/g, new Date().toLocaleDateString())
-        .replace(/{{orderStatus}}/g, "Pending")
-        .replace(/{{originalPrice}}/g, "1200.00")
-        .replace(/{{discountAmount}}/g, "200.00")
-        .replace(/{{finalAmount}}/g, "1000.00")
-        .replace(/{{paymentMethod}}/g, "Bank Transfer");
+    // This prevents any ReferenceError if a variable doesn't exist.
+    const replacements = {
+        '{{userName}}': 'John Doe',
+        '{{orderId}}': 'OD-123-ABC',
+        '{{planName}}': 'Premium Plan',
+        '{{duration}}': 'Yearly',
+        '{{orderDate}}': format(new Date(), 'PPP'),
+        '{{orderStatus}}': 'Pending',
+        '{{originalPrice}}': '1200.00',
+        '{{discountAmount}}': '200.00',
+        '{{finalAmount}}': '1000.00',
+        '{{paymentMethod}}': 'Bank Transfer'
+    };
+    
+    let preview = watchedBody;
+    for (const [key, value] of Object.entries(replacements)) {
+        preview = preview.replace(new RegExp(key, 'g'), value);
+    }
+    return preview;
+    
   }, [watchedBody]);
 
 
@@ -149,12 +158,12 @@ export default function EmailTemplatesPage() {
                     <div className="flex justify-between items-center">
                         <FormLabel>Email Body</FormLabel>
                         <div className="flex items-center gap-2">
-                            <span className="text-sm text-muted-foreground">Preview</span>
-                            <Switch checked={!isHtmlView} onCheckedChange={(checked) => setIsHtmlView(!checked)} aria-label="Toggle HTML view" />
                             <span className="text-sm text-muted-foreground">HTML</span>
+                            <Switch checked={isHtmlView} onCheckedChange={setIsHtmlView} aria-label="Toggle HTML view" />
+                            <span className="text-sm text-muted-foreground">Preview</span>
                         </div>
                     </div>
-                     {!isHtmlView ? (
+                     {isHtmlView ? (
                         <div className="p-4 border rounded-md min-h-[200px] bg-white prose prose-sm max-w-none" dangerouslySetInnerHTML={{ __html: previewHtml }} />
                      ) : (
                         <FormField
@@ -169,7 +178,7 @@ export default function EmailTemplatesPage() {
                         />
                      )}
                      <FormDescription>
-                        Use HTML for formatting. Available placeholders: `{{userName}}`, `{{orderId}}`, `{{planName}}`, `{{duration}}`, `{{orderDate}}`, `{{orderStatus}}`, `{{originalPrice}}`, `{{discountAmount}}`, `{{finalAmount}}`, `{{paymentMethod}}`.
+                        Use HTML for formatting. Placeholders: `{{userName}}`, `{{orderId}}`, `{{planName}}`, `{{duration}}`, `{{orderDate}}`, `{{orderStatus}}`, `{{originalPrice}}`, `{{discountAmount}}`, `{{finalAmount}}`, `{{paymentMethod}}`.
                      </FormDescription>
                   </div>
                 </>
@@ -178,8 +187,7 @@ export default function EmailTemplatesPage() {
           </Card>
           <div className="flex justify-end">
             <Button type="submit" disabled={isSubmitting || loading}>
-              {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-              Save Template
+              {isSubmitting ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Saving...</> : <><Save className="mr-2 h-4 w-4" /> Save Template</>}
             </Button>
           </div>
         </form>
