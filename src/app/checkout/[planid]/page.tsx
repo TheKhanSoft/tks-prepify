@@ -17,6 +17,7 @@ import { Input } from '@/components/ui/input';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Separator } from '@/components/ui/separator';
 import { validateDiscountCode } from '@/lib/discount-service';
+import { cn } from '@/lib/utils';
 
 // --- Reusable UI Components ---
 
@@ -369,3 +370,5 @@ export default function CheckoutPage() {
         </Suspense>
     );
 }
+
+    
