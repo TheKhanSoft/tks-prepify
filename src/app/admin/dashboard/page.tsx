@@ -1,3 +1,4 @@
+
 "use client";
 
 import {
@@ -301,7 +302,7 @@ export default function AdminDashboardPage() {
       newDownloadsGrowth: downloadsGrowth,
       newDownloadThisWeek: newDownThisWeek
     };
-  }, [allUsers, allPapers, allQuestions, allTestAttempts, contactSubmissions]);
+  }, [allUsers, allPapers, allQuestions, allTestAttempts, contactSubmissions, allDownloads]);
 
   const papersPerCategory = useMemo(() => {
     if (allPapers.length === 0 || allCategories.length === 0) return [];
@@ -677,7 +678,7 @@ export default function AdminDashboardPage() {
                               {attempt.testConfigName}
                             </p>
                           </div>
-                          <div className="text-right" right>
+                          <div className="text-right">
                             <div
                               className={cn(
                                 "font-bold text-lg flex items-center gap-1.5",
@@ -902,3 +903,4 @@ export default function AdminDashboardPage() {
     </div>
   );
 }
+
