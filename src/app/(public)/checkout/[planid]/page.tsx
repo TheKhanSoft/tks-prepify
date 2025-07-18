@@ -18,6 +18,18 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Separator } from '@/components/ui/separator';
 import { validateDiscountCode } from '@/lib/discount-service';
 import { cn } from '@/lib/utils';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from '@/components/ui/alert-dialog';
+
 
 // --- Reusable UI Components ---
 
@@ -306,10 +318,32 @@ function CheckoutPageComponent({ planId, optionLabel }: { planId: string, option
                         </div>
                     </CardContent>
                     <CardFooter>
-                        <Button className="w-full" size="lg" onClick={handleConfirmPurchase} disabled={isConfirming}>
-                            {isConfirming ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : null}
-                            Confirm Purchase (PKR {finalPrice.toFixed(2)})
-                        </Button>
+                         <AlertDialog>
+                            <AlertDialogTrigger asChild>
+                                <Button className="w-full" size="lg" disabled={isConfirming}>
+                                    Confirm Purchase (PKR {finalPrice.toFixed(2)})
+                                </Button>
+                            </AlertDialogTrigger>
+                            <AlertDialogContent>
+                                <AlertDialogHeader>
+                                    <AlertDialogTitle>Confirm Your Purchase</AlertDialogTitle>
+                                    <AlertDialogDescription>
+                                        You are about to subscribe to the <strong>{selectedPlan.name} ({selectedOption.label})</strong> plan for <strong>PKR {finalPrice.toFixed(2)}</strong>. Please confirm you have made the payment.
+                                    </AlertDialogDescription>
+                                </AlertDialogHeader>
+                                <AlertDialogFooter>
+                                    <AlertDialogCancel disabled={isConfirming}>Cancel</AlertDialogCancel>
+                                    <AlertDialogAction onClick={handleConfirmPurchase} disabled={isConfirming}>
+                                        {isConfirming ? (
+                                            <>
+                                                <Loader2 className="mr-2 h-4 w-4 animate-spin"/>
+                                                Processing...
+                                            </>
+                                        ) : "Yes, I've Paid"}
+                                    </AlertDialogAction>
+                                </AlertDialogFooter>
+                            </AlertDialogContent>
+                        </AlertDialog>
                     </CardFooter>
                 </Card>
                 <Card>
@@ -370,5 +404,7 @@ export default function CheckoutPage() {
         </Suspense>
     );
 }
+
+    
 
     
