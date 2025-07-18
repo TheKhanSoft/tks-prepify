@@ -29,6 +29,7 @@ type UsageInfo = {
 export default function SubscriptionPage() {
     const { user, loading: authLoading } = useAuth();
     const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
+    const [plans, setPlans] = useState<Plan[]>([]);
     const [plan, setPlan] = useState<Plan | null>(null);
     const [planHistory, setPlanHistory] = useState<UserPlan[]>([]);
     const [loading, setLoading] = useState(true);
@@ -42,17 +43,18 @@ export default function SubscriptionPage() {
         const loadInitialData = async () => {
             setLoading(true);
             try {
-                const [profile, plans, history] = await Promise.all([
+                const [profile, fetchedPlans, history] = await Promise.all([
                     getUserProfile(user.uid),
                     fetchPlans(),
                     fetchUserPlanHistory(user.uid),
                 ]);
 
                 setUserProfile(profile);
+                setPlans(fetchedPlans);
                 setPlanHistory(history);
 
                 if (profile?.planId) {
-                    const currentPlan = plans.find(p => p.id === profile.planId);
+                    const currentPlan = fetchedPlans.find(p => p.id === profile.planId);
                     setPlan(currentPlan || null);
                 }
             } catch (error) {
