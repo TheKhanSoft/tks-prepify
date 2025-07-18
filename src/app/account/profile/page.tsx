@@ -17,7 +17,7 @@ import { updateProfile, updatePassword, signOut } from 'firebase/auth';
 import { updateUserProfileInFirestore } from '@/lib/user-service';
 import { useState } from 'react';
 import { auth } from '@/lib/firebase';
-import { format }s from 'date-fns';
+import { format } from 'date-fns';
 import { useRouter } from 'next/navigation';
 
 
