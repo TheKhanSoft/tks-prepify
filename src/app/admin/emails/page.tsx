@@ -1,7 +1,7 @@
 
 "use client";
 
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useMemo } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
@@ -57,6 +57,15 @@ export default function EmailTemplatesPage() {
   useEffect(() => {
     loadTemplate();
   }, [loadTemplate]);
+  
+  const previewHtml = useMemo(() => {
+    if (!watchedBody) return "";
+    return watchedBody
+        .replace(/{{userName}}/g, "John Doe")
+        .replace(/{{orderId}}/g, "SAMPLE-ORDER-123")
+        .replace(/{{planName}}/g, "Premium Plan")
+        .replace(/{{amount}}/g, "99.99");
+  }, [watchedBody]);
 
   async function onSubmit(data: EmailTemplateFormValues) {
     setIsSubmitting(true);
@@ -126,12 +135,12 @@ export default function EmailTemplatesPage() {
                         <FormLabel>Email Body</FormLabel>
                         <div className="flex items-center gap-2">
                             <span className="text-sm text-muted-foreground">Preview</span>
-                            <Switch checked={isHtmlView} onCheckedChange={setIsHtmlView} aria-label="Toggle HTML view" />
+                            <Switch checked={!isHtmlView} onCheckedChange={(checked) => setIsHtmlView(!checked)} aria-label="Toggle HTML view" />
                             <span className="text-sm text-muted-foreground">HTML</span>
                         </div>
                     </div>
                      {!isHtmlView ? (
-                        <div className="p-4 border rounded-md min-h-[200px] prose prose-sm max-w-none" dangerouslySetInnerHTML={{ __html: watchedBody }} />
+                        <div className="p-4 border rounded-md min-h-[200px] prose prose-sm max-w-none" dangerouslySetInnerHTML={{ __html: previewHtml }} />
                      ) : (
                         <FormField
                             control={form.control}
