@@ -1,4 +1,3 @@
-
 'use client';
 
 import React, { useState, useEffect } from 'react';
@@ -13,7 +12,7 @@ import type { Plan, User as UserProfile, PricingOption } from '@/types';
 import { useAuth } from '@/hooks/use-auth';
 import { getUserProfile } from '@/lib/user-service';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
-import { Switch } from '@/components/ui/switch';
+import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Label } from '@/components/ui/label';
 
 const PlanActionButton = ({ user, currentPlan, targetPlan, option, isCurrentPlan }: {
@@ -119,14 +118,13 @@ export default function PricingPage() {
           </p>
         </div>
 
-        <div className="mt-16 flex justify-center items-center space-x-4">
-            <Label htmlFor="billing-interval">Monthly</Label>
-            <Switch
-                id="billing-interval"
-                checked={billingInterval === 'annually'}
-                onCheckedChange={(checked) => setBillingInterval(checked ? 'annually' : 'monthly')}
-            />
-            <Label htmlFor="billing-interval">Annually</Label>
+        <div className="mt-16 flex justify-center">
+          <Tabs defaultValue="monthly" onValueChange={(value) => setBillingInterval(value as 'monthly' | 'annually')}>
+            <TabsList className="grid w-full grid-cols-2 max-w-xs">
+              <TabsTrigger value="monthly">Monthly</TabsTrigger>
+              <TabsTrigger value="annually">Annually</TabsTrigger>
+            </TabsList>
+          </Tabs>
         </div>
 
         <div className={cn(

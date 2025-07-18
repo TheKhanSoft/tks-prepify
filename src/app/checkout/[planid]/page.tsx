@@ -1,7 +1,7 @@
 
 'use client';
 
-import { useState, useEffect, Suspense, useCallback } from 'react';
+import { useState, useEffect, Suspense, useCallback, useMemo } from 'react';
 import { useRouter, useParams, useSearchParams, usePathname } from 'next/navigation';
 import { useAuth } from '@/hooks/use-auth';
 import { getPlanById } from '@/lib/plan-service';
@@ -360,7 +360,7 @@ function CheckoutPageComponent({ planId, optionLabel }: { planId: string, option
 export default function CheckoutPage() {
     const params = useParams();
     const searchParams = useSearchParams();
-    const planId = params.planId as string;
+    const planId = params.planid as string;
     const optionLabel = searchParams.get('option');
 
     return (
