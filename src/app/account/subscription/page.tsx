@@ -9,7 +9,7 @@ import { countDownloadsForPeriod } from '@/lib/download-service';
 import type { Plan, User as UserProfile, UserPlan, PlanFeature } from '@/types';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from "@/components/ui/card";
 import { Button } from '@/components/ui/button';
-import { Loader2, Check, ExternalLink, Crown, Calendar, TrendingUp, AlertCircle, RefreshCw } from 'lucide-react';
+import { Loader2, Check, ExternalLink, Crown, Calendar, TrendingUp, AlertCircle, RefreshCw, Clock, X } from 'lucide-react';
 import { format } from 'date-fns';
 import Link from 'next/link';
 import { Badge } from '@/components/ui/badge';

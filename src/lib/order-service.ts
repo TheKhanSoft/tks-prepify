@@ -37,7 +37,7 @@ const docToOrder = (doc: DocumentData): Order => {
     discountAmount: data.discountAmount,
     paymentMethod: data.paymentMethod,
     paymentMethodType: data.paymentMethodType,
-    createdAt: serializeDate(data.createdAt),
+    createdAt: serializeDate(data.createdAt)!,
     status: data.status,
   };
 };
