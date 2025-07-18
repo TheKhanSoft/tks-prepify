@@ -6,14 +6,21 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import { Button } from "@/components/ui/button";
-import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
+import {
+  Form,
+  FormControl,
+  FormDescription,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
 import { Loader2, Eye, Code, Save } from "lucide-react";
 import { getEmailTemplate, updateEmailTemplate } from "@/lib/email-service";
-import type { EmailTemplate } from "@/types";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Switch } from "@/components/ui/switch";
 
@@ -60,13 +67,20 @@ export default function EmailTemplatesPage() {
   
   const previewHtml = useMemo(() => {
     if (!watchedBody) return "";
-    // Replace placeholders with static example data for a safe preview
+    // Safely replace placeholders with static example data for the preview
     return watchedBody
         .replace(/{{userName}}/g, "John Doe")
-        .replace(/{{orderId}}/g, "SAMPLE-ORDER-123")
+        .replace(/{{orderId}}/g, "OD-123-ABC")
         .replace(/{{planName}}/g, "Premium Plan")
-        .replace(/{{amount}}/g, "99.99");
+        .replace(/{{duration}}/g, "Yearly")
+        .replace(/{{orderDate}}/g, new Date().toLocaleDateString())
+        .replace(/{{orderStatus}}/g, "Pending")
+        .replace(/{{originalPrice}}/g, "1200.00")
+        .replace(/{{discountAmount}}/g, "200.00")
+        .replace(/{{finalAmount}}/g, "1000.00")
+        .replace(/{{paymentMethod}}/g, "Bank Transfer");
   }, [watchedBody]);
+
 
   async function onSubmit(data: EmailTemplateFormValues) {
     setIsSubmitting(true);
@@ -141,21 +155,21 @@ export default function EmailTemplatesPage() {
                         </div>
                     </div>
                      {!isHtmlView ? (
-                        <div className="p-4 border rounded-md min-h-[200px] prose prose-sm max-w-none" dangerouslySetInnerHTML={{ __html: previewHtml }} />
+                        <div className="p-4 border rounded-md min-h-[200px] bg-white prose prose-sm max-w-none" dangerouslySetInnerHTML={{ __html: previewHtml }} />
                      ) : (
                         <FormField
                             control={form.control}
                             name="body"
                             render={({ field }) => (
                                 <FormItem>
-                                <FormControl><Textarea {...field} rows={15} /></FormControl>
+                                <FormControl><Textarea {...field} rows={25} /></FormControl>
                                 <FormMessage />
                                 </FormItem>
                             )}
                         />
                      )}
                      <FormDescription>
-                        Use HTML for formatting. Available placeholders: `{{userName}}`, `{{orderId}}`, `{{planName}}`, `{{amount}}`.
+                        Use HTML for formatting. Available placeholders: `{{userName}}`, `{{orderId}}`, `{{planName}}`, `{{duration}}`, `{{orderDate}}`, `{{orderStatus}}`, `{{originalPrice}}`, `{{discountAmount}}`, `{{finalAmount}}`, `{{paymentMethod}}`.
                      </FormDescription>
                   </div>
                 </>
