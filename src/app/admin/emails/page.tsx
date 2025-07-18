@@ -25,6 +25,7 @@ import { Switch } from "@/components/ui/switch";
 import { fetchSettings } from "@/lib/settings-service";
 import { format } from "date-fns";
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 
 const emailTemplateSchema = z.object({
   subject: z.string().min(1, "Subject is required."),
@@ -55,7 +56,7 @@ export default function EmailTemplatesPage() {
   const { toast } = useToast();
   const [loading, setLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [isHtmlView, setIsHtmlView] = useState(false);
+  const [viewMode, setViewMode] = useState<'edit' | 'preview'>('edit');
   const [settings, setSettings] = useState<{siteName: string, contactEmail: string} | null>(null);
   const [previewHtml, setPreviewHtml] = useState('');
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
@@ -157,74 +158,81 @@ export default function EmailTemplatesPage() {
 
         <Form {...form}>
             <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
-            <Card>
-                <CardHeader>
-                <div className="flex justify-between items-center">
-                    <div>
-                        <CardTitle>Order Confirmation Email</CardTitle>
-                        <CardDescription>This email is sent to users after they place an order.</CardDescription>
-                    </div>
-                    <FormField
-                        control={form.control}
-                        name="isEnabled"
-                        render={({ field }) => (
-                        <FormItem className="flex items-center gap-2 space-y-0">
-                            <FormControl>
-                            <Switch checked={field.value} onCheckedChange={field.onChange} disabled={loading || isSubmitting} />
-                            </FormControl>
-                            <FormLabel>Enabled</FormLabel>
-                        </FormItem>
-                        )}
-                    />
-                </div>
-                </CardHeader>
-                <CardContent className="space-y-6">
-                {loading ? (
-                    <div className="space-y-4">
-                        <Skeleton className="h-10 w-full" />
-                        <Skeleton className="h-40 w-full" />
-                    </div>
-                ) : (
-                    <>
-                    <FormField
-                        control={form.control}
-                        name="subject"
-                        render={({ field }) => (
-                        <FormItem>
-                            <FormLabel>Email Subject</FormLabel>
-                            <FormControl><Input {...field} /></FormControl>
-                            <FormMessage />
-                        </FormItem>
-                        )}
-                    />
-                    <div className="space-y-2">
-                        <div className="flex justify-between items-center">
-                            <FormLabel>Email Body</FormLabel>
-                            <div className="flex items-center gap-2">
-                                <Code className="h-4 w-4 text-muted-foreground" />
-                                <Switch checked={isHtmlView} onCheckedChange={setIsHtmlView} aria-label="Toggle HTML view" />
-                                <Eye className="h-4 w-4 text-muted-foreground" />
-                            </div>
+            <Tabs defaultValue="order-confirmation" className="w-full">
+              <TabsList>
+                <TabsTrigger value="order-confirmation">Order Confirmation</TabsTrigger>
+              </TabsList>
+              <TabsContent value="order-confirmation">
+                <Card>
+                    <CardHeader>
+                    <div className="flex justify-between items-center">
+                        <div>
+                            <CardTitle>Order Confirmation Email</CardTitle>
+                            <CardDescription>This email is sent to users after they place an order.</CardDescription>
                         </div>
-                        {isHtmlView ? (
-                            <div className="p-4 border rounded-md min-h-[400px] bg-white overflow-auto" dangerouslySetInnerHTML={{ __html: previewHtml }} />
-                        ) : (
-                            <FormField
-                                control={form.control}
-                                name="body"
-                                render={({ field }) => (
-                                    <FormItem>
-                                    <FormControl><Textarea {...field} rows={25} className="font-mono text-xs" /></FormControl>
-                                    <FormMessage />
-                                    </FormItem>
-                                )}
-                            />
-                        )}
+                        <FormField
+                            control={form.control}
+                            name="isEnabled"
+                            render={({ field }) => (
+                            <FormItem className="flex items-center gap-2 space-y-0">
+                                <FormControl>
+                                <Switch checked={field.value} onCheckedChange={field.onChange} disabled={loading || isSubmitting} />
+                                </FormControl>
+                                <FormLabel>Enabled</FormLabel>
+                            </FormItem>
+                            )}
+                        />
                     </div>
-                    </>
-                )}
-                </CardContent>
-            </Card>
+                    </CardHeader>
+                    <CardContent className="space-y-6">
+                    {loading ? (
+                        <div className="space-y-4">
+                            <Skeleton className="h-10 w-full" />
+                            <Skeleton className="h-40 w-full" />
+                        </div>
+                    ) : (
+                        <>
+                        <FormField
+                            control={form.control}
+                            name="subject"
+                            render={({ field }) => (
+                            <FormItem>
+                                <FormLabel>Email Subject</FormLabel>
+                                <FormControl><Input {...field} /></FormControl>
+                                <FormMessage />
+                            </FormItem>
+                            )}
+                        />
+                        <div className="space-y-2">
+                            <div className="flex justify-between items-center">
+                                <FormLabel>Email Body</FormLabel>
+                                <div className="flex items-center gap-2">
+                                    <Button type="button" size="sm" variant={viewMode === 'edit' ? 'secondary' : 'ghost'} onClick={() => setViewMode('edit')}><Code className="h-4 w-4 mr-2" />HTML</Button>
+                                    <Button type="button" size="sm" variant={viewMode === 'preview' ? 'secondary' : 'ghost'} onClick={() => setViewMode('preview')}><Eye className="h-4 w-4 mr-2" />Preview</Button>
+                                </div>
+                            </div>
+                            {viewMode === 'preview' ? (
+                                <div className="p-4 border rounded-md min-h-[400px] bg-white overflow-auto" dangerouslySetInnerHTML={{ __html: previewHtml }} />
+                            ) : (
+                                <FormField
+                                    control={form.control}
+                                    name="body"
+                                    render={({ field }) => (
+                                        <FormItem>
+                                        <FormControl><Textarea {...field} rows={25} className="font-mono text-xs" /></FormControl>
+                                        <FormMessage />
+                                        </FormItem>
+                                    )}
+                                />
+                            )}
+                        </div>
+                        </>
+                    )}
+                    </CardContent>
+                </Card>
+              </TabsContent>
+            </Tabs>
+            
             <div className="flex justify-end gap-2">
                 <Button type="button" variant="outline" onClick={loadTemplate} disabled={loading || isSubmitting}>
                   <RefreshCw className="mr-2 h-4 w-4" />
@@ -257,5 +265,4 @@ export default function EmailTemplatesPage() {
       </div>
     </div>
   );
-
-    
+}
