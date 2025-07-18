@@ -266,7 +266,7 @@ export interface HelpArticle {
   order: number;
 }
 
-export type PaymentMethodType = 'bank' | 'easypaisa' | 'jazzcash' | 'crypto';
+export type PaymentMethodType = 'bank' | 'easypaisa' | 'jazzcash' | 'crypto' | 'creditcard';
 
 export interface PaymentMethod {
   id: string;
@@ -298,4 +298,25 @@ export interface Discount {
   applicableDurations?: string[];
   startDate?: string | null; // ISO string
   endDate?: string | null; // ISO string
+}
+
+export type OrderStatus = 'pending' | 'completed' | 'failed' | 'refunded';
+
+export interface Order {
+    id: string;
+    userId: string;
+    userName?: string | null;
+    userEmail?: string | null;
+    planId: string;
+    planName: string;
+    pricingOptionLabel: string;
+    originalPrice: number;
+    finalAmount: number;
+    discountId?: string;
+    discountCode?: string;
+    discountAmount?: number;
+    paymentMethod: string;
+    paymentMethodType: PaymentMethodType;
+    createdAt: string; // ISO String
+    status: OrderStatus;
 }
