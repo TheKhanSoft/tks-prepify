@@ -60,6 +60,7 @@ export default function EmailTemplatesPage() {
   
   const previewHtml = useMemo(() => {
     if (!watchedBody) return "";
+    // Replace placeholders with static example data for a safe preview
     return watchedBody
         .replace(/{{userName}}/g, "John Doe")
         .replace(/{{orderId}}/g, "SAMPLE-ORDER-123")
