@@ -8,7 +8,7 @@ import { cache } from 'react';
 
 const defaultTemplates: { [id: string]: Omit<EmailTemplate, 'id'> } = {
   'order-confirmation': {
-    subject: 'Order Confirmation: {{planName}} - {{siteName}}',
+    subject: 'Order Confirmation for {{planName}} - {{siteName}}',
     body: `
 <!DOCTYPE html>
 <html lang="en">
@@ -17,88 +17,78 @@ const defaultTemplates: { [id: string]: Omit<EmailTemplate, 'id'> } = {
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Order Confirmation</title>
     <style>
-        body { margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol'; background-color: #f2f4f6; }
-        .container { background-color: #ffffff; margin: 20px auto; padding: 20px; max-width: 600px; border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
-        .header { text-align: center; border-bottom: 1px solid #e5e7eb; padding-bottom: 20px; }
-        .header img { height: 48px; width: 48px; }
-        .header h1 { font-size: 24px; color: #111827; margin: 10px 0; }
-        .header p { color: #4b5563; }
-        .summary-card { border: 1px solid #e5e7eb; border-radius: 8px; margin-top: 24px; }
-        .summary-header { background-color: #f9fafb; padding: 12px 16px; border-bottom: 1px solid #e5e7eb; }
-        .summary-header h2 { font-size: 16px; margin: 0; color: #111827; }
-        .summary-content { padding: 16px; }
-        .info-row { display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid #e5e7eb; }
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; margin: 0; padding: 0; background-color: #f8f9fa; color: #343a40; }
+        .wrapper { width: 100%; table-layout: fixed; background-color: #f8f9fa; padding: 40px 0; }
+        .main { background-color: #ffffff; margin: 0 auto; width: 100%; max-width: 600px; border-spacing: 0; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.05); }
+        .header { padding: 40px; text-align: center; }
+        .header h1 { font-size: 28px; font-weight: 700; color: #212529; margin: 16px 0 8px; }
+        .header p { color: #6c757d; margin: 0; }
+        .content { padding: 40px; }
+        .card { border: 1px solid #dee2e6; border-radius: 8px; margin-bottom: 24px; }
+        .card-header { background-color: #f8f9fa; padding: 12px 20px; border-bottom: 1px solid #dee2e6; }
+        .card-header h2 { font-size: 16px; margin: 0; color: #212529; font-weight: 600; }
+        .card-content { padding: 20px; }
+        .info-row { display: table; width: 100%; border-bottom: 1px solid #e9ecef; padding: 12px 0; }
         .info-row:last-child { border-bottom: none; }
-        .info-row .label { color: #4b5563; }
-        .info-row .value { font-weight: 600; color: #111827; }
-        .total-row { padding-top: 12px; font-size: 18px; }
-        .status-badge { display: inline-block; padding: 2px 8px; border-radius: 12px; font-size: 12px; font-weight: 500; background-color: #fef3c7; color: #92400e; }
-        .next-steps { margin-top: 24px; }
-        .next-steps h2 { font-size: 16px; }
-        .next-steps .button { display: inline-block; background-color: #3b82f6; color: #ffffff; padding: 12px 24px; text-decoration: none; border-radius: 6px; font-weight: 600; margin-top: 10px; }
-        .footer { text-align: center; margin-top: 24px; font-size: 12px; color: #6b7280; }
+        .info-label, .info-value { display: table-cell; vertical-align: middle; }
+        .info-label { color: #6c757d; }
+        .info-value { text-align: right; font-weight: 600; color: #212529; }
+        .status-badge { display: inline-block; padding: 4px 10px; border-radius: 16px; font-size: 12px; font-weight: 500; background-color: #fff3cd; color: #856404; text-transform: capitalize;}
+        .total-row { border-top: 2px solid #dee2e6; margin-top: 16px; padding-top: 16px; }
+        .total-row .info-label, .total-row .info-value { font-size: 18px; font-weight: 700; }
+        .next-steps h2 { font-size: 18px; color: #212529; margin-bottom: 12px; }
+        .next-steps p { color: #6c757d; line-height: 1.6; }
+        .button { display: inline-block; background-color: #0d6efd; color: #ffffff; padding: 12px 24px; text-decoration: none; border-radius: 6px; font-weight: 600; margin-top: 16px; text-align: center; }
+        .footer { text-align: center; padding: 20px; font-size: 12px; color: #6c757d; }
     </style>
 </head>
 <body>
-    <div class="container">
-        <div class="header">
-            <img src="https://www.gstatic.com/images/icons/material/system/2x/check_circle_green_48dp.png" alt="Success">
-            <h1>Thank You For Your Order!</h1>
-            <p>Hi {{userName}}, your order has been placed and is now pending payment verification.</p>
-        </div>
-        
-        <div class="summary-card">
-            <div class="summary-header">
-                <h2>Order Summary</h2>
-            </div>
-            <div class="summary-content">
-                <div class="info-row">
-                    <span class="label">Order ID:</span>
-                    <span class="value">{{orderId}}</span>
-                </div>
-                <div class="info-row">
-                    <span class="label">Plan:</span>
-                    <span class="value">{{planName}}</span>
-                </div>
-                 <div class="info-row">
-                    <span class="label">Duration:</span>
-                    <span class="value">{{duration}}</span>
-                </div>
-                <div class="info-row">
-                    <span class="label">Order Date:</span>
-                    <span class="value">{{orderDate}}</span>
-                </div>
-                <div class="info-row">
-                    <span class="label">Payment Status:</span>
-                    <span class="value">
-                        <span class="status-badge">{{orderStatus}}</span>
-                    </span>
-                </div>
-                <div class="info-row total-row">
-                    <strong class="label">Subtotal:</strong>
-                    <strong class="value">PKR {{originalPrice}}</strong>
-                </div>
-                <div class="info-row">
-                    <span class="label">Discount:</span>
-                    <span class="value">- PKR {{discountAmount}}</span>
-                </div>
-                <div class="info-row total-row" style="font-size: 20px; border-top: 2px solid #d1d5db; margin-top: 10px;">
-                    <strong class="label">Total Amount:</strong>
-                    <strong class="value">PKR {{finalAmount}}</strong>
-                </div>
-            </div>
-        </div>
-
-        <div class="next-steps">
-            <h2>Next Steps: Submit Proof of Payment</h2>
-            <p style="color: #4b5563;">To activate your subscription, please send us your proof of payment (e.g., a screenshot or receipt) using one of the methods below. Please make sure to include your Order ID in your message.</p>
-            <a href="mailto:{{contactEmail}}?subject=Payment Proof for Order {{orderId}}" class="button">Email Us</a>
-        </div>
-
-        <div class="footer">
-            <p>&copy; {{siteName}}. All rights reserved.</p>
-        </div>
-    </div>
+    <center class="wrapper">
+        <table class="main" width="100%">
+            <!-- HEADER -->
+            <tr>
+                <td class="header">
+                    <img src="https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcRz9U83PZl7e2RwMcVlA1uC8b6gZ_U7YyFSUg&s" alt="Success" width="48" height="48" style="border:0;">
+                    <h1>Thank You For Your Order!</h1>
+                    <p>Hi {{userName}}, your order has been placed and is now pending payment verification.</p>
+                </td>
+            </tr>
+            <!-- CONTENT -->
+            <tr>
+                <td class="content">
+                    <div class="card">
+                        <div class="card-header"><h2>Order Summary</h2></div>
+                        <div class="card-content">
+                            <div class="info-row"><span class="info-label">Order ID:</span><span class="info-value">{{orderId}}</span></div>
+                            <div class="info-row"><span class="info-label">Plan:</span><span class="info-value">{{planName}} ({{duration}})</span></div>
+                            <div class="info-row"><span class="info-label">Order Date:</span><span class="info-value">{{orderDate}}</span></div>
+                            <div class="info-row"><span class="info-label">Payment Method:</span><span class="info-value">{{paymentMethod}}</span></div>
+                            <div class="info-row"><span class="info-label">Status:</span><span class="info-value"><span class="status-badge">{{orderStatus}}</span></span></div>
+                        </div>
+                    </div>
+                    <div class="card">
+                         <div class="card-header"><h2>Billing Summary</h2></div>
+                         <div class="card-content">
+                            <div class="info-row"><span class="info-label">Subtotal:</span><span class="info-value">PKR {{originalPrice}}</span></div>
+                            <div class="info-row"><span class="info-label">Discount:</span><span class="info-value">- PKR {{discountAmount}}</span></div>
+                            <div class="info-row total-row"><strong class="info-label">Total Amount:</strong><strong class="info-value">PKR {{finalAmount}}</strong></div>
+                        </div>
+                    </div>
+                    <div class="next-steps">
+                        <h2>Next Steps: Submit Proof of Payment</h2>
+                        <p>To activate your subscription, please send us your proof of payment (e.g., a screenshot or receipt) via email. Please make sure to include your <strong>Order ID ({{orderId}})</strong> in your message for faster processing.</p>
+                        <a href="mailto:{{contactEmail}}?subject=Payment Proof for Order {{orderId}}" class="button">Email Support</a>
+                    </div>
+                </td>
+            </tr>
+            <!-- FOOTER -->
+            <tr>
+                <td class="footer">
+                    <p>&copy; {{siteName}}. All rights reserved.</p>
+                </td>
+            </tr>
+        </table>
+    </center>
 </body>
 </html>
     `,
@@ -127,7 +117,8 @@ export const getEmailTemplate = cache(async (id: string): Promise<EmailTemplate 
   } catch (error) {
     console.error(`Error fetching email template with ID "${id}":`, error);
   }
-  return null;
+  // Fallback to default if something goes wrong or slug is invalid
+  return { id, ...(defaultTemplates[id] || { subject: 'Template not found', body: '', isEnabled: false }) };
 });
 
 /**
@@ -137,3 +128,5 @@ export async function updateEmailTemplate(id: string, data: Partial<Omit<EmailTe
   const templateDocRef = doc(db, 'email_templates', id);
   await setDoc(templateDocRef, data, { merge: true });
 }
+
+    

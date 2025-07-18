@@ -13,18 +13,18 @@ import {
   FormItem,
   FormLabel,
   FormMessage,
-  FormDescription,
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2, Eye, Save, Code } from "lucide-react";
+import { Loader2, Eye, Save, Code, AlertCircle, RefreshCw } from "lucide-react";
 import { getEmailTemplate, updateEmailTemplate } from "@/lib/email-service";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Switch } from "@/components/ui/switch";
-import { format } from "date-fns";
 import { fetchSettings } from "@/lib/settings-service";
+import { format } from "date-fns";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 
 const emailTemplateSchema = z.object({
   subject: z.string().min(1, "Subject is required."),
@@ -57,6 +57,8 @@ export default function EmailTemplatesPage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isHtmlView, setIsHtmlView] = useState(false);
   const [settings, setSettings] = useState<{siteName: string, contactEmail: string} | null>(null);
+  const [previewHtml, setPreviewHtml] = useState('');
+  const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
 
   const form = useForm<EmailTemplateFormValues>({
     resolver: zodResolver(emailTemplateSchema),
@@ -65,6 +67,7 @@ export default function EmailTemplatesPage() {
 
   const watchedBody = form.watch("body");
 
+  // Load initial template and settings
   const loadTemplate = useCallback(async () => {
     setLoading(true);
     try {
@@ -79,6 +82,7 @@ export default function EmailTemplatesPage() {
         siteName: appSettings.siteName || 'TKS Prepify',
         contactEmail: appSettings.contactEmail || 'support@example.com'
       });
+      setHasUnsavedChanges(false);
     } catch (error) {
       toast({ title: "Error", description: "Could not load the email template.", variant: "destructive" });
     } finally {
@@ -90,28 +94,36 @@ export default function EmailTemplatesPage() {
     loadTemplate();
   }, [loadTemplate]);
   
-  const previewHtml = useMemo(() => {
+  // Track unsaved changes
+  useEffect(() => {
+    const subscription = form.watch(() => setHasUnsavedChanges(true));
+    return () => subscription.unsubscribe();
+  }, [form]);
+  
+  // Update preview when body or settings change
+  useEffect(() => {
     let preview = watchedBody || "";
-    const exampleReplacements = {
-        '{{userName}}': 'John Doe',
-        '{{orderId}}': 'ORD-SAMPLE-123',
-        '{{planName}}': 'Premium Plan',
-        '{{duration}}': 'Yearly',
-        '{{orderDate}}': format(new Date(), 'PPP'),
-        '{{orderStatus}}': 'Pending',
-        '{{originalPrice}}': '1200.00',
-        '{{discountAmount}}': '200.00',
-        '{{finalAmount}}': '1000.00',
-        '{{paymentMethod}}': 'Bank Transfer',
-        '{{siteName}}': settings?.siteName || 'TKS Prepify',
-        '{{contactEmail}}': settings?.contactEmail || 'support@example.com',
-    };
-    
-    for (const [key, value] of Object.entries(exampleReplacements)) {
-        preview = preview.replace(new RegExp(key.replace(/\{/g, '\\{').replace(/\}/g, '\\}'), 'g'), value);
+    if (settings) {
+        const exampleReplacements = {
+            '{{userName}}': 'John Doe',
+            '{{orderId}}': 'ORD-SAMPLE-123',
+            '{{planName}}': 'Premium Plan',
+            '{{duration}}': 'Yearly',
+            '{{orderDate}}': format(new Date(), 'PPP'),
+            '{{orderStatus}}': 'Pending',
+            '{{originalPrice}}': '1200.00',
+            '{{discountAmount}}': '200.00',
+            '{{finalAmount}}': '1000.00',
+            '{{paymentMethod}}': 'Bank Transfer',
+            '{{siteName}}': settings.siteName,
+            '{{contactEmail}}': settings.contactEmail,
+        };
+        
+        for (const [key, value] of Object.entries(exampleReplacements)) {
+            preview = preview.replace(new RegExp(key.replace(/\{/g, '\\{').replace(/\}/g, '\\}'), 'g'), value);
+        }
     }
-    return preview;
-    
+    setPreviewHtml(preview);
   }, [watchedBody, settings]);
 
 
@@ -119,6 +131,7 @@ export default function EmailTemplatesPage() {
     setIsSubmitting(true);
     try {
       await updateEmailTemplate(TEMPLATE_ID, data);
+      setHasUnsavedChanges(false);
       toast({ title: "Template Saved", description: "The order confirmation email template has been updated." });
     } catch (error) {
       toast({ title: "Error", description: "Failed to save the template.", variant: "destructive" });
@@ -134,6 +147,14 @@ export default function EmailTemplatesPage() {
             <h1 className="text-3xl font-bold">Email Templates</h1>
             <p className="text-muted-foreground">Manage the content of automated emails sent to users.</p>
         </div>
+        
+        {hasUnsavedChanges && (
+            <Alert className="border-amber-200 bg-amber-50/50 text-amber-800">
+                <AlertCircle className="h-4 w-4" />
+                <AlertDescription>You have unsaved changes. Don't forget to save before leaving.</AlertDescription>
+            </Alert>
+        )}
+
         <Form {...form}>
             <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
             <Card>
@@ -149,7 +170,7 @@ export default function EmailTemplatesPage() {
                         render={({ field }) => (
                         <FormItem className="flex items-center gap-2 space-y-0">
                             <FormControl>
-                            <Switch checked={field.value} onCheckedChange={field.onChange} />
+                            <Switch checked={field.value} onCheckedChange={field.onChange} disabled={loading || isSubmitting} />
                             </FormControl>
                             <FormLabel>Enabled</FormLabel>
                         </FormItem>
@@ -159,10 +180,10 @@ export default function EmailTemplatesPage() {
                 </CardHeader>
                 <CardContent className="space-y-6">
                 {loading ? (
-                    <>
-                    <Skeleton className="h-10 w-full" />
-                    <Skeleton className="h-40 w-full" />
-                    </>
+                    <div className="space-y-4">
+                        <Skeleton className="h-10 w-full" />
+                        <Skeleton className="h-40 w-full" />
+                    </div>
                 ) : (
                     <>
                     <FormField
@@ -186,7 +207,7 @@ export default function EmailTemplatesPage() {
                             </div>
                         </div>
                         {isHtmlView ? (
-                            <div className="p-4 border rounded-md min-h-[400px] bg-white" dangerouslySetInnerHTML={{ __html: previewHtml }} />
+                            <div className="p-4 border rounded-md min-h-[400px] bg-white overflow-auto" dangerouslySetInnerHTML={{ __html: previewHtml }} />
                         ) : (
                             <FormField
                                 control={form.control}
@@ -204,8 +225,12 @@ export default function EmailTemplatesPage() {
                 )}
                 </CardContent>
             </Card>
-            <div className="flex justify-end">
-                <Button type="submit" disabled={isSubmitting || loading}>
+            <div className="flex justify-end gap-2">
+                <Button type="button" variant="outline" onClick={loadTemplate} disabled={loading || isSubmitting}>
+                  <RefreshCw className="mr-2 h-4 w-4" />
+                  Discard Changes
+                </Button>
+                <Button type="submit" disabled={isSubmitting || loading || !hasUnsavedChanges}>
                 {isSubmitting ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Saving...</> : <><Save className="mr-2 h-4 w-4" /> Save Template</>}
                 </Button>
             </div>
@@ -216,7 +241,7 @@ export default function EmailTemplatesPage() {
         <Card className="sticky top-24">
             <CardHeader>
                 <CardTitle>Available Placeholders</CardTitle>
-                <CardDescription>Use these placeholders in your subject and body. They will be replaced with real data.</CardDescription>
+                <CardDescription>Use these in your subject and body. They will be replaced with real data.</CardDescription>
             </CardHeader>
             <CardContent>
                 <ul className="space-y-3">
@@ -232,4 +257,5 @@ export default function EmailTemplatesPage() {
       </div>
     </div>
   );
-}
+
+    
