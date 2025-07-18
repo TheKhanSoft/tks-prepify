@@ -17,7 +17,7 @@ import Link from 'next/link';
 const InfoRow = ({ label, value }: { label: string, value: string | number }) => (
     <div className="flex justify-between items-center py-2 border-b">
         <p className="text-sm text-muted-foreground">{label}</p>
-        <p className="text-sm font-semibold">{value}</p>
+        <div className="text-sm font-semibold">{value}</div>
     </div>
 );
 
