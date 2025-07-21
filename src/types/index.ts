@@ -326,3 +326,37 @@ export interface EmailTemplate {
     body: string;
     isEnabled: boolean;
 }
+
+export interface Settings {
+    siteName: string;
+    siteDescription: string;
+    defaultPlanId?: string;
+    defaultQuestionCount?: number;
+    defaultDuration?: number;
+    defaultQuestionsPerPage?: number;
+    heroTitlePrefix?: string;
+    heroTitleHighlight?: string;
+    heroTitleSuffix?: string;
+    heroSubtitle?: string;
+    heroButton1Text?: string;
+    heroButton1Link?: string;
+    heroButton2Text?: string;
+    heroButton2Link?: string;
+    heroImage?: string;
+    socialLinks?: SocialLink[];
+    aboutTitle?: string;
+    aboutSubtitle?: string;
+    aboutMission?: string;
+    aboutVision?: string;
+    aboutTeamTitle?: string;
+    teamMembers?: TeamMember[];
+    contactTitle?: string;
+    contactSubtitle?: string;
+    contactEmail?: string;
+    contactPhone?: string;
+    contactAddress?: string;
+    pdfWatermarkEnabled?: boolean;
+    pdfWatermarkText?: string;
+    emailFromName?: string;
+    emailFromAddress?: string;
+}

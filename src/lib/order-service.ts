@@ -16,6 +16,8 @@ import {
 import { db } from './firebase';
 import type { Order } from '@/types';
 import { serializeDate } from './utils';
+import { sendEmail } from './email-provider';
+import { format } from 'date-fns';
 
 // This type represents the data received from the client for creating an order
 export type OrderCreationData = Omit<Order, 'id' | 'createdAt' | 'status'>;
@@ -52,11 +54,32 @@ export async function createOrder(orderData: OrderCreationData): Promise<string>
   
   const newOrderData = {
     ...orderData,
-    status: 'pending', // Default status for all new orders
+    status: 'pending' as const, // Default status for all new orders
     createdAt: serverTimestamp(),
   };
 
   const newOrderRef = await addDoc(ordersCollection, newOrderData);
+
+  // Send order confirmation email
+  if (orderData.userEmail) {
+    await sendEmail({
+      templateId: 'order-confirmation',
+      to: orderData.userEmail,
+      props: {
+        userName: orderData.userName || 'Valued Customer',
+        orderId: newOrderRef.id,
+        planName: orderData.planName,
+        duration: orderData.pricingOptionLabel,
+        orderDate: format(new Date(), 'PPP'),
+        orderStatus: 'Pending',
+        originalPrice: orderData.originalPrice.toFixed(2),
+        discountAmount: (orderData.discountAmount || 0).toFixed(2),
+        finalAmount: orderData.finalAmount.toFixed(2),
+        paymentMethod: orderData.paymentMethod,
+      }
+    });
+  }
+
   return newOrderRef.id;
 }
 

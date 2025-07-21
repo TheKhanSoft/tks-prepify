@@ -20,6 +20,7 @@ import { fetchSettings } from '@/lib/settings-service';
 import type { Settings } from '@/types';
 import { Skeleton } from '@/components/ui/skeleton';
 import { createUserProfile } from '@/lib/user-service';
+import { sendEmail } from '@/lib/email-provider';
 
 const signupFormSchema = z.object({
   name: z.string().min(2, { message: "Name must be at least 2 characters." }),
@@ -58,8 +59,19 @@ export default function SignupPage() {
         email: user.email,
         photoURL: user.photoURL,
       },
-      settings?.defaultPlanId // Pass the planId; it's now optional in the backend
+      settings?.defaultPlanId
     );
+
+    // Send welcome email
+    if (user.email && user.displayName) {
+      await sendEmail({
+        templateId: 'new-registration',
+        to: user.email,
+        props: {
+          userName: user.displayName,
+        }
+      });
+    }
 
     toast({ title: "Sign Up Successful", description: "Welcome!" });
     const redirectUrl = searchParams.get('redirect');
@@ -87,7 +99,8 @@ export default function SignupPage() {
         displayName: data.name,
       });
       
-      await handleSuccessfulSignup(userCredential.user);
+      const updatedUser = { ...userCredential.user, displayName: data.name };
+      await handleSuccessfulSignup(updatedUser);
 
     } catch (error: any) {
       let errorMessage = "An unknown error occurred.";

@@ -5,6 +5,7 @@ import { doc, setDoc, serverTimestamp, getDoc, collection, getDocs, updateDoc, D
 import { db } from './firebase';
 import type { User, Plan, UserPlan, UserPlanStatus, PricingOption, Discount } from '@/types';
 import { fetchPlans } from './plan-service';
+import { sendEmail } from './email-provider';
 
 const SUPER_ADMIN_EMAIL = 'thekhansoft@gmail.com';
 
@@ -164,9 +165,10 @@ export async function changeUserSubscription(
 
   const allPlans = await fetchPlans();
   const newPlan = allPlans.find(p => p.id === newPlanId);
-  if (!newPlan) {
-    throw new Error("The selected plan does not exist.");
-  }
+  const user = await getUserProfile(userId);
+
+  if (!newPlan) throw new Error("The selected plan does not exist.");
+  if (!user) throw new Error("The target user does not exist.");
 
   const batch = writeBatch(db);
 
@@ -228,6 +230,20 @@ export async function changeUserSubscription(
   }
 
   await batch.commit();
+
+  // Send notification email
+  if (user.email) {
+    await sendEmail({
+        templateId: options.remarks?.includes('extended') ? 'subscription-extension' : 'new-subscription',
+        to: user.email,
+        props: {
+            userName: user.name || "Valued Customer",
+            planName: newPlan.name,
+            expiryDate: newExpiryDate ? newExpiryDate.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' }) : 'Never',
+            adminRemarks: options.remarks || ''
+        }
+    });
+  }
 }
 
 

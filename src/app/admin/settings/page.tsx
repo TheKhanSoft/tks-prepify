@@ -17,7 +17,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2, PlusCircle, Trash2, Link as LinkIcon, Facebook, Github, Instagram, Linkedin, Twitter, Youtube, MessageSquare, MessageCircle, Twitch, Ghost, Send } from "lucide-react";
+import { Loader2, PlusCircle, Trash2, Link as LinkIcon, Facebook, Github, Instagram, Linkedin, Twitter, Youtube, MessageSquare, MessageCircle, Twitch, Ghost, Send, Mail } from "lucide-react";
 import React, { useState, useEffect } from "react";
 import { fetchSettings, updateSettings } from "@/lib/settings-service";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -41,6 +41,9 @@ const settingsFormSchema = z.object({
   })).optional(),
   pdfWatermarkEnabled: z.boolean().optional(),
   pdfWatermarkText: z.string().optional(),
+  // Email settings
+  emailFromName: z.string().optional(),
+  emailFromAddress: z.string().optional(),
 });
 
 type SettingsFormValues = z.infer<typeof settingsFormSchema>;
@@ -57,6 +60,10 @@ const defaultSettingsData: Settings = {
     defaultQuestionsPerPage: 2,
     defaultPlanId: '',
     socialLinks: [],
+    pdfWatermarkEnabled: true,
+    pdfWatermarkText: 'Downloaded From {siteName}',
+    emailFromName: 'Prepify Support',
+    emailFromAddress: 'noreply@yourdomain.com',
 };
 
 
@@ -157,6 +164,7 @@ export default function AdminSettingsPage() {
               <TabsTrigger value="social">Social</TabsTrigger>
               <TabsTrigger value="defaults">Defaults</TabsTrigger>
               <TabsTrigger value="downloads">Downloads</TabsTrigger>
+              <TabsTrigger value="emails">Emails</TabsTrigger>
             </TabsList>
 
             <TabsContent value="site">
@@ -260,7 +268,7 @@ export default function AdminSettingsPage() {
                             <FormItem>
                                 <FormLabel>Watermark Text</FormLabel>
                                 <FormControl>
-                                    <Textarea {...field} value={field.value || ''} disabled={isSubmitting} placeholder={`Downloaded From ${settings.siteName}`} />
+                                    <Textarea {...field} value={field.value || ''} disabled={isSubmitting} placeholder={`Downloaded From {siteName}`} />
                                 </FormControl>
                                 <FormDescription>
                                     The text to display as the watermark. Use {"{siteName}"} as a placeholder for your site name. Use \n for multi-line watermarks.
@@ -270,6 +278,45 @@ export default function AdminSettingsPage() {
                             )}
                         />
                     )}
+                  </CardContent>
+                </Card>
+            </TabsContent>
+            
+            <TabsContent value="emails">
+               <Card>
+                  <CardHeader>
+                      <CardTitle>Email Sending Settings</CardTitle>
+                      <CardDescription>Configure how transactional emails are sent. The API key must be set in your environment variables.</CardDescription>
+                  </CardHeader>
+                  <CardContent className="space-y-6">
+                      <FormField
+                          control={form.control}
+                          name="emailFromName"
+                          render={({ field }) => (
+                          <FormItem>
+                              <FormLabel>Sender Name</FormLabel>
+                              <FormControl>
+                                  <Input {...field} value={field.value || ''} placeholder="e.g., TKS Prepify Support" disabled={isSubmitting} />
+                              </FormControl>
+                              <FormDescription>The "From" name that appears in the user's inbox.</FormDescription>
+                              <FormMessage />
+                          </FormItem>
+                          )}
+                      />
+                      <FormField
+                          control={form.control}
+                          name="emailFromAddress"
+                          render={({ field }) => (
+                          <FormItem>
+                              <FormLabel>Sender Email Address</FormLabel>
+                              <FormControl>
+                                  <Input {...field} value={field.value || ''} placeholder="e.g., noreply@yourdomain.com" disabled={isSubmitting} />
+                              </FormControl>
+                               <FormDescription>The "From" email address. Ensure this is a verified domain with your email provider.</FormDescription>
+                              <FormMessage />
+                          </FormItem>
+                          )}
+                      />
                   </CardContent>
                 </Card>
             </TabsContent>
