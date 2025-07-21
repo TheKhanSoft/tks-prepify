@@ -207,9 +207,11 @@ export async function changeUserSubscription(
 
   const { pricingOption, discount, ...restOfOptions } = options;
   const originalPrice = pricingOption?.price;
-  const paidAmount = discount 
-    ? Math.max(0, (originalPrice || 0) - (discount.type === 'flat' ? discount.value : (originalPrice || 0) * (discount.value / 100))) 
-    : originalPrice;
+  
+  let paidAmount = originalPrice;
+  if(discount && originalPrice) {
+    paidAmount = Math.max(0, (discount.type === 'flat' ? (originalPrice - discount.value) : (originalPrice * (1 - discount.value / 100))));
+  }
 
   // Add the new plan record to history
   const newUserPlanRef = doc(collection(db, 'user_plans'));
@@ -332,3 +334,5 @@ export async function fetchAllUserPlanHistory(): Promise<UserPlanHistoryRecord[]
     };
   });
 }
+
+    
