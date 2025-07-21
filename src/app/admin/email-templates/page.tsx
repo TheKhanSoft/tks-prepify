@@ -105,8 +105,8 @@ export default function EmailTemplatesPage() {
       const conditionalBlockRegex = /{{\s*#if\s+([a-zA-Z0-9_]+)\s*}}([\s\S]*?){{\s*\/if\s*}}/g;
 
       preview = preview.replace(conditionalBlockRegex, (match, key, blockContent) => {
-          // In preview mode, always show the content of the block
-          return blockContent;
+          // In preview mode, always show the content of the block if the key is one we know about
+          return exampleReplacements[key] ? blockContent : '';
       });
 
       // Replace all other placeholders
@@ -268,7 +268,7 @@ export default function EmailTemplatesPage() {
             <ul className="space-y-3 mb-6">
               {Object.entries(currentTemplateDetails.placeholders).map(([key, desc]) => (
                 <li key={key}>
-                  <code className="font-mono text-sm font-semibold text-primary">{`${key}`}</code>
+                  <code className="font-mono text-sm font-semibold text-primary">{`{{${key}}}`}</code>
                   <p className="text-xs text-muted-foreground">{desc}</p>
                 </li>
               ))}
@@ -277,7 +277,7 @@ export default function EmailTemplatesPage() {
             <ul className="space-y-3 mb-6">
               {Object.entries(emailTemplatePlaceholders.common.placeholders).map(([key, desc]) => (
                 <li key={key}>
-                  <code className="font-mono text-sm font-semibold text-primary">{`${key}`}</code>
+                  <code className="font-mono text-sm font-semibold text-primary">{`{{${key}}}`}</code>
                   <p className="text-xs text-muted-foreground">{desc}</p>
                 </li>
               ))}
@@ -290,7 +290,7 @@ export default function EmailTemplatesPage() {
                     <p className="pl-2">Your HTML content here...</p>
                     <p>{'{{/if}}'}</p>
                 </div>
-                <p>The content will only be included if `placeholderName` has a value. For example, use `{{#if discountCode}}` to show a discount row only when a coupon was used.</p>
+                <p>The content will only be included if `placeholderName` has a value. For example, use `{"{{#if discountCode}}"}` to show a discount row only when a coupon was used.</p>
             </div>
           </CardContent>
         </Card>
