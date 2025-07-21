@@ -14,12 +14,12 @@ import { Label } from '@/components/ui/label';
 import { BookOpen, Loader2 } from 'lucide-react';
 import { Form, FormControl, FormField, FormItem, FormMessage } from '@/components/ui/form';
 import { useToast } from '@/hooks/use-toast';
-import { sendPasswordResetEmail } from 'firebase/auth';
-import { auth, isFirebaseConfigured } from '@/lib/firebase';
+import { isFirebaseConfigured } from '@/lib/firebase';
 import { fetchSettings } from '@/lib/settings-service';
 import type { Settings } from '@/types';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Alert, AlertDescription } from '@/components/ui/alert';
+import { sendPasswordResetEmail } from '@/ai/flows/send-password-reset-email-flow';
 
 const forgotPasswordSchema = z.object({
   email: z.string().email({ message: "Please enter a valid email address." }),
@@ -44,7 +44,7 @@ export default function ForgotPasswordPage() {
   });
 
   const onSubmit = async (data: ForgotPasswordFormValues) => {
-    if (!isFirebaseConfigured || !auth) {
+    if (!isFirebaseConfigured) {
         toast({
             title: "Service Not Available",
             description: "Password reset functionality is currently disabled.",
@@ -54,12 +54,11 @@ export default function ForgotPasswordPage() {
     }
     setLoading(true);
     try {
-      await sendPasswordResetEmail(auth, data.email);
+      await sendPasswordResetEmail({ email: data.email });
       setIsSubmitted(true);
     } catch (error: any) {
-      // We still show a success message to prevent user enumeration (leaking which emails are registered)
-      // but we can log the error for debugging.
       console.error("Password reset error:", error);
+      // We still show a success message to prevent user enumeration (leaking which emails are registered)
       setIsSubmitted(true);
     } finally {
       setLoading(false);

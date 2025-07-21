@@ -42,6 +42,7 @@
     "dotenv": "^16.5.0",
     "embla-carousel-react": "^8.6.0",
     "firebase": "^11.9.1",
+    "firebase-admin": "^12.2.0",
     "genkit": "^1.13.0",
     "html2canvas": "^1.4.1",
     "jspdf": "^2.5.1",

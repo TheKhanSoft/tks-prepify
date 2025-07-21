@@ -19,6 +19,7 @@ import { useState } from 'react';
 import { auth } from '@/lib/firebase';
 import { format } from 'date-fns';
 import { useRouter } from 'next/navigation';
+import { sendEmail } from '@/lib/email-provider';
 
 
 const profileFormSchema = z.object({
@@ -78,12 +79,22 @@ export default function AccountProfilePage() {
     }
 
     async function onPasswordSubmit(data: PasswordFormValues) {
-        if (!user) return;
+        if (!user || !user.email) return;
         setIsPasswordSubmitting(true);
         try {
             await updatePassword(user, data.newPassword);
             passwordForm.reset();
             toast({ title: "Success", description: "Your password has been changed." });
+
+            // Send confirmation email
+             await sendEmail({
+                templateId: 'reset-password-confirmation',
+                to: user.email,
+                props: {
+                    userName: user.displayName || "User",
+                }
+            }).catch(error => console.error("Failed to send password reset confirmation email:", error));
+
         } catch (error: any) {
             let description = "Could not change your password. Please try again.";
             if(error.code === 'auth/requires-recent-login') {
