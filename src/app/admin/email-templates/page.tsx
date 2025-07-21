@@ -46,7 +46,8 @@ export default function EmailTemplatesPage() {
   const [activeTab, setActiveTab] = useState<keyof typeof emailTemplatePlaceholders>("order-confirmation");
   const [viewMode, setViewMode] = useState<'edit' | 'preview'>('edit');
   const [settings, setSettings] = useState<{ siteName: string; contactEmail: string } | null>(null);
-  
+  const [testEmail, setTestEmail] = useState('');
+
   const form = useForm<EmailTemplateFormValues>({
     resolver: zodResolver(emailTemplateSchema),
     defaultValues: { subject: "", body: "", isEnabled: true },
@@ -54,7 +55,6 @@ export default function EmailTemplatesPage() {
 
   const watchedBody = form.watch("body");
 
-  // Load template and settings
   const loadTemplate = useCallback(async (templateId: keyof typeof emailTemplatePlaceholders) => {
     setLoading(true);
     try {
@@ -92,7 +92,7 @@ export default function EmailTemplatesPage() {
             orderDate: format(new Date(), 'PPP'),
             orderStatus: 'Completed',
             originalPrice: '1200.00',
-            discountCode: 'WELCOME10', // Always provide a sample for preview
+            discountCode: 'WELCOME10', 
             discountAmount: '120.00',
             finalAmount: '1080.00',
             paymentMethod: 'Bank Transfer',
@@ -105,11 +105,9 @@ export default function EmailTemplatesPage() {
       const conditionalBlockRegex = /{{\s*#if\s+([a-zA-Z0-9_]+)\s*}}([\s\S]*?){{\s*\/if\s*}}/g;
 
       preview = preview.replace(conditionalBlockRegex, (match, key, blockContent) => {
-          // In preview mode, always show the content of the block if the key is one we know about
           return exampleReplacements[key] ? blockContent : '';
       });
 
-      // Replace all other placeholders
       for (const key of Object.keys(exampleReplacements)) {
         const value = exampleReplacements[key];
         preview = preview.replace(new RegExp(`{{${key}}}`, 'g'), value);
@@ -131,11 +129,19 @@ export default function EmailTemplatesPage() {
   }
 
   const handleSendTestEmail = async () => {
+    if (!testEmail) {
+        toast({
+          title: 'Recipient Required',
+          description: 'Please enter an email address to send the test to.',
+          variant: 'destructive',
+        });
+        return;
+    }
     setIsSendingTest(true);
     try {
       const result = await sendEmail({
         templateId: activeTab,
-        to: 'test@example.com', // A safe test address
+        to: testEmail,
         props: {
           userName: 'Test User',
           resetLink: '#',
@@ -157,7 +163,7 @@ export default function EmailTemplatesPage() {
       if (result.success) {
         toast({
           title: 'Test Email Sent',
-          description: 'Check your email provider logs to confirm delivery.',
+          description: `An email has been sent to ${testEmail}. Check your email provider logs to confirm delivery.`,
         });
       } else {
         throw new Error(result.error || 'Unknown error');
@@ -242,9 +248,19 @@ export default function EmailTemplatesPage() {
                     )}
                   </CardContent>
                   <CardFooter className="border-t pt-6">
-                        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between w-full gap-4">
-                            <p className="text-sm text-muted-foreground max-w-md">Verify your SMTP setup by sending a test email to a service like <a href="https://ethereal.email/" target="_blank" rel="noopener noreferrer" className="underline">Ethereal Email</a>.</p>
-                            <Button type="button" variant="secondary" onClick={handleSendTestEmail} disabled={isSendingTest}>
+                        <div className="flex flex-col sm:flex-row items-center justify-between w-full gap-4">
+                            <div className="flex-grow space-y-2">
+                                <FormLabel htmlFor="test-email">Test Email Address</FormLabel>
+                                <Input 
+                                    id="test-email"
+                                    type="email"
+                                    placeholder="Enter recipient email..."
+                                    value={testEmail}
+                                    onChange={(e) => setTestEmail(e.target.value)}
+                                />
+                                <FormDescription>Send a test of the '{currentTemplateDetails.label}' template to this address.</FormDescription>
+                            </div>
+                            <Button type="button" variant="secondary" onClick={handleSendTestEmail} disabled={isSendingTest || !testEmail} className="shrink-0 mt-2 sm:mt-0">
                                 {isSendingTest ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Mail className="mr-2 h-4 w-4" />}
                                 Send Test Email
                             </Button>
