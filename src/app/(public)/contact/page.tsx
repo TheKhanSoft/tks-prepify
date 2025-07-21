@@ -19,7 +19,6 @@ import type { Settings } from "@/types";
 import ReactMarkdown from 'react-markdown';
 import { useAuth } from "@/hooks/use-auth";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { cn } from "@/lib/utils";
 
 const MAX_FILE_SIZE = 1024 * 1024; // 1 MB
 const ACCEPTED_FILE_TYPES = ["image/jpeg", "image/jpg", "image/png", "image/webp", "application/pdf"];
@@ -33,10 +32,10 @@ const contactFormSchema = z.object({
   subject: z.string().min(5, { message: "Subject must be at least 5 characters." }),
   message: z.string().min(10, { message: "Message must be at least 10 characters." }),
   attachment: z
-    .custom<FileList>()
+    .instanceof(File)
     .optional()
-    .refine((files) => !files || files.length === 0 || files[0].size <= MAX_FILE_SIZE, `File size should be less than 1MB.`)
-    .refine((files) => !files || files.length === 0 || ACCEPTED_FILE_TYPES.includes(files[0].type), "Only .jpg, .jpeg, .png, .webp and .pdf formats are supported."),
+    .refine((file) => !file || file.size <= MAX_FILE_SIZE, `File size should be less than 1MB.`)
+    .refine((file) => !file || ACCEPTED_FILE_TYPES.includes(file.type), "Only .jpg, .jpeg, .png, .webp and .pdf formats are supported."),
 }).refine(data => {
     if (data.topic === 'Payment Confirmation') {
         return !!data.orderId && data.orderId.length > 0;
@@ -77,7 +76,6 @@ function ContactForm() {
   const { formState: { isSubmitting }, watch } = form;
   const selectedTopic = watch('topic');
   
-  // Pre-fill form for logged-in users
   useEffect(() => {
       if (user) {
           form.setValue("name", user.displayName || "", { shouldValidate: true });
@@ -86,19 +84,20 @@ function ContactForm() {
   }, [user, form]);
 
   async function onSubmit(data: ContactFormValues) {
+    const formData = new FormData();
+    Object.entries(data).forEach(([key, value]) => {
+        if (value) {
+            formData.append(key, value);
+        }
+    });
+    
     try {
-      const result = await submitContactForm({
-          ...data,
-          // The service function expects the file, not the FileList
-          attachment: data.attachment?.[0]
-      }, user?.uid);
-
+      const result = await submitContactForm(formData);
       if (result.success) {
         toast({
           title: "Message Sent!",
           description: "Thank you for contacting us. We'll get back to you shortly.",
         });
-        // Reset only fields user can edit
         form.reset({
             ...form.getValues(),
             subject: "",
@@ -192,11 +191,11 @@ function ContactForm() {
         <FormField
           control={form.control}
           name="attachment"
-          render={({ field: { onChange, value, ...rest } }) => (
+          render={({ field }) => (
             <FormItem>
               <Label>Attachment (Optional)</Label>
               <FormControl>
-                <Input type="file" onChange={e => onChange(e.target.files)} {...rest} />
+                <Input type="file" onChange={e => field.onChange(e.target.files?.[0])} />
               </FormControl>
               <FormDescription>You can attach an image or PDF file (max 1MB).</FormDescription>
               <FormMessage />

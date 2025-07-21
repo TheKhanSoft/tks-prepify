@@ -8,41 +8,58 @@ import { getUserProfile } from './user-service';
 import { getPlanById } from './plan-service';
 import { checkAndRecordSupportRequest } from './support-request-service';
 import { serializeDate } from './utils';
+import { writeFile } from 'fs/promises';
+import { join } from 'path';
 
-// NOTE: File upload logic is not handled here.
-// This service assumes the file has been uploaded to a storage service (e.g., Firebase Storage)
-// and the public URL is passed in the `attachmentUrl` field.
-// The client-side form needs to handle the upload process.
-type ContactFormData = {
-  name: string;
-  email: string;
-  topic: string;
-  subject: string;
-  message: string;
-  orderId?: string;
-  attachment?: File; // Keep as File for now, but expect URL in real implementation
-}
+const ACCEPTED_FILE_TYPES = ["image/jpeg", "image/jpg", "image/png", "image/webp", "application/pdf"];
+const MAX_FILE_SIZE = 1024 * 1024; // 1 MB
 
-export async function submitContactForm(data: ContactFormData, userId?: string | null) {
+export async function submitContactForm(formData: FormData) {
   try {
     const submissionsCollection = collection(db, 'contact_submissions');
     
-    // In a real application, you would upload the `data.attachment` file to a cloud storage
-    // service here and get back a public URL. For this example, we'll just store a placeholder.
+    // --- Extract and Validate Form Data ---
+    const rawData = Object.fromEntries(formData.entries());
+    
+    // Simple validation for required fields
+    if (!rawData.name || !rawData.email || !rawData.topic || !rawData.subject || !rawData.message) {
+        throw new Error("Missing required form fields.");
+    }
+    
     let attachmentUrl = "";
-    if (data.attachment) {
-        // Placeholder for file upload logic
-        // e.g., attachmentUrl = await uploadFileToFirebaseStorage(data.attachment);
-        attachmentUrl = `placeholder_for_${data.attachment.name}`;
+    const attachment = rawData.attachment as File | undefined;
+    
+    if (attachment && attachment.size > 0) {
+      if (attachment.size > MAX_FILE_SIZE) {
+        throw new Error("File size exceeds 1MB.");
+      }
+      if (!ACCEPTED_FILE_TYPES.includes(attachment.type)) {
+        throw new Error("Invalid file type.");
+      }
+
+      const bytes = await attachment.arrayBuffer();
+      const buffer = Buffer.from(bytes);
+
+      const isImage = attachment.type.startsWith('image/');
+      const folder = isImage ? 'images' : 'pdfs';
+      const fileExtension = attachment.name.split('.').pop();
+      const filename = `${Date.now()}-${Math.round(Math.random() * 1E9)}.${fileExtension}`;
+
+      const path = join(process.cwd(), 'public', folder, filename);
+      await writeFile(path, buffer);
+      
+      attachmentUrl = `/${folder}/${filename}`;
     }
 
+    const userId = rawData.userId as string | undefined;
+
     const initialData: any = {
-      name: data.name,
-      email: data.email,
-      topic: data.topic,
-      subject: data.subject,
-      message: data.message,
-      orderId: data.orderId || null,
+      name: rawData.name,
+      email: rawData.email,
+      topic: rawData.topic,
+      subject: rawData.subject,
+      message: rawData.message,
+      orderId: rawData.orderId || null,
       attachmentUrl: attachmentUrl || null,
       userId: userId || null,
       priority: false,
@@ -69,8 +86,8 @@ export async function submitContactForm(data: ContactFormData, userId?: string |
     }
 
     return { success: true };
-  } catch (error) {
-    return { success: false, error: "Failed to submit message. Please try again later." };
+  } catch (error: any) {
+    return { success: false, error: error.message || "Failed to submit message. Please try again later." };
   }
 }
 
@@ -162,8 +179,12 @@ export async function getSubmissionById(submissionId: string, userId?: string): 
     
     const submission = docToContactSubmission(submissionDoc);
     
+    // Allow admins to view any ticket, but users can only view their own
     if (userId && submission.userId !== userId) {
-        return null;
+        const userProfile = await getUserProfile(userId);
+        if (userProfile?.role !== 'Super Admin' && userProfile?.role !== 'Admin') {
+            return null;
+        }
     }
     
     return submission;
