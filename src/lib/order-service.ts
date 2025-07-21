@@ -12,12 +12,14 @@ import {
   query,
   where,
   orderBy,
+  updateDoc,
 } from 'firebase/firestore';
 import { db } from './firebase';
-import type { Order } from '@/types';
+import type { Order, OrderStatus } from '@/types';
 import { serializeDate } from './utils';
 import { sendEmail } from './email-provider';
 import { format } from 'date-fns';
+import { changeUserSubscription } from './user-service';
 
 // This type represents the data received from the client for creating an order
 export type OrderCreationData = Omit<Order, 'id' | 'createdAt' | 'status'>;
@@ -125,4 +127,65 @@ export async function fetchOrdersForUser(userId: string): Promise<Order[]> {
         return [];
     }
     return snapshot.docs.map(docToOrder);
+}
+
+// Admin function to fetch all orders
+export type OrderWithUserData = Order & { userName?: string; userEmail?: string; };
+
+export async function fetchAllOrders(): Promise<OrderWithUserData[]> {
+  const ordersCol = collection(db, 'orders');
+  const q = query(ordersCol, orderBy('createdAt', 'desc'));
+  
+  const [ordersSnapshot, usersSnapshot] = await Promise.all([
+    getDocs(q),
+    getDocs(collection(db, 'users'))
+  ]);
+
+  const userMap = new Map(usersSnapshot.docs.map(doc => [doc.id, { name: doc.data().name, email: doc.data().email }]));
+
+  return ordersSnapshot.docs.map(doc => {
+    const orderData = docToOrder(doc);
+    const userData = userMap.get(orderData.userId);
+    return {
+      ...orderData,
+      userName: userData?.name,
+      userEmail: userData?.email,
+    };
+  });
+}
+
+/**
+ * Processes an order by updating its status and activating/modifying the user's subscription.
+ * @param orderId The ID of the order to process.
+ * @param newStatus The new status to set for the order.
+ */
+export async function processOrder(orderId: string, newStatus: OrderStatus) {
+  const orderDocRef = doc(db, 'orders', orderId);
+  const orderSnap = await getDoc(orderDocRef);
+
+  if (!orderSnap.exists()) {
+    throw new Error('Order not found.');
+  }
+
+  const order = docToOrder(orderSnap);
+
+  // If the status is already what we want, do nothing.
+  if (order.status === newStatus) {
+    return;
+  }
+
+  // If the new status is 'completed', this means we are activating a subscription.
+  if (newStatus === 'completed') {
+    if (order.status === 'completed') {
+      throw new Error('This order has already been completed and the subscription activated.');
+    }
+    // Call the subscription service to handle the user's plan change.
+    await changeUserSubscription(order.userId, order.planId, {
+      status: 'active',
+      remarks: `Subscription activated from Order ID: ${order.id}. Payment via ${order.paymentMethod}.`,
+    });
+  }
+
+  // Update the order's status.
+  await updateDoc(orderDocRef, { status: newStatus });
 }
