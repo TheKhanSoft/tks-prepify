@@ -206,6 +206,10 @@ export async function changeUserSubscription(
   }
 
   const { pricingOption, discount, ...restOfOptions } = options;
+  const originalPrice = pricingOption?.price;
+  const paidAmount = discount 
+    ? Math.max(0, (originalPrice || 0) - (discount.type === 'flat' ? discount.value : (originalPrice || 0) * (discount.value / 100))) 
+    : originalPrice;
 
   // Add the new plan record to history
   const newUserPlanRef = doc(collection(db, 'user_plans'));
@@ -217,13 +221,10 @@ export async function changeUserSubscription(
     endDate: newExpiryDate,
     status: options.status || 'active',
     remarks: options.remarks || 'Plan assigned by admin.',
-    // Store pricing info for the record
-    originalPrice: pricingOption?.price,
-    paidAmount: discount 
-      ? Math.max(0, (pricingOption?.price || 0) - (discount.type === 'flat' ? discount.value : (pricingOption?.price || 0) * (discount.value / 100))) 
-      : pricingOption?.price,
-    discountId: discount?.id,
-    discountCode: discount?.code,
+    originalPrice: originalPrice ?? 0,
+    paidAmount: paidAmount ?? originalPrice ?? 0,
+    discountId: discount?.id || null,
+    discountCode: discount?.code || null,
   });
 
   // Only update the main user document if the new status is 'active'

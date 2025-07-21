@@ -15,11 +15,12 @@ import {
   updateDoc,
 } from 'firebase/firestore';
 import { db } from './firebase';
-import type { Order, OrderStatus } from '@/types';
+import type { Order, OrderStatus, Plan, Discount } from '@/types';
 import { serializeDate } from './utils';
 import { sendEmail } from './email-provider';
 import { format } from 'date-fns';
 import { changeUserSubscription } from './user-service';
+import { fetchPlans } from './plan-service';
 
 // This type represents the data received from the client for creating an order
 export type OrderCreationData = Omit<Order, 'id' | 'createdAt' | 'status'>;
@@ -179,10 +180,29 @@ export async function processOrder(orderId: string, newStatus: OrderStatus) {
     if (order.status === 'completed') {
       throw new Error('This order has already been completed and the subscription activated.');
     }
+
+    const allPlans = await fetchPlans();
+    const plan = allPlans.find(p => p.id === order.planId);
+    if (!plan) throw new Error("Plan associated with this order not found.");
+    
+    const pricingOption = plan.pricingOptions.find(opt => opt.label === order.pricingOptionLabel);
+    if (!pricingOption) throw new Error("Pricing option for this order not found.");
+
+    let discount: Discount | undefined = undefined;
+    if (order.discountId) {
+        const discountDoc = await getDoc(doc(db, 'discounts', order.discountId));
+        if (discountDoc.exists()) {
+            const data = discountDoc.data();
+            discount = { id: discountDoc.id, ...data } as Discount;
+        }
+    }
+
     // Call the subscription service to handle the user's plan change.
     await changeUserSubscription(order.userId, order.planId, {
       status: 'active',
       remarks: `Subscription activated from Order ID: ${order.id}. Payment via ${order.paymentMethod}.`,
+      pricingOption,
+      discount,
     });
   }
 

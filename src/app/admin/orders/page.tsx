@@ -107,9 +107,11 @@ export default function AdminOrdersPage() {
                                     return (
                                         <TableRow key={item.id}>
                                             <TableCell className="font-medium">
-                                                <div>{item.userName || 'N/A'}</div>
-                                                <div className="text-xs text-muted-foreground">{item.userEmail || 'N/A'}</div>
-                                                <div className="text-xs text-muted-foreground font-mono mt-1">ID: {item.id}</div>
+                                                <Link href={`/admin/users/${item.userId}/subscription`} className="group">
+                                                    <div className="group-hover:text-primary group-hover:underline">{item.userName || 'N/A'}</div>
+                                                    <div className="text-xs text-muted-foreground">{item.userEmail || 'N/A'}</div>
+                                                    <div className="text-xs text-muted-foreground font-mono mt-1">ID: {item.id}</div>
+                                                </Link>
                                             </TableCell>
                                             <TableCell>
                                                 <div>{item.planName}</div>
