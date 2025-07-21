@@ -1,10 +1,11 @@
 
+'use server';
+
 import * as admin from 'firebase-admin';
 
 // These credentials should be stored securely, e.g., in environment variables
-const serviceAccount = process.env.FIREBASE_SERVICE_ACCOUNT_KEY
-  ? JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT_KEY)
-  : null;
+const serviceAccountValue = process.env.FIREBASE_SERVICE_ACCOUNT_KEY;
+const serviceAccount = serviceAccountValue ? JSON.parse(serviceAccountValue) : null;
 
 if (!admin.apps.length && serviceAccount) {
   try {
