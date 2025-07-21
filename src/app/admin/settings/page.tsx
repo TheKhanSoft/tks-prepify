@@ -45,6 +45,7 @@ const settingsFormSchema = z.object({
   // Email settings
   emailFromName: z.string().optional(),
   emailFromAddress: z.string().optional(),
+  testEmailAddress: z.string().email("Must be a valid email").or(z.literal("")).optional(),
 });
 
 type SettingsFormValues = z.infer<typeof settingsFormSchema>;
@@ -65,6 +66,7 @@ const defaultSettingsData: Settings = {
     pdfWatermarkText: 'Downloaded From {siteName}',
     emailFromName: 'Prepify Support',
     emailFromAddress: 'noreply@yourdomain.com',
+    testEmailAddress: '',
 };
 
 
@@ -75,7 +77,6 @@ export default function AdminSettingsPage() {
   const [isSendingTest, setIsSendingTest] = useState(false);
   const [plans, setPlans] = useState<Plan[]>([]);
   const [settings, setSettings] = useState<Settings | null>(null);
-  const [testEmail, setTestEmail] = useState('');
 
   const form = useForm<SettingsFormValues>({
     resolver: zodResolver(settingsFormSchema),
@@ -146,19 +147,23 @@ export default function AdminSettingsPage() {
   }
 
   const handleSendTestEmail = async () => {
-    if (!testEmail) {
+    const { testEmailAddress, emailFromAddress } = form.getValues();
+    const recipient = testEmailAddress || emailFromAddress;
+
+    if (!recipient) {
         toast({
           title: 'Recipient Required',
-          description: 'Please enter an email address to send the test to.',
+          description: 'Please enter a "Test Email Address" or a "Sender Email Address" to send the test to.',
           variant: 'destructive',
         });
         return;
     }
+
     setIsSendingTest(true);
     try {
       const result = await sendEmail({
-        templateId: 'new-registration', // Use a common template for testing
-        to: testEmail,
+        templateId: 'new-registration',
+        to: recipient,
         props: {
           userName: 'Test User',
         },
@@ -167,7 +172,7 @@ export default function AdminSettingsPage() {
       if (result.success) {
         toast({
           title: 'Test Email Sent',
-          description: `An email has been sent to ${testEmail}. Check your email provider logs to confirm delivery.`,
+          description: `An email has been sent to ${recipient}. Check your email provider logs to confirm delivery.`,
         });
       } else {
         throw new Error(result.error || 'Unknown error');
@@ -358,21 +363,24 @@ export default function AdminSettingsPage() {
                           </FormItem>
                           )}
                       />
+                        <FormField
+                          control={form.control}
+                          name="testEmailAddress"
+                          render={({ field }) => (
+                          <FormItem>
+                              <FormLabel>Test Email Address</FormLabel>
+                              <FormControl>
+                                  <Input type="email" {...field} value={field.value || ''} placeholder="e.g., test@example.com" disabled={isSubmitting} />
+                              </FormControl>
+                               <FormDescription>The recipient for test emails sent from the admin panel. If blank, the Sender Email Address will be used.</FormDescription>
+                              <FormMessage />
+                          </FormItem>
+                          )}
+                      />
                   </CardContent>
                   <CardFooter className="border-t pt-6">
-                        <div className="flex flex-col sm:flex-row items-center justify-between w-full gap-4">
-                            <div className="flex-grow space-y-2">
-                                <FormLabel htmlFor="test-email">Test Email Address</FormLabel>
-                                <Input 
-                                    id="test-email"
-                                    type="email"
-                                    placeholder="Enter recipient email..."
-                                    value={testEmail}
-                                    onChange={(e) => setTestEmail(e.target.value)}
-                                />
-                                <FormDescription>Send a test of the 'New Registration' template to this address.</FormDescription>
-                            </div>
-                            <Button type="button" variant="secondary" onClick={handleSendTestEmail} disabled={isSendingTest || !testEmail} className="shrink-0 mt-2 sm:mt-0">
+                        <div className="flex items-center justify-end w-full">
+                            <Button type="button" variant="secondary" onClick={handleSendTestEmail} disabled={isSendingTest}>
                                 {isSendingTest ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Mail className="mr-2 h-4 w-4" />}
                                 Send Test Email
                             </Button>

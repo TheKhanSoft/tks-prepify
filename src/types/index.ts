@@ -359,4 +359,5 @@ export interface Settings {
     pdfWatermarkText?: string;
     emailFromName?: string;
     emailFromAddress?: string;
+    testEmailAddress?: string;
 }

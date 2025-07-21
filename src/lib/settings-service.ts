@@ -48,6 +48,7 @@ const defaultSettings: Settings = {
     pdfWatermarkText: 'Downloaded From {siteName}',
     emailFromName: 'Prepify Support',
     emailFromAddress: 'noreply@yourdomain.com',
+    testEmailAddress: '',
 };
 
 /**

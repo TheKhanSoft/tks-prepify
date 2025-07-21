@@ -29,6 +29,7 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { cn } from "@/lib/utils";
 import { Textarea } from "@/components/ui/textarea";
 import { sendEmail } from "@/lib/email-provider";
+import type { Settings } from "@/types";
 
 const emailTemplateSchema = z.object({
   subject: z.string().min(1, "Subject is required."),
@@ -45,9 +46,8 @@ export default function EmailTemplatesPage() {
   const [isSendingTest, setIsSendingTest] = useState(false);
   const [activeTab, setActiveTab] = useState<keyof typeof emailTemplatePlaceholders>("order-confirmation");
   const [viewMode, setViewMode] = useState<'edit' | 'preview'>('edit');
-  const [settings, setSettings] = useState<{ siteName: string; contactEmail: string } | null>(null);
-  const [testEmail, setTestEmail] = useState('');
-
+  const [settings, setSettings] = useState<Settings | null>(null);
+  
   const form = useForm<EmailTemplateFormValues>({
     resolver: zodResolver(emailTemplateSchema),
     defaultValues: { subject: "", body: "", isEnabled: true },
@@ -65,10 +65,7 @@ export default function EmailTemplatesPage() {
       if (template) {
         form.reset(template);
       }
-      setSettings({
-        siteName: appSettings.siteName || 'TKS Prepify',
-        contactEmail: appSettings.contactEmail || 'support@example.com'
-      });
+      setSettings(appSettings);
     } catch (error) {
       toast({ title: "Error", description: "Could not load the email template.", variant: "destructive" });
     } finally {
@@ -129,10 +126,17 @@ export default function EmailTemplatesPage() {
   }
 
   const handleSendTestEmail = async () => {
-    if (!testEmail) {
+    if (!settings) {
+        toast({ title: 'Settings not loaded', description: 'Please wait for settings to load.', variant: 'destructive' });
+        return;
+    }
+    
+    const recipient = settings.testEmailAddress || settings.emailFromAddress;
+
+    if (!recipient) {
         toast({
           title: 'Recipient Required',
-          description: 'Please enter an email address to send the test to.',
+          description: 'Please set a "Test Email Address" or a "Sender Email Address" in Global Settings.',
           variant: 'destructive',
         });
         return;
@@ -141,7 +145,7 @@ export default function EmailTemplatesPage() {
     try {
       const result = await sendEmail({
         templateId: activeTab,
-        to: testEmail,
+        to: recipient,
         props: {
           userName: 'Test User',
           resetLink: '#',
@@ -163,7 +167,7 @@ export default function EmailTemplatesPage() {
       if (result.success) {
         toast({
           title: 'Test Email Sent',
-          description: `An email has been sent to ${testEmail}. Check your email provider logs to confirm delivery.`,
+          description: `An email has been sent to ${recipient}. Check your email provider logs to confirm delivery.`,
         });
       } else {
         throw new Error(result.error || 'Unknown error');
@@ -248,19 +252,8 @@ export default function EmailTemplatesPage() {
                     )}
                   </CardContent>
                   <CardFooter className="border-t pt-6">
-                        <div className="flex flex-col sm:flex-row items-center justify-between w-full gap-4">
-                            <div className="flex-grow space-y-2">
-                                <FormLabel htmlFor="test-email">Test Email Address</FormLabel>
-                                <Input 
-                                    id="test-email"
-                                    type="email"
-                                    placeholder="Enter recipient email..."
-                                    value={testEmail}
-                                    onChange={(e) => setTestEmail(e.target.value)}
-                                />
-                                <FormDescription>Send a test of the '{currentTemplateDetails.label}' template to this address.</FormDescription>
-                            </div>
-                            <Button type="button" variant="secondary" onClick={handleSendTestEmail} disabled={isSendingTest || !testEmail} className="shrink-0 mt-2 sm:mt-0">
+                        <div className="flex items-center justify-end w-full">
+                            <Button type="button" variant="secondary" onClick={handleSendTestEmail} disabled={isSendingTest}>
                                 {isSendingTest ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Mail className="mr-2 h-4 w-4" />}
                                 Send Test Email
                             </Button>
