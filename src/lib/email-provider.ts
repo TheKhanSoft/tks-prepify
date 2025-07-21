@@ -11,25 +11,6 @@ interface SendEmailProps {
   props: Record<string, any>;
 }
 
-/**
- * A more robust email sending function that handles conditional content blocks.
- * Currently supports a simple 'if' block for discounts.
- * e.g., <!-- {{#if discount}} --> ... <!-- {{/if}} -->
- */
-const processConditionalBlocks = (body: string, props: Record<string, any>): string => {
-    let processedBody = body;
-    const discountBlockRegex = /<!--\s*{{#if\s+discount}}\s*-->([\s\S]*?)<!--\s*{{\/if}}\s*-->/g;
-
-    processedBody = processedBody.replace(discountBlockRegex, (match, blockContent) => {
-        // If a discountCode exists and is truthy in the props, keep the block content.
-        // Otherwise, remove the entire block including the comment tags.
-        return props.discountCode ? blockContent : '';
-    });
-    
-    return processedBody;
-};
-
-
 export async function sendEmail({ templateId, to, props }: SendEmailProps) {
   // Check for essential SMTP configuration in .env file
   if (!process.env.SMTP_HOST || !process.env.SMTP_PORT || !process.env.SMTP_USER || !process.env.SMTP_PASS) {
@@ -63,17 +44,17 @@ export async function sendEmail({ templateId, to, props }: SendEmailProps) {
       contactEmail: settings.contactEmail,
     };
     
-    // First, handle conditional blocks
-    body = processConditionalBlocks(body, allProps);
-
-    // Then, replace all other placeholders
     for (const key in allProps) {
       if (allProps[key] !== undefined && allProps[key] !== null) {
-        const regex = new RegExp(`{{${key}}}`, 'g');
+        const regex = new RegExp(`{{{?${key}}}}?`, 'g');
         subject = subject.replace(regex, allProps[key]);
         body = body.replace(regex, allProps[key]);
       }
     }
+
+    // Clean up any un-replaced placeholders to avoid showing them to the user.
+    body = body.replace(/{{{?[^}]+}}}?/g, '');
+
 
     const transporter = nodemailer.createTransport({
         host: process.env.SMTP_HOST,

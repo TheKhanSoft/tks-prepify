@@ -79,8 +79,7 @@ export const emailTemplatePlaceholders: Record<string, TemplateDetails> & { comm
             '{{orderDate}}': "The date the order was placed.",
             '{{orderStatus}}': "The current status of the order (e.g., Pending).",
             '{{originalPrice}}': "The base price before discounts.",
-            '{{discountCode}}': "The coupon code used.",
-            '{{discountAmount}}': "The amount deducted from the price.",
+            '{{{discountDetailsHtml}}}': "The dynamically generated HTML block for discount info. Will be blank if no discount is used.",
             '{{finalAmount}}': "The final amount to be paid.",
             '{{paymentMethod}}': "The payment method chosen by the user.",
         }
@@ -151,12 +150,7 @@ export const defaultTemplates: { [id: string]: Omit<EmailTemplate, 'id'> } = {
                    <div class="card-header"><h2>Billing Summary</h2></div>
                    <div class="card-content">
                       <div class="info-row"><span class="info-label">Subtotal:</span><span class="info-value">PKR {{originalPrice}}</span></div>
-                      <!-- {{#if discount}} -->
-                      <div class="info-row">
-                          <span class="info-label">Discount ({{discountCode}}):</span>
-                          <span class="info-value" style="color: #28a745;">- PKR {{discountAmount}}</span>
-                      </div>
-                      <!-- {{/if}} -->
+                      {{{discountDetailsHtml}}}
                       <div class="info-row total-row"><strong class="info-label">Total Amount:</strong><strong class="info-value">PKR {{finalAmount}}</strong></div>
                   </div>
               </div>
