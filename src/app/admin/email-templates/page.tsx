@@ -86,6 +86,11 @@ export default function EmailTemplatesPage() {
         ...emailTemplatePlaceholders[activeTab].placeholders
       };
 
+      // For the preview, always show the discount row if the template supports it
+      const sampleDiscountRow = activeTab === 'order-confirmation' 
+          ? `<div class="info-row"><span class="info-label">Discount (SAMPLE10):</span><span class="info-value" style="color: #28a745;">- PKR 200.00</span></div>`
+          : '';
+
       const exampleReplacements: Record<string, string> = {
         '{{userName}}': 'John Doe',
         '{{resetLink}}': '#',
@@ -95,7 +100,7 @@ export default function EmailTemplatesPage() {
         '{{orderDate}}': format(new Date(), 'PPP'),
         '{{orderStatus}}': 'Completed',
         '{{originalPrice}}': '1200.00',
-        '{{discountAmount}}': '200.00',
+        '{{discountRow}}': sampleDiscountRow, // Use the sample discount row here
         '{{finalAmount}}': '1000.00',
         '{{paymentMethod}}': 'Bank Transfer',
         '{{expiryDate}}': format(new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), 'PPP'),
@@ -104,7 +109,7 @@ export default function EmailTemplatesPage() {
         '{{adminRemarks}}': 'Your subscription was extended as a token of our appreciation.'
       };
         
-      for (const [key] of Object.entries(allPlaceholders)) {
+      for (const key of Object.keys(allPlaceholders)) {
         const value = exampleReplacements[key] || `[${key.replace(/[{}]/g, '')}]`;
         preview = preview.replace(new RegExp(key.replace(/\{/g, '\\{').replace(/\}/g, '\\}'), 'g'), value);
       }
