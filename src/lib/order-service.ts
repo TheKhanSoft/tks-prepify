@@ -62,6 +62,11 @@ export async function createOrder(orderData: OrderCreationData): Promise<string>
 
   // Send order confirmation email
   if (orderData.userEmail) {
+    // Conditionally create the discount row for the email template
+    const discountRow = orderData.discountCode && orderData.discountAmount
+      ? `<div class="info-row"><span class="info-label">Discount (${orderData.discountCode}):</span><span class="info-value" style="color: #28a745;">- PKR ${orderData.discountAmount.toFixed(2)}</span></div>`
+      : '';
+
     await sendEmail({
       templateId: 'order-confirmation',
       to: orderData.userEmail,
@@ -73,7 +78,7 @@ export async function createOrder(orderData: OrderCreationData): Promise<string>
         orderDate: format(new Date(), 'PPP'),
         orderStatus: 'Pending',
         originalPrice: orderData.originalPrice.toFixed(2),
-        discountAmount: (orderData.discountAmount || 0).toFixed(2),
+        discountRow: discountRow, // Use the new dynamic placeholder
         finalAmount: orderData.finalAmount.toFixed(2),
         paymentMethod: orderData.paymentMethod,
       }
@@ -125,3 +130,5 @@ export async function fetchOrdersForUser(userId: string): Promise<Order[]> {
     }
     return snapshot.docs.map(docToOrder);
 }
+
+    

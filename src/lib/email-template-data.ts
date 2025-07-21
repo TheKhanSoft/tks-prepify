@@ -79,7 +79,7 @@ export const emailTemplatePlaceholders: Record<string, TemplateDetails> & { comm
             '{{orderDate}}': "The date the order was placed.",
             '{{orderStatus}}': "The current status of the order (e.g., Pending).",
             '{{originalPrice}}': "The base price before discounts.",
-            '{{discountAmount}}': "The amount discounted, if any.",
+            '{{discountRow}}': "A pre-formatted HTML row that shows discount details, only if a discount was applied.",
             '{{finalAmount}}': "The final amount to be paid.",
             '{{paymentMethod}}': "The payment method chosen by the user.",
         }
@@ -150,7 +150,7 @@ export const defaultTemplates: { [id: string]: Omit<EmailTemplate, 'id'> } = {
                    <div class="card-header"><h2>Billing Summary</h2></div>
                    <div class="card-content">
                       <div class="info-row"><span class="info-label">Subtotal:</span><span class="info-value">PKR {{originalPrice}}</span></div>
-                      <div class="info-row"><span class="info-label">Discount:</span><span class="info-value">- PKR {{discountAmount}}</span></div>
+                      {{discountRow}}
                       <div class="info-row total-row"><strong class="info-label">Total Amount:</strong><strong class="info-value">PKR {{finalAmount}}</strong></div>
                   </div>
               </div>
@@ -256,3 +256,5 @@ export const defaultTemplates: { [id: string]: Omit<EmailTemplate, 'id'> } = {
     isEnabled: true,
   }
 };
+
+    
