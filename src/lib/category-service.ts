@@ -2,7 +2,7 @@
 'use server';
 
 import { collection, getDocs } from 'firebase/firestore';
-import { db } from './firebase';
+import { db, isFirebaseConfigured } from './firebase';
 import type { Category } from '@/types';
 import { Atom, Calculator, Briefcase, Languages } from 'lucide-react';
 import { slugify } from './utils';
@@ -32,6 +32,7 @@ type FirestoreCategory = Omit<Category, 'icon' | 'subcategories'> & {
 * It dynamically generates the full slug path for each category.
 */
 export async function fetchCategories(): Promise<Category[]> {
+  if (!isFirebaseConfigured || !db) return [];
   try {
     const categoriesCol = collection(db, 'categories');
     const categorySnapshot = await getDocs(categoriesCol);

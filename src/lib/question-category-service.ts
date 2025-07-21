@@ -2,7 +2,7 @@
 'use server';
 
 import { collection, getDocs, doc, getDoc } from 'firebase/firestore';
-import { db } from './firebase';
+import { db, isFirebaseConfigured } from './firebase';
 import type { QuestionCategory } from '@/types';
 
 type FirestoreQuestionCategory = Omit<QuestionCategory, 'subcategories'> & {
@@ -13,6 +13,7 @@ type FirestoreQuestionCategory = Omit<QuestionCategory, 'subcategories'> & {
 * Fetches all question categories from Firestore and builds a nested tree structure.
 */
 export async function fetchQuestionCategories(): Promise<QuestionCategory[]> {
+  if (!isFirebaseConfigured || !db) return [];
   const categoriesCol = collection(db, 'question_categories');
   const categorySnapshot = await getDocs(categoriesCol);
   const categoryList: (QuestionCategory & { parentId?: string | null })[] = categorySnapshot.docs.map(doc => {

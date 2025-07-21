@@ -15,7 +15,7 @@ import {
   Timestamp,
   DocumentData,
 } from 'firebase/firestore';
-import { db } from './firebase';
+import { db, isFirebaseConfigured } from './firebase';
 import type { Bookmark, Plan, Paper } from '@/types';
 import { docToPaper } from './paper-service';
 
@@ -45,7 +45,7 @@ const docToBookmark = (doc: DocumentData): Bookmark => {
  * Fetches the active bookmark for a specific user and paper.
  */
 export async function getBookmarkForPaper(userId: string, paperId: string): Promise<Bookmark | null> {
-    if (!userId || !paperId) return null;
+    if (!isFirebaseConfigured || !db || !userId || !paperId) return null;
     const bookmarksCol = collection(db, 'bookmarks');
     const q = query(
         bookmarksCol,
@@ -65,7 +65,7 @@ export async function getBookmarkForPaper(userId: string, paperId: string): Prom
  * Fetches all active bookmarks for a user and returns the associated paper details.
  */
 export async function fetchUserBookmarks(userId: string): Promise<Paper[]> {
-  if (!userId) return [];
+  if (!isFirebaseConfigured || !db || !userId) return [];
   
   const bookmarksCol = collection(db, 'bookmarks');
   const q = query(bookmarksCol, where('userId', '==', userId), where('active', '==', true));
@@ -108,7 +108,7 @@ export async function fetchUserBookmarks(userId: string): Promise<Paper[]> {
  * Counts the number of active bookmarks for a given user.
  */
 export async function countActiveBookmarks(userId: string): Promise<number> {
-    if (!userId) return 0;
+    if (!isFirebaseConfigured || !db || !userId) return 0;
     const activeBookmarksQuery = query(
         collection(db, 'bookmarks'),
         where('userId', '==', userId),
@@ -128,6 +128,7 @@ export async function toggleBookmark(
     paperId: string,
     plan: Plan,
 ): Promise<{ success: boolean; bookmarked: boolean; message: string; }> {
+    if (!isFirebaseConfigured || !db) return { success: false, bookmarked: false, message: 'Database not configured.' };
 
     const bookmarksCol = collection(db, 'bookmarks');
     const existingBookmarkQuery = query(

@@ -2,7 +2,7 @@
 'use server';
 
 import { doc, getDoc, setDoc } from 'firebase/firestore';
-import { db } from './firebase';
+import { db, isFirebaseConfigured } from './firebase';
 import type { Page } from '@/types';
 import { cache } from 'react';
 
@@ -111,6 +111,9 @@ If you have any questions about this Privacy Policy, please contact us at thekha
  * If the page doesn't exist in Firestore, it creates it with default content.
  */
 export const getPageBySlug = cache(async (slug: string): Promise<Page> => {
+  if (!isFirebaseConfigured || !db) {
+    return { id: slug, ...(defaultPages[slug] || { title: 'Page Not Found', content: '' }) };
+  }
   const pageDocRef = doc(db, 'pages', slug);
   try {
     const docSnap = await getDoc(pageDocRef);
@@ -142,6 +145,7 @@ export const getPageBySlug = cache(async (slug: string): Promise<Page> => {
  * Updates a page's content in Firestore.
  */
 export async function updatePage(slug: string, data: Partial<Omit<Page, 'id'>>) {
+  if (!isFirebaseConfigured || !db) throw new Error("Database not configured.");
   const pageDocRef = doc(db, 'pages', slug);
   await setDoc(pageDocRef, data, { merge: true });
 }

@@ -3,7 +3,7 @@
 'use server';
 
 import { collection, getDocs, doc, getDoc, addDoc, updateDoc, deleteDoc, DocumentData, query, orderBy, where } from 'firebase/firestore';
-import { db } from './firebase';
+import { db, isFirebaseConfigured } from './firebase';
 import type { Plan } from '@/types';
 
 function docToPlan(doc: DocumentData): Plan {
@@ -21,6 +21,7 @@ function docToPlan(doc: DocumentData): Plan {
 }
 
 export async function fetchPlans(publishedOnly = false): Promise<Plan[]> {
+    if (!isFirebaseConfigured || !db) return [];
     const plansCol = collection(db, 'plans');
     let q;
     if (publishedOnly) {
@@ -44,23 +45,26 @@ export async function fetchPlans(publishedOnly = false): Promise<Plan[]> {
 }
 
 export async function getPlanById(id: string): Promise<Plan | null> {
-    if (!id) return null;
+    if (!isFirebaseConfigured || !db || !id) return null;
     const planDocRef = doc(db, 'plans', id);
     const planDoc = await getDoc(planDocRef);
     return planDoc.exists() ? docToPlan(planDoc) : null;
 }
 
 export async function addPlan(planData: Omit<Plan, 'id'>) {
+    if (!isFirebaseConfigured || !db) throw new Error("Database not configured.");
     const plansCol = collection(db, 'plans');
     await addDoc(plansCol, planData);
 }
 
 export async function updatePlan(id: string, planData: Partial<Omit<Plan, 'id'>>) {
+    if (!isFirebaseConfigured || !db) throw new Error("Database not configured.");
     const planDocRef = doc(db, 'plans', id);
     await updateDoc(planDocRef, planData);
 }
 
 export async function deletePlan(id: string) {
+    if (!isFirebaseConfigured || !db) throw new Error("Database not configured.");
     const planDocRef = doc(db, 'plans', id);
     await deleteDoc(planDocRef);
 }

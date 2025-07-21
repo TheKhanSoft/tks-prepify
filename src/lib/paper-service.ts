@@ -2,7 +2,7 @@
 'use server';
 
 import { collection, getDocs, getDoc, doc, query, where, DocumentData } from 'firebase/firestore';
-import { db } from './firebase';
+import { db, isFirebaseConfigured } from './firebase';
 import type { Paper } from '@/types';
 import { slugify } from './utils';
 
@@ -32,6 +32,7 @@ export async function docToPaper(doc: DocumentData): Promise<Paper> {
 * Fetches all papers from Firestore.
 */
 export async function fetchPapers(): Promise<Paper[]> {
+    if (!isFirebaseConfigured || !db) return [];
     try {
         const papersCol = collection(db, 'papers');
         const paperSnapshot = await getDocs(papersCol);
@@ -47,7 +48,7 @@ export async function fetchPapers(): Promise<Paper[]> {
 * Fetches a single paper by its ID from Firestore.
 */
 export async function getPaperById(id: string): Promise<Paper | null> {
-    if (!id) return null;
+    if (!isFirebaseConfigured || !db || !id) return null;
     try {
         const paperDocRef = doc(db, "papers", id);
         const paperDoc = await getDoc(paperDocRef);
@@ -66,7 +67,7 @@ export async function getPaperById(id: string): Promise<Paper | null> {
 * Fetches a single paper by its slug from Firestore.
 */
 export async function getPaperBySlug(slug: string): Promise<Paper | null> {
-    if (!slug) return null;
+    if (!isFirebaseConfigured || !db || !slug) return null;
     try {
         const papersCol = collection(db, 'papers');
         const q = query(papersCol, where("slug", "==", slug));

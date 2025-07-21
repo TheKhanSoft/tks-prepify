@@ -15,7 +15,7 @@ import {
   DocumentData,
   limit,
 } from 'firebase/firestore';
-import { db } from './firebase';
+import { db, isFirebaseConfigured } from './firebase';
 import type { Question } from '@/types';
 import { docToQuestion } from './utils';
 
@@ -24,6 +24,7 @@ export type PaperQuestion = Question & { order: number; linkId: string };
 
 // Fetches all questions from the central bank.
 export async function fetchAllQuestions(): Promise<Question[]> {
+    if (!isFirebaseConfigured || !db) return [];
     const questionsCol = collection(db, 'questions');
     const snapshot = await getDocs(questionsCol);
     return snapshot.docs.map(doc => docToQuestion(doc));
@@ -31,6 +32,7 @@ export async function fetchAllQuestions(): Promise<Question[]> {
 
 // Fetches all question link documents from the 'paper_questions' collection to count them
 export async function fetchAllPaperQuestionLinks(): Promise<{ paperId: string }[]> {
+  if (!isFirebaseConfigured || !db) return [];
   const paperQuestionsCol = collection(db, 'paper_questions');
   const snapshot = await getDocs(paperQuestionsCol);
   return snapshot.docs.map(doc => {
@@ -44,7 +46,7 @@ export async function fetchAllPaperQuestionLinks(): Promise<{ paperId: string }[
 
 // Fetches questions for a specific paper, including their order and link ID
 export async function fetchQuestionsForPaper(paperId: string): Promise<PaperQuestion[]> {
-  if (!paperId) return [];
+  if (!isFirebaseConfigured || !db || !paperId) return [];
 
   const paperQuestionsCol = collection(db, 'paper_questions');
   const paperQuestionsQuery = query(paperQuestionsCol, where('paperId', '==', paperId));
@@ -97,7 +99,7 @@ export async function fetchQuestionsForPaper(paperId: string): Promise<PaperQues
 
 // Gets a single question from the central bank
 export async function getQuestionById(questionId: string): Promise<Question | null> {
-    if (!questionId) return null;
+    if (!isFirebaseConfigured || !db || !questionId) return null;
     const questionDocRef = doc(db, "questions", questionId);
     const questionDoc = await getDoc(questionDocRef);
     return questionDoc.exists() ? docToQuestion(questionDoc) : null;
@@ -105,6 +107,7 @@ export async function getQuestionById(questionId: string): Promise<Question | nu
 
 // Gets the link document to find a question's order within a paper
 export async function getQuestionLink(paperId: string, questionId: string) {
+    if (!isFirebaseConfigured || !db) return null;
     const q = query(
         collection(db, "paper_questions"), 
         where("paperId", "==", paperId), 
@@ -125,6 +128,7 @@ export async function getQuestionLink(paperId: string, questionId: string) {
  * @returns The ID of the existing question, or null if it doesn't exist.
  */
 export async function findQuestionByText(questionText: string): Promise<string | null> {
+    if (!isFirebaseConfigured || !db) return null;
     const q = query(
         collection(db, "questions"),
         where("questionText", "==", questionText.trim()),
@@ -140,6 +144,7 @@ export async function findQuestionByText(questionText: string): Promise<string |
 
 // Adds a new question to the bank and links it to a paper
 export async function addQuestionToPaper(paperId: string, questionData: Omit<Question, 'id'>, order: number) {
+    if (!isFirebaseConfigured || !db) throw new Error("Database not configured.");
     const batch = writeBatch(db);
 
     // 1. Add question to the central 'questions' bank
@@ -155,6 +160,7 @@ export async function addQuestionToPaper(paperId: string, questionData: Omit<Que
 
 // Imports a batch of questions, adding new ones or linking existing ones.
 export async function addQuestionsBatch(paperId: string, questions: any[]) {
+    if (!isFirebaseConfigured || !db) throw new Error("Database not configured.");
     const batch = writeBatch(db);
     const questionsCollection = collection(db, 'questions');
     const paperQuestionsCollection = collection(db, 'paper_questions');
@@ -189,19 +195,21 @@ export async function addQuestionsBatch(paperId: string, questions: any[]) {
 
 // Updates a question in the central bank
 export async function updateQuestion(questionId: string, questionData: Partial<Omit<Question, 'id'>>) {
+    if (!isFirebaseConfigured || !db) throw new Error("Database not configured.");
     const questionRef = doc(db, 'questions', questionId);
     await updateDoc(questionRef, questionData);
 }
 
 // Updates a question's order within a specific paper
 export async function updateQuestionOrderForPaper(linkId: string, newOrder: number) {
+    if (!isFirebaseConfigured || !db) throw new Error("Database not configured.");
     const linkRef = doc(db, 'paper_questions', linkId);
     await updateDoc(linkRef, { order: newOrder });
 }
 
 // Removes one or more question links from a paper
 export async function removeQuestionsFromPaper(paperId: string, linkIds: string[]) {
-  if (!paperId || linkIds.length === 0) return;
+  if (!isFirebaseConfigured || !db || !paperId || linkIds.length === 0) return;
 
   const CHUNK_SIZE = 500;
   
@@ -219,7 +227,7 @@ export async function removeQuestionsFromPaper(paperId: string, linkIds: string[
 
 // Checks how many papers a list of questions are used in.
 export async function getUsageCountForQuestions(questionIds: string[]): Promise<Record<string, number>> {
-  if (questionIds.length === 0) return {};
+  if (!isFirebaseConfigured || !db || questionIds.length === 0) return {};
 
   const usageCount: Record<string, number> = {};
   questionIds.forEach(id => usageCount[id] = 0);
@@ -247,7 +255,7 @@ export async function getUsageCountForQuestions(questionIds: string[]): Promise<
 
 // Deletes questions from the bank. This is a hard delete.
 export async function deleteQuestionsFromBank(questionIds: string[]) {
-    if (questionIds.length === 0) return;
+    if (!isFirebaseConfigured || !db || questionIds.length === 0) return;
 
     const batch = writeBatch(db);
     questionIds.forEach(id => {
@@ -261,6 +269,7 @@ export async function deleteQuestionsFromBank(questionIds: string[]) {
 
 // Copies all question links from a source paper to a new paper
 export async function copyPaperQuestions(sourcePaperId: string, newPaperId: string) {
+  if (!isFirebaseConfigured || !db) throw new Error("Database not configured.");
   const linksQuery = query(collection(db, 'paper_questions'), where('paperId', '==', sourcePaperId));
   const linksSnapshot = await getDocs(linksQuery);
 
@@ -296,7 +305,7 @@ export async function copyPaperQuestions(sourcePaperId: string, newPaperId: stri
 
 // Updates the order for multiple questions in a single batch
 export async function batchUpdateQuestionOrder(updates: { linkId: string; order: number }[]) {
-  if (updates.length === 0) return;
+  if (!isFirebaseConfigured || !db || updates.length === 0) return;
 
   const batch = writeBatch(db);
   updates.forEach(update => {
@@ -309,7 +318,7 @@ export async function batchUpdateQuestionOrder(updates: { linkId: string; order:
 
 // Adds a batch of questions directly to the central question bank.
 export async function addQuestionsToBankBatch(questions: Omit<Question, 'id'>[]) {
-    if (questions.length === 0) return;
+    if (!isFirebaseConfigured || !db || questions.length === 0) return;
 
     const batch = writeBatch(db);
     const questionsCollection = collection(db, 'questions');

@@ -2,7 +2,7 @@
 'use server';
 
 import { doc, setDoc, serverTimestamp, getDoc, collection, getDocs, updateDoc, DocumentData, Timestamp, writeBatch, query, where, orderBy } from 'firebase/firestore';
-import { db } from './firebase';
+import { db, isFirebaseConfigured } from './firebase';
 import type { User, Plan, UserPlan, UserPlanStatus, PricingOption, Discount } from '@/types';
 import { fetchPlans } from './plan-service';
 import { sendEmail } from './email-provider';
@@ -23,6 +23,7 @@ type UserProfileData = {
  * @param planId The optional ID of the plan to assign.
  */
 export async function createUserProfile(user: UserProfileData, planId?: string) {
+  if (!isFirebaseConfigured || !db) return;
   const userDocRef = doc(db, 'users', user.uid);
   const userDoc = await getDoc(userDocRef);
   if (userDoc.exists()) return; // User already exists
@@ -107,13 +108,14 @@ const docToUser = (doc: DocumentData): User => {
 };
 
 export async function fetchUserProfiles(): Promise<User[]> {
+  if (!isFirebaseConfigured || !db) return [];
   const usersCol = collection(db, 'users');
   const snapshot = await getDocs(usersCol);
   return snapshot.docs.map(docToUser);
 }
 
 export const getUserProfile = async (userId: string): Promise<User | null> => {
-  if (!userId) return null;
+  if (!isFirebaseConfigured || !db || !userId) return null;
   const userDocRef = doc(db, 'users', userId);
   const docSnap = await getDoc(userDocRef);
   if (docSnap.exists()) {
@@ -123,12 +125,14 @@ export const getUserProfile = async (userId: string): Promise<User | null> => {
 }
 
 export const updateUserProfileInFirestore = async (userId: string, data: { name?: string | null; photoURL?: string | null }) => {
+    if (!isFirebaseConfigured || !db) throw new Error("Database not configured.");
     if (!userId) throw new Error("User ID is required.");
     const userDocRef = doc(db, 'users', userId);
     await updateDoc(userDocRef, data);
 }
 
 export const assignUserRole = async (userId: string, role: string) => {
+    if (!isFirebaseConfigured || !db) throw new Error("Database not configured.");
     if (!userId) throw new Error("User ID is required.");
 
     const userProfile = await getUserProfile(userId);
@@ -159,6 +163,7 @@ export async function changeUserSubscription(
     status?: UserPlanStatus;
   }
 ) {
+  if (!isFirebaseConfigured || !db) throw new Error("Database not configured.");
   if (!userId || !newPlanId) {
     throw new Error("User ID and new Plan ID are required.");
   }
@@ -266,7 +271,7 @@ const docToUserPlan = (doc: DocumentData): UserPlan => {
 };
 
 export async function fetchUserPlanHistory(userId: string): Promise<UserPlan[]> {
-  if (!userId) return [];
+  if (!isFirebaseConfigured || !db || !userId) return [];
   const userPlansCol = collection(db, 'user_plans');
   // Removed orderBy to prevent missing-index errors. We will sort client-side.
   const q = query(userPlansCol, where("userId", "==", userId));
@@ -287,6 +292,7 @@ export async function updateUserPlanHistoryRecord(
     remarks?: string;
   }
 ) {
+  if (!isFirebaseConfigured || !db) throw new Error("Database not configured.");
   if (!historyId) throw new Error("History record ID is required.");
   const historyDocRef = doc(db, 'user_plans', historyId);
   await updateDoc(historyDocRef, data);
@@ -295,6 +301,7 @@ export async function updateUserPlanHistoryRecord(
 // Admin function to fetch all records
 export type UserPlanHistoryRecord = UserPlan & { userName?: string; userEmail?: string };
 export async function fetchAllUserPlanHistory(): Promise<UserPlanHistoryRecord[]> {
+  if (!isFirebaseConfigured || !db) return [];
   const [plans, users] = await Promise.all([
     getDocs(query(collection(db, 'user_plans'), orderBy('subscriptionDate', 'desc'))),
     getDocs(collection(db, 'users'))

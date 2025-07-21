@@ -2,12 +2,12 @@
 'use server';
 
 import { doc, getDoc, setDoc } from 'firebase/firestore';
-import { db } from './firebase';
+import { db, isFirebaseConfigured } from './firebase';
 import type { Settings } from '@/types';
 import { cache } from 'react';
 
 // Use a consistent document ID for global settings
-const settingsDocRef = doc(db, 'settings', 'global_app_settings');
+const settingsDocRef = isFirebaseConfigured && db ? doc(db, 'settings', 'global_app_settings') : null;
 
 const defaultSettings: Settings = {
     siteName: 'TKS Prepify',
@@ -46,6 +46,8 @@ const defaultSettings: Settings = {
     // Download settings
     pdfWatermarkEnabled: true,
     pdfWatermarkText: 'Downloaded From {siteName}',
+    emailFromName: 'Prepify Support',
+    emailFromAddress: 'noreply@yourdomain.com',
 };
 
 /**
@@ -55,6 +57,9 @@ const defaultSettings: Settings = {
  * during a single request-response lifecycle (e.g., in layout and page).
  */
 export const fetchSettings = cache(async (): Promise<Settings> => {
+    if (!settingsDocRef) {
+        return defaultSettings;
+    }
     try {
         const docSnap = await getDoc(settingsDocRef);
         if (docSnap.exists()) {
@@ -79,5 +84,8 @@ export const fetchSettings = cache(async (): Promise<Settings> => {
  * @param data The new settings data to save.
  */
 export async function updateSettings(data: Partial<Settings>) {
+    if (!settingsDocRef) {
+        throw new Error("Firebase is not configured. Cannot update settings.");
+    }
     await setDoc(settingsDocRef, data, { merge: true });
 }
