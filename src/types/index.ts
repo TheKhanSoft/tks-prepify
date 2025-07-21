@@ -192,6 +192,8 @@ export interface ContactSubmission {
   replies?: MessageReply[];
   status: ContactSubmissionStatus;
   lastRepliedAt?: Date | null;
+  orderId?: string;
+  attachmentUrl?: string;
 }
 
 export interface SupportRequest {

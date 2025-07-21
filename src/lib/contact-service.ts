@@ -9,20 +9,41 @@ import { getPlanById } from './plan-service';
 import { checkAndRecordSupportRequest } from './support-request-service';
 import { serializeDate } from './utils';
 
+// NOTE: File upload logic is not handled here.
+// This service assumes the file has been uploaded to a storage service (e.g., Firebase Storage)
+// and the public URL is passed in the `attachmentUrl` field.
+// The client-side form needs to handle the upload process.
 type ContactFormData = {
   name: string;
   email: string;
   topic: string;
   subject: string;
   message: string;
+  orderId?: string;
+  attachment?: File; // Keep as File for now, but expect URL in real implementation
 }
 
 export async function submitContactForm(data: ContactFormData, userId?: string | null) {
   try {
     const submissionsCollection = collection(db, 'contact_submissions');
     
+    // In a real application, you would upload the `data.attachment` file to a cloud storage
+    // service here and get back a public URL. For this example, we'll just store a placeholder.
+    let attachmentUrl = "";
+    if (data.attachment) {
+        // Placeholder for file upload logic
+        // e.g., attachmentUrl = await uploadFileToFirebaseStorage(data.attachment);
+        attachmentUrl = `placeholder_for_${data.attachment.name}`;
+    }
+
     const initialData: any = {
-      ...data,
+      name: data.name,
+      email: data.email,
+      topic: data.topic,
+      subject: data.subject,
+      message: data.message,
+      orderId: data.orderId || null,
+      attachmentUrl: attachmentUrl || null,
       userId: userId || null,
       priority: false,
       isRead: false,
@@ -110,6 +131,8 @@ const docToContactSubmission = (doc: DocumentData): ContactSubmission => {
         priority: data.priority,
         replies: replies,
         status: data.status || 'open',
+        orderId: data.orderId,
+        attachmentUrl: data.attachmentUrl,
     }
 }
 

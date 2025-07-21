@@ -23,7 +23,7 @@ import {
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Loader2, Eye, MailOpen, Star, User, MessageSquare, ChevronDown, CheckCircle, Info, XCircle, Wrench, Send } from "lucide-react";
+import { Loader2, Eye, MailOpen, Star, User, MessageSquare, ChevronDown, CheckCircle, Info, XCircle, Wrench, Send, Link as LinkIcon } from "lucide-react";
 import { fetchContactSubmissions, updateSubmissionStatus, addReplyToSubmission } from "@/lib/contact-service";
 import type { ContactSubmission, MessageReply, ContactSubmissionStatus } from "@/types";
 import { useToast } from "@/hooks/use-toast";
@@ -334,6 +334,14 @@ export default function AdminMessagesPage() {
                             <div className="rounded-lg bg-muted p-3 w-fit max-w-full">
                                 <p className="text-sm font-semibold">{selectedSubmission?.name}</p>
                                 <p className="text-sm whitespace-pre-wrap">{selectedSubmission?.message}</p>
+                                {selectedSubmission?.orderId && (
+                                    <p className="text-xs text-muted-foreground pt-2 mt-2 border-t">Order ID: {selectedSubmission.orderId}</p>
+                                )}
+                                {selectedSubmission?.attachmentUrl && (
+                                    <p className="text-xs text-muted-foreground pt-2 mt-2 border-t">
+                                        Attachment: <a href={selectedSubmission.attachmentUrl} target="_blank" rel="noopener noreferrer" className="text-primary underline flex items-center gap-1"><LinkIcon className="h-3 w-3"/>View Attachment</a>
+                                    </p>
+                                )}
                             </div>
                             <p className="text-xs text-muted-foreground mt-1">
                                 {selectedSubmission && formatDistanceToNow(new Date(selectedSubmission.createdAt), { addSuffix: true })}
