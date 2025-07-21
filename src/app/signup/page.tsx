@@ -64,13 +64,13 @@ export default function SignupPage() {
 
     // Send welcome email
     if (user.email && user.displayName) {
-      await sendEmail({
+      sendEmail({
         templateId: 'new-registration',
         to: user.email,
         props: {
           userName: user.displayName,
         }
-      });
+      }).catch(error => console.error("Failed to send welcome email:", error));
     }
 
     toast({ title: "Sign Up Successful", description: "Welcome!" });
