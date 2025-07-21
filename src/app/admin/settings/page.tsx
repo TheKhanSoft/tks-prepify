@@ -75,6 +75,7 @@ export default function AdminSettingsPage() {
   const [isSendingTest, setIsSendingTest] = useState(false);
   const [plans, setPlans] = useState<Plan[]>([]);
   const [settings, setSettings] = useState<Settings | null>(null);
+  const [testEmail, setTestEmail] = useState('');
 
   const form = useForm<SettingsFormValues>({
     resolver: zodResolver(settingsFormSchema),
@@ -145,11 +146,19 @@ export default function AdminSettingsPage() {
   }
 
   const handleSendTestEmail = async () => {
+    if (!testEmail) {
+        toast({
+          title: 'Recipient Required',
+          description: 'Please enter an email address to send the test to.',
+          variant: 'destructive',
+        });
+        return;
+    }
     setIsSendingTest(true);
     try {
       const result = await sendEmail({
         templateId: 'new-registration', // Use a common template for testing
-        to: 'test@example.com', // A safe test address
+        to: testEmail,
         props: {
           userName: 'Test User',
         },
@@ -158,7 +167,7 @@ export default function AdminSettingsPage() {
       if (result.success) {
         toast({
           title: 'Test Email Sent',
-          description: 'Check your email provider logs to confirm delivery.',
+          description: `An email has been sent to ${testEmail}. Check your email provider logs to confirm delivery.`,
         });
       } else {
         throw new Error(result.error || 'Unknown error');
@@ -351,9 +360,19 @@ export default function AdminSettingsPage() {
                       />
                   </CardContent>
                   <CardFooter className="border-t pt-6">
-                        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between w-full gap-4">
-                            <p className="text-sm text-muted-foreground max-w-md">Verify your SMTP setup by sending a test email to a service like <a href="https://ethereal.email/" target="_blank" rel="noopener noreferrer" className="underline">Ethereal Email</a>.</p>
-                            <Button type="button" variant="secondary" onClick={handleSendTestEmail} disabled={isSendingTest}>
+                        <div className="flex flex-col sm:flex-row items-center justify-between w-full gap-4">
+                            <div className="flex-grow space-y-2">
+                                <FormLabel htmlFor="test-email">Test Email Address</FormLabel>
+                                <Input 
+                                    id="test-email"
+                                    type="email"
+                                    placeholder="Enter recipient email..."
+                                    value={testEmail}
+                                    onChange={(e) => setTestEmail(e.target.value)}
+                                />
+                                <FormDescription>Send a test of the 'New Registration' template to this address.</FormDescription>
+                            </div>
+                            <Button type="button" variant="secondary" onClick={handleSendTestEmail} disabled={isSendingTest || !testEmail} className="shrink-0 mt-2 sm:mt-0">
                                 {isSendingTest ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Mail className="mr-2 h-4 w-4" />}
                                 Send Test Email
                             </Button>
