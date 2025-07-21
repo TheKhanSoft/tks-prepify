@@ -240,9 +240,11 @@ export async function changeUserSubscription(
   // Send notification email
   if (user.email && options.status !== 'pending') {
     let templateId: string;
-    if (options.remarks?.toLowerCase().includes('extended')) {
+    const remarksLower = (options.remarks || '').toLowerCase();
+    
+    if (remarksLower.includes('extended')) {
         templateId = 'subscription-extension';
-    } else if (options.remarks?.toLowerCase().includes('renewed')) {
+    } else if (remarksLower.includes('renewed')) {
         templateId = 'subscription-renewal';
     } else {
         templateId = 'new-subscription';
