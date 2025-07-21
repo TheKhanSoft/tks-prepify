@@ -100,10 +100,10 @@ export default function EmailTemplatesPage() {
             adminRemarks: 'Your subscription was extended as a token of our appreciation.'
         };
       
-      // Process conditional blocks for preview
-      const discountBlockRegex = /<!--\s*{{#if\s+discount}}\s*-->([\s\S]*?)<!--\s*{{\/if}}\s*-->/g;
-      preview = preview.replace(discountBlockRegex, (match, blockContent) => {
-          // In preview mode, always show the content of the discount block
+      const conditionalBlockRegex = /<!--\s*{{#if\s+([a-zA-Z0-9_]+)}}\s*-->([\s\S]*?)<!--\s*{{\/if}}\s*-->/g;
+
+      preview = preview.replace(conditionalBlockRegex, (match, key, blockContent) => {
+          // In preview mode, always show the content of the block by assuming the key is present.
           return blockContent;
       });
 
@@ -214,7 +214,7 @@ export default function EmailTemplatesPage() {
             <ul className="space-y-3 mb-6">
               {Object.entries(currentTemplateDetails.placeholders).map(([key, desc]) => (
                 <li key={key}>
-                  <code className="font-mono text-sm font-semibold text-primary">{key}</code>
+                  <code className="font-mono text-sm font-semibold text-primary">{`{{${key}}}`}</code>
                   <p className="text-xs text-muted-foreground">{desc}</p>
                 </li>
               ))}
@@ -223,7 +223,7 @@ export default function EmailTemplatesPage() {
             <ul className="space-y-3">
               {Object.entries(emailTemplatePlaceholders.common.placeholders).map(([key, desc]) => (
                 <li key={key}>
-                  <code className="font-mono text-sm font-semibold text-primary">{key}</code>
+                  <code className="font-mono text-sm font-semibold text-primary">{`{{${key}}}`}</code>
                   <p className="text-xs text-muted-foreground">{desc}</p>
                 </li>
               ))}

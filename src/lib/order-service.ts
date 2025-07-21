@@ -62,18 +62,6 @@ export async function createOrder(orderData: OrderCreationData): Promise<string>
 
   // Send order confirmation email
   if (orderData.userEmail) {
-    
-    // Conditionally build the HTML for the discount details
-    let discountDetailsHtml = '';
-    if (orderData.discountCode && orderData.discountAmount && orderData.discountAmount > 0) {
-      discountDetailsHtml = `
-        <div class="info-row">
-            <span class="info-label">Discount (${orderData.discountCode}):</span>
-            <span class="info-value" style="color: #28a745;">- PKR ${orderData.discountAmount.toFixed(2)}</span>
-        </div>
-      `;
-    }
-
     await sendEmail({
       templateId: 'order-confirmation',
       to: orderData.userEmail,
@@ -87,7 +75,8 @@ export async function createOrder(orderData: OrderCreationData): Promise<string>
         originalPrice: orderData.originalPrice.toFixed(2),
         finalAmount: orderData.finalAmount.toFixed(2),
         paymentMethod: orderData.paymentMethod,
-        discountDetailsHtml: discountDetailsHtml, // Pass the generated HTML or an empty string
+        discountCode: orderData.discountCode,
+        discountAmount: orderData.discountAmount?.toFixed(2),
       }
     }).catch(error => console.error(`Failed to send order confirmation email for order ${newOrderRef.id}:`, error));
   }

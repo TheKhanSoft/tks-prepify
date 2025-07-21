@@ -11,6 +11,19 @@ interface SendEmailProps {
   props: Record<string, any>;
 }
 
+const processConditionalBlocks = (body: string, props: Record<string, any>): string => {
+    let processedBody = body;
+    const conditionalBlockRegex = /<!--\s*{{#if\s+([a-zA-Z0-9_]+)}}\s*-->([\s\S]*?)<!--\s*{{\/if}}\s*-->/g;
+
+    processedBody = processedBody.replace(conditionalBlockRegex, (match, key, blockContent) => {
+        // Check if the key exists and is "truthy" (not null, undefined, false, 0, or empty string).
+        return props[key] ? blockContent : '';
+    });
+    
+    return processedBody;
+};
+
+
 export async function sendEmail({ templateId, to, props }: SendEmailProps) {
   // Check for essential SMTP configuration in .env file
   if (!process.env.SMTP_HOST || !process.env.SMTP_PORT || !process.env.SMTP_USER || !process.env.SMTP_PASS) {
@@ -44,16 +57,20 @@ export async function sendEmail({ templateId, to, props }: SendEmailProps) {
       contactEmail: settings.contactEmail,
     };
     
+    // First, handle conditional blocks
+    body = processConditionalBlocks(body, allProps);
+
+    // Then, replace all other placeholders
     for (const key in allProps) {
       if (allProps[key] !== undefined && allProps[key] !== null) {
-        const regex = new RegExp(`{{{?${key}}}}?`, 'g');
+        const regex = new RegExp(`{{${key}}}`, 'g');
         subject = subject.replace(regex, allProps[key]);
         body = body.replace(regex, allProps[key]);
       }
     }
-
-    // Clean up any un-replaced placeholders to avoid showing them to the user.
-    body = body.replace(/{{{?[^}]+}}}?/g, '');
+    
+    // Clean up any remaining {{...}} that were not part of a conditional block that was removed
+    body = body.replace(/{{[^{}]+}}/g, '');
 
 
     const transporter = nodemailer.createTransport({
