@@ -319,7 +319,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
             
             <NavMenuLabel>Communication</NavMenuLabel>
             <NavItem href="/admin/messages" tooltip="Messages" icon={<Mail />} badgeContent={unreadSummary.count > 0 ? unreadSummary.count : undefined} badgeDestructive={unreadSummary.hasPriority}>Messages</NavItem>
-            <NavItem href="/admin/emails" tooltip="Emails" icon={<SendIcon />}>Emails</NavItem>
+            <NavItem href="/admin/email-templates" tooltip="Email Templates" icon={<SendIcon />}>Email Templates</NavItem>
             <NavItem href="/admin/help" tooltip="Help Center" icon={<LifeBuoy />}>Help Center</NavItem>
             <SidebarSeparator className="my-2" />
             

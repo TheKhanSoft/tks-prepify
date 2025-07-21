@@ -1,7 +1,6 @@
 
 "use client";
 
-import React, { useState, useEffect, useCallback, useMemo } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
@@ -16,10 +15,11 @@ import {
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
 import { Loader2, Eye, Save, Code, AlertCircle, RefreshCw } from "lucide-react";
-import { getEmailTemplate, updateEmailTemplate, emailTemplatePlaceholders, TemplateDetails } from "@/lib/email-service";
+import React, { useState, useEffect, useCallback, useMemo } from "react";
+import { getEmailTemplate, updateEmailTemplate } from "@/lib/email-service";
+import { emailTemplatePlaceholders } from "@/lib/email-template-data";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Switch } from "@/components/ui/switch";
 import { fetchSettings } from "@/lib/settings-service";
@@ -27,6 +27,7 @@ import { format } from "date-fns";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { cn } from "@/lib/utils";
+import { Textarea } from "@/components/ui/textarea";
 
 const emailTemplateSchema = z.object({
   subject: z.string().min(1, "Subject is required."),
@@ -81,7 +82,7 @@ export default function EmailTemplatesPage() {
     let preview = watchedBody || "";
     if (settings) {
       const allPlaceholders = {
-        ...emailTemplatePlaceholders.common,
+        ...emailTemplatePlaceholders.common.placeholders,
         ...emailTemplatePlaceholders[activeTab].placeholders
       };
 
@@ -97,7 +98,7 @@ export default function EmailTemplatesPage() {
         '{{discountAmount}}': '200.00',
         '{{finalAmount}}': '1000.00',
         '{{paymentMethod}}': 'Bank Transfer',
-        '{{expiryDate}}': format(new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), 'PPP'), // 30 days from now
+        '{{expiryDate}}': format(new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), 'PPP'),
         '{{siteName}}': settings.siteName,
         '{{contactEmail}}': settings.contactEmail,
         '{{adminRemarks}}': 'Your subscription was extended as a token of our appreciation.'
