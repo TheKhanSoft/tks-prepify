@@ -11,6 +11,25 @@ interface SendEmailProps {
   props: Record<string, any>;
 }
 
+/**
+ * A more robust email sending function that handles conditional content blocks.
+ * Currently supports a simple 'if' block for discounts.
+ * e.g., <!-- {{#if discount}} --> ... <!-- {{/if}} -->
+ */
+const processConditionalBlocks = (body: string, props: Record<string, any>): string => {
+    let processedBody = body;
+    const discountBlockRegex = /<!--\s*{{#if\s+discount}}\s*-->([\s\S]*?)<!--\s*{{\/if}}\s*-->/g;
+
+    processedBody = processedBody.replace(discountBlockRegex, (match, blockContent) => {
+        // If a discountCode exists and is truthy in the props, keep the block content.
+        // Otherwise, remove the entire block including the comment tags.
+        return props.discountCode ? blockContent : '';
+    });
+    
+    return processedBody;
+};
+
+
 export async function sendEmail({ templateId, to, props }: SendEmailProps) {
   // Check for essential SMTP configuration in .env file
   if (!process.env.SMTP_HOST || !process.env.SMTP_PORT || !process.env.SMTP_USER || !process.env.SMTP_PASS) {
@@ -29,7 +48,6 @@ export async function sendEmail({ templateId, to, props }: SendEmailProps) {
 
     if (!template || !template.isEnabled) {
       console.log(`Email template "${templateId}" is disabled or not found. Skipping send.`);
-      // Return success to not block application flow for a disabled email.
       return { success: true, message: "Email template disabled." };
     }
 
@@ -39,25 +57,28 @@ export async function sendEmail({ templateId, to, props }: SendEmailProps) {
     let subject = template.subject;
     let body = template.body;
 
-    // Combine provided props with common settings placeholders
     const allProps = {
       ...props,
       siteName: settings.siteName,
       contactEmail: settings.contactEmail,
     };
+    
+    // First, handle conditional blocks
+    body = processConditionalBlocks(body, allProps);
 
-    // Replace all placeholders in both subject and body
+    // Then, replace all other placeholders
     for (const key in allProps) {
-      // Create a global regular expression for each key
-      const regex = new RegExp(`{{${key}}}`, 'g');
-      subject = subject.replace(regex, allProps[key]);
-      body = body.replace(regex, allProps[key]);
+      if (allProps[key] !== undefined && allProps[key] !== null) {
+        const regex = new RegExp(`{{${key}}}`, 'g');
+        subject = subject.replace(regex, allProps[key]);
+        body = body.replace(regex, allProps[key]);
+      }
     }
 
     const transporter = nodemailer.createTransport({
         host: process.env.SMTP_HOST,
         port: Number(process.env.SMTP_PORT),
-        secure: process.env.SMTP_SECURE === 'true', // `true` for port 465, `false` for others
+        secure: process.env.SMTP_SECURE === 'true',
         auth: {
             user: process.env.SMTP_USER,
             pass: process.env.SMTP_PASS,
@@ -71,11 +92,9 @@ export async function sendEmail({ templateId, to, props }: SendEmailProps) {
       html: body,
     });
 
-    console.log(`Email sent successfully to ${to} with template ${templateId}`);
     return { success: true, data: info };
   } catch (error) {
-    console.error(`General error in sendEmail for template "${templateId}":`, error);
-    // Return a generic error to the client to avoid leaking implementation details
+    console.error(`Error in sendEmail for template "${templateId}":`, error);
     return { success: false, error: "An unexpected error occurred while trying to send the email." };
   }
 }

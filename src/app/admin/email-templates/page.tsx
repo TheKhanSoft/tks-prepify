@@ -81,37 +81,36 @@ export default function EmailTemplatesPage() {
   const previewHtml = useMemo(() => {
     let preview = watchedBody || "";
     if (settings) {
-      const allPlaceholders = {
-        ...emailTemplatePlaceholders.common.placeholders,
-        ...emailTemplatePlaceholders[activeTab].placeholders
-      };
+        const exampleReplacements: Record<string, any> = {
+            userName: 'John Doe',
+            resetLink: '#',
+            orderId: 'ORD-SAMPLE-123',
+            planName: 'Premium Plan',
+            duration: 'Yearly',
+            orderDate: format(new Date(), 'PPP'),
+            orderStatus: 'Completed',
+            originalPrice: '1200.00',
+            discountCode: 'WELCOME10', // Always provide a sample for preview
+            discountAmount: '120.00',
+            finalAmount: '1080.00',
+            paymentMethod: 'Bank Transfer',
+            expiryDate: format(new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), 'PPP'),
+            siteName: settings.siteName,
+            contactEmail: settings.contactEmail,
+            adminRemarks: 'Your subscription was extended as a token of our appreciation.'
+        };
+      
+      // Process conditional blocks for preview
+      const discountBlockRegex = /<!--\s*{{#if\s+discount}}\s*-->([\s\S]*?)<!--\s*{{\/if}}\s*-->/g;
+      preview = preview.replace(discountBlockRegex, (match, blockContent) => {
+          // In preview mode, always show the content of the discount block
+          return blockContent;
+      });
 
-      // For the preview, always show the discount row if the template supports it
-      const sampleDiscountRow = activeTab === 'order-confirmation' 
-          ? `<div class="info-row"><span class="info-label">Discount (SAMPLE10):</span><span class="info-value" style="color: #28a745;">- PKR 200.00</span></div>`
-          : '';
-
-      const exampleReplacements: Record<string, string> = {
-        '{{userName}}': 'John Doe',
-        '{{resetLink}}': '#',
-        '{{orderId}}': 'ORD-SAMPLE-123',
-        '{{planName}}': 'Premium Plan',
-        '{{duration}}': 'Yearly',
-        '{{orderDate}}': format(new Date(), 'PPP'),
-        '{{orderStatus}}': 'Completed',
-        '{{originalPrice}}': '1200.00',
-        '{{discountRow}}': sampleDiscountRow, // Use the sample discount row here
-        '{{finalAmount}}': '1000.00',
-        '{{paymentMethod}}': 'Bank Transfer',
-        '{{expiryDate}}': format(new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), 'PPP'),
-        '{{siteName}}': settings.siteName,
-        '{{contactEmail}}': settings.contactEmail,
-        '{{adminRemarks}}': 'Your subscription was extended as a token of our appreciation.'
-      };
-        
-      for (const key of Object.keys(allPlaceholders)) {
-        const value = exampleReplacements[key] || `[${key.replace(/[{}]/g, '')}]`;
-        preview = preview.replace(new RegExp(key.replace(/\{/g, '\\{').replace(/\}/g, '\\}'), 'g'), value);
+      // Replace all other placeholders
+      for (const key of Object.keys(exampleReplacements)) {
+        const value = exampleReplacements[key];
+        preview = preview.replace(new RegExp(`{{${key}}}`, 'g'), value);
       }
     }
     return preview;
