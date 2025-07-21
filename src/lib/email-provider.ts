@@ -5,8 +5,6 @@ import { Resend } from 'resend';
 import { getEmailTemplate } from './email-service';
 import { fetchSettings } from './settings-service';
 
-const resend = new Resend(process.env.RESEND_API_KEY);
-
 interface SendEmailProps {
   templateId: string;
   to: string;
@@ -14,7 +12,19 @@ interface SendEmailProps {
 }
 
 export async function sendEmail({ templateId, to, props }: SendEmailProps) {
+  // Check for API key existence before doing anything else.
+  if (!process.env.RESEND_API_KEY) {
+    console.warn("****************************************************************");
+    console.warn("WARNING: RESEND_API_KEY is not set in your environment variables.");
+    console.warn("Email sending is disabled. Please add the key to your .env file.");
+    console.warn("****************************************************************");
+    return { success: false, error: "Email service is not configured." };
+  }
+
   try {
+    // Initialize Resend client here, only when the function is called.
+    const resend = new Resend(process.env.RESEND_API_KEY);
+
     const [template, settings] = await Promise.all([
       getEmailTemplate(templateId),
       fetchSettings(),
@@ -22,12 +32,7 @@ export async function sendEmail({ templateId, to, props }: SendEmailProps) {
 
     if (!template || !template.isEnabled) {
       console.log(`Email template "${templateId}" is disabled or not found. Skipping send.`);
-      return;
-    }
-
-    if (!process.env.RESEND_API_KEY) {
-        console.warn("RESEND_API_KEY is not set. Skipping email send.");
-        return;
+      return { success: true, message: "Email template disabled." }; // Not an error, just skipped.
     }
 
     const fromName = settings.emailFromName || settings.siteName;
