@@ -151,12 +151,12 @@ export const defaultTemplates: { [id: string]: Omit<EmailTemplate, 'id'> } = {
                    <div class="card-header"><h2>Billing Summary</h2></div>
                    <div class="card-content">
                       <div class="info-row"><span class="info-label">Subtotal:</span><span class="info-value">PKR {{originalPrice}}</span></div>
-                      <!-- {{#if discountCode}} -->
+                      {{#if discountCode}}
                       <div class="info-row">
                           <span class="info-label">Discount ({{discountCode}}):</span>
                           <span class="info-value" style="color: #28a745;">- PKR {{discountAmount}}</span>
                       </div>
-                      <!-- {{/if}} -->
+                      {{/if}}
                       <div class="info-row total-row"><strong class="info-label">Total Amount:</strong><strong class="info-value">PKR {{finalAmount}}</strong></div>
                   </div>
               </div>
@@ -241,7 +241,9 @@ export const defaultTemplates: { [id: string]: Omit<EmailTemplate, 'id'> } = {
       <tr><td class="header"><h1>Subscription Extended</h1><p>Hi {{userName}}, we've extended your {{planName}} plan.</p></td></tr>
       <tr><td class="content">
           <p>An administrator has extended your subscription. It is now valid until <strong>{{expiryDate}}</strong>.</p>
+          {{#if adminRemarks}}
           <p><strong>Admin Remarks:</strong> {{adminRemarks}}</p>
+          {{/if}}
           <a href="https://tks-prepify.web.app/account/dashboard" class="button">Go to My Dashboard</a>
       </td></tr>
       <tr><td class="footer"><p>&copy; {{siteName}}. All rights reserved.</p></td></tr>

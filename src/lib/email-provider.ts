@@ -13,10 +13,12 @@ interface SendEmailProps {
 
 const processConditionalBlocks = (body: string, props: Record<string, any>): string => {
     let processedBody = body;
-    const conditionalBlockRegex = /<!--\s*{{#if\s+([a-zA-Z0-9_]+)}}\s*-->([\s\S]*?)<!--\s*{{\/if}}\s*-->/g;
+    // Regex to find blocks like {{#if key}}...{{/if}}
+    const conditionalBlockRegex = /{{\s*#if\s+([a-zA-Z0-9_]+)\s*}}([\s\S]*?){{\s*\/if\s*}}/g;
 
     processedBody = processedBody.replace(conditionalBlockRegex, (match, key, blockContent) => {
-        // Check if the key exists and is "truthy" (not null, undefined, false, 0, or empty string).
+        // If the key exists in props and is "truthy" (not null, undefined, false, 0, or empty string),
+        // keep the content inside the block. Otherwise, remove the entire block.
         return props[key] ? blockContent : '';
     });
     

@@ -14,9 +14,9 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2, Eye, Save, Code, AlertCircle, RefreshCw } from "lucide-react";
+import { Loader2, Eye, Save, Code, AlertCircle, RefreshCw, HelpCircle, Mail } from "lucide-react";
 import React, { useState, useEffect, useCallback, useMemo } from "react";
 import { getEmailTemplate, updateEmailTemplate } from "@/lib/email-service";
 import { emailTemplatePlaceholders } from "@/lib/email-template-data";
@@ -28,6 +28,7 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { cn } from "@/lib/utils";
 import { Textarea } from "@/components/ui/textarea";
+import { sendEmail } from "@/lib/email-provider";
 
 const emailTemplateSchema = z.object({
   subject: z.string().min(1, "Subject is required."),
@@ -41,6 +42,7 @@ export default function EmailTemplatesPage() {
   const { toast } = useToast();
   const [loading, setLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isSendingTest, setIsSendingTest] = useState(false);
   const [activeTab, setActiveTab] = useState<keyof typeof emailTemplatePlaceholders>("order-confirmation");
   const [viewMode, setViewMode] = useState<'edit' | 'preview'>('edit');
   const [settings, setSettings] = useState<{ siteName: string; contactEmail: string } | null>(null);
@@ -100,10 +102,10 @@ export default function EmailTemplatesPage() {
             adminRemarks: 'Your subscription was extended as a token of our appreciation.'
         };
       
-      const conditionalBlockRegex = /<!--\s*{{#if\s+([a-zA-Z0-9_]+)}}\s*-->([\s\S]*?)<!--\s*{{\/if}}\s*-->/g;
+      const conditionalBlockRegex = /{{\s*#if\s+([a-zA-Z0-9_]+)\s*}}([\s\S]*?){{\s*\/if\s*}}/g;
 
       preview = preview.replace(conditionalBlockRegex, (match, key, blockContent) => {
-          // In preview mode, always show the content of the block by assuming the key is present.
+          // In preview mode, always show the content of the block
           return blockContent;
       });
 
@@ -114,7 +116,7 @@ export default function EmailTemplatesPage() {
       }
     }
     return preview;
-  }, [watchedBody, settings, activeTab]);
+  }, [watchedBody, settings]);
 
   async function onSubmit(data: EmailTemplateFormValues) {
     setIsSubmitting(true);
@@ -127,6 +129,49 @@ export default function EmailTemplatesPage() {
       setIsSubmitting(false);
     }
   }
+
+  const handleSendTestEmail = async () => {
+    setIsSendingTest(true);
+    try {
+      const result = await sendEmail({
+        templateId: activeTab,
+        to: 'test@example.com', // A safe test address
+        props: {
+          userName: 'Test User',
+          resetLink: '#',
+          orderId: 'ORD-TEST-456',
+          planName: 'Pro Plan',
+          duration: 'Monthly',
+          orderDate: format(new Date(), 'PPP'),
+          orderStatus: 'Pending',
+          originalPrice: 1500,
+          discountCode: 'TESTCODE',
+          discountAmount: 150,
+          finalAmount: 1350,
+          paymentMethod: 'Test Method',
+          expiryDate: format(new Date(), 'PPP'),
+          adminRemarks: 'This is a test remark.',
+        },
+      });
+
+      if (result.success) {
+        toast({
+          title: 'Test Email Sent',
+          description: 'Check your email provider logs to confirm delivery.',
+        });
+      } else {
+        throw new Error(result.error || 'Unknown error');
+      }
+    } catch (error: any) {
+      toast({
+        title: 'Failed to Send Test Email',
+        description: error.message,
+        variant: 'destructive',
+      });
+    } finally {
+      setIsSendingTest(false);
+    }
+  };
 
   const currentTemplateDetails = emailTemplatePlaceholders[activeTab];
 
@@ -196,6 +241,15 @@ export default function EmailTemplatesPage() {
                       </>
                     )}
                   </CardContent>
+                  <CardFooter className="border-t pt-6">
+                        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between w-full gap-4">
+                            <p className="text-sm text-muted-foreground max-w-md">Verify your SMTP setup by sending a test email to a service like <a href="https://ethereal.email/" target="_blank" rel="noopener noreferrer" className="underline">Ethereal Email</a>.</p>
+                            <Button type="button" variant="secondary" onClick={handleSendTestEmail} disabled={isSendingTest}>
+                                {isSendingTest ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Mail className="mr-2 h-4 w-4" />}
+                                Send Test Email
+                            </Button>
+                        </div>
+                    </CardFooter>
                 </Card>
               </TabsContent>
               <div className="flex justify-end gap-2">
@@ -214,20 +268,30 @@ export default function EmailTemplatesPage() {
             <ul className="space-y-3 mb-6">
               {Object.entries(currentTemplateDetails.placeholders).map(([key, desc]) => (
                 <li key={key}>
-                  <code className="font-mono text-sm font-semibold text-primary">{`{{${key}}}`}</code>
+                  <code className="font-mono text-sm font-semibold text-primary">{`${key}`}</code>
                   <p className="text-xs text-muted-foreground">{desc}</p>
                 </li>
               ))}
             </ul>
              <h4 className="font-semibold mb-2">Common Placeholders:</h4>
-            <ul className="space-y-3">
+            <ul className="space-y-3 mb-6">
               {Object.entries(emailTemplatePlaceholders.common.placeholders).map(([key, desc]) => (
                 <li key={key}>
-                  <code className="font-mono text-sm font-semibold text-primary">{`{{${key}}}`}</code>
+                  <code className="font-mono text-sm font-semibold text-primary">{`${key}`}</code>
                   <p className="text-xs text-muted-foreground">{desc}</p>
                 </li>
               ))}
             </ul>
+            <h4 className="font-semibold mb-2 flex items-center gap-1.5"><HelpCircle className="h-4 w-4" />Conditional Blocks:</h4>
+            <div className="text-xs text-muted-foreground space-y-2">
+                <p>You can show content conditionally using Handlebars-style `if` blocks.</p>
+                <div className="p-2 bg-muted rounded font-mono text-xs">
+                    <p>{'{{#if placeholderName}}'}</p>
+                    <p className="pl-2">Your HTML content here...</p>
+                    <p>{'{{/if}}'}</p>
+                </div>
+                <p>The content will only be included if `placeholderName` has a value. For example, use `{{#if discountCode}}` to show a discount row only when a coupon was used.</p>
+            </div>
           </CardContent>
         </Card>
       </div>
