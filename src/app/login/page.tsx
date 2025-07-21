@@ -15,7 +15,7 @@ import { BookOpen, Loader2 } from 'lucide-react';
 import { Form, FormControl, FormField, FormItem, FormMessage } from '@/components/ui/form';
 import { useToast } from '@/hooks/use-toast';
 import { signInWithEmailAndPassword, GoogleAuthProvider, signInWithPopup } from 'firebase/auth';
-import { auth } from '@/lib/firebase';
+import { auth, isFirebaseConfigured } from '@/lib/firebase';
 import { fetchSettings } from '@/lib/settings-service';
 import type { Settings } from '@/types';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -45,6 +45,10 @@ export default function LoginPage() {
   });
 
   const handleGoogleSignIn = async () => {
+    if (!isFirebaseConfigured || !auth) {
+        toast({ title: "Service Not Available", description: "Login is currently disabled.", variant: "destructive" });
+        return;
+    }
     setGoogleLoading(true);
     const provider = new GoogleAuthProvider();
     try {
@@ -60,6 +64,10 @@ export default function LoginPage() {
   };
 
   const onSubmit = async (data: LoginFormValues) => {
+    if (!isFirebaseConfigured || !auth) {
+        toast({ title: "Service Not Available", description: "Login is currently disabled.", variant: "destructive" });
+        return;
+    }
     setLoading(true);
     try {
       await signInWithEmailAndPassword(auth, data.email, data.password);
@@ -117,7 +125,7 @@ export default function LoginPage() {
                   <FormItem>
                     <div className="flex items-center">
                       <Label>Password</Label>
-                      <Link href="#" className="ml-auto inline-block text-sm underline">
+                      <Link href="/forgot-password" className="ml-auto inline-block text-sm underline">
                         Forgot your password?
                       </Link>
                     </div>
