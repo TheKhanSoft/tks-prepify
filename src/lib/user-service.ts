@@ -6,6 +6,7 @@ import { db, isFirebaseConfigured } from './firebase';
 import type { User, Plan, UserPlan, UserPlanStatus, PricingOption, Discount } from '@/types';
 import { fetchPlans } from './plan-service';
 import { sendEmail } from './email-provider';
+import { format } from 'date-fns';
 
 const SUPER_ADMIN_EMAIL = 'thekhansoft@gmail.com';
 
@@ -253,7 +254,7 @@ export async function changeUserSubscription(
         props: {
             userName: user.name || "Valued Customer",
             planName: newPlan.name,
-            expiryDate: newExpiryDate ? newExpiryDate.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' }) : 'Never',
+            expiryDate: newExpiryDate ? format(newExpiryDate, 'PPP') : 'Never',
             adminRemarks: options.remarks || ''
         }
     }).catch(err => console.error("Failed to send subscription change email:", err));

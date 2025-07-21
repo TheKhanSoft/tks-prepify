@@ -77,7 +77,7 @@ export async function createOrder(orderData: OrderCreationData): Promise<string>
         finalAmount: orderData.finalAmount.toFixed(2),
         paymentMethod: orderData.paymentMethod,
       }
-    });
+    }).catch(error => console.error(`Failed to send order confirmation email for order ${newOrderRef.id}:`, error));
   }
 
   return newOrderRef.id;

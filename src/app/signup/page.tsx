@@ -79,7 +79,10 @@ export default function SignupPage() {
   };
 
   const handleGoogleSignIn = async () => {
-    if (!isFirebaseConfigured) return;
+    if (!isFirebaseConfigured || !auth) {
+        toast({ title: "Service Not Available", description: "Login is currently disabled.", variant: "destructive" });
+        return;
+    }
     setGoogleLoading(true);
     const provider = new GoogleAuthProvider();
     try {
@@ -93,7 +96,10 @@ export default function SignupPage() {
   };
 
   const onSubmit = async (data: SignupFormValues) => {
-    if (!isFirebaseConfigured) return;
+    if (!isFirebaseConfigured || !auth) {
+        toast({ title: "Service Not Available", description: "Signup is currently disabled.", variant: "destructive" });
+        return;
+    }
     setLoading(true);
     try {
       const userCredential = await createUserWithEmailAndPassword(auth, data.email, data.password);
