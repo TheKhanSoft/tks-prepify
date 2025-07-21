@@ -15,7 +15,7 @@ import { BookOpen, Loader2 } from 'lucide-react';
 import { Form, FormControl, FormField, FormItem, FormMessage } from '@/components/ui/form';
 import { useToast } from '@/hooks/use-toast';
 import { createUserWithEmailAndPassword, updateProfile, GoogleAuthProvider, signInWithPopup, User as FirebaseAuthUser } from 'firebase/auth';
-import { auth } from '@/lib/firebase';
+import { auth, isFirebaseConfigured } from '@/lib/firebase';
 import { fetchSettings } from '@/lib/settings-service';
 import type { Settings } from '@/types';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -79,6 +79,7 @@ export default function SignupPage() {
   };
 
   const handleGoogleSignIn = async () => {
+    if (!isFirebaseConfigured) return;
     setGoogleLoading(true);
     const provider = new GoogleAuthProvider();
     try {
@@ -92,6 +93,7 @@ export default function SignupPage() {
   };
 
   const onSubmit = async (data: SignupFormValues) => {
+    if (!isFirebaseConfigured) return;
     setLoading(true);
     try {
       const userCredential = await createUserWithEmailAndPassword(auth, data.email, data.password);
@@ -99,6 +101,7 @@ export default function SignupPage() {
         displayName: data.name,
       });
       
+      // We need to create a new object because the userCredential.user object is not immediately updated
       const updatedUser = { ...userCredential.user, displayName: data.name };
       await handleSuccessfulSignup(updatedUser);
 

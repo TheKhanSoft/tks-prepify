@@ -27,6 +27,7 @@ import { socialPlatforms } from "@/lib/social-platforms";
 import { fetchPlans } from "@/lib/plan-service";
 import type { Plan, Settings } from "@/types";
 import { Switch } from "@/components/ui/switch";
+import { sendEmail } from "@/lib/email-provider";
 
 const settingsFormSchema = z.object({
   siteName: z.string().min(1, "Site name is required."),
@@ -71,6 +72,7 @@ export default function AdminSettingsPage() {
   const { toast } = useToast();
   const [loading, setLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isSendingTest, setIsSendingTest] = useState(false);
   const [plans, setPlans] = useState<Plan[]>([]);
   const [settings, setSettings] = useState<Settings | null>(null);
 
@@ -141,6 +143,36 @@ export default function AdminSettingsPage() {
       setIsSubmitting(false);
     }
   }
+
+  const handleSendTestEmail = async () => {
+    setIsSendingTest(true);
+    try {
+      const result = await sendEmail({
+        templateId: 'new-registration', // Use a common template for testing
+        to: 'test@example.com', // A safe test address
+        props: {
+          userName: 'Test User',
+        },
+      });
+
+      if (result.success) {
+        toast({
+          title: 'Test Email Sent',
+          description: 'Check your email provider logs to confirm delivery.',
+        });
+      } else {
+        throw new Error(result.error || 'Unknown error');
+      }
+    } catch (error: any) {
+      toast({
+        title: 'Failed to Send Test Email',
+        description: error.message,
+        variant: 'destructive',
+      });
+    } finally {
+      setIsSendingTest(false);
+    }
+  };
 
   if (loading || !settings) {
     return (
@@ -282,11 +314,11 @@ export default function AdminSettingsPage() {
                 </Card>
             </TabsContent>
             
-            <TabsContent value="emails">
+             <TabsContent value="emails">
                <Card>
                   <CardHeader>
                       <CardTitle>Email Sending Settings</CardTitle>
-                      <CardDescription>Configure how transactional emails are sent. The API key must be set in your environment variables.</CardDescription>
+                      <CardDescription>Configure how transactional emails are sent. Your SMTP server credentials must be set in your project's .env file.</CardDescription>
                   </CardHeader>
                   <CardContent className="space-y-6">
                       <FormField
@@ -318,6 +350,15 @@ export default function AdminSettingsPage() {
                           )}
                       />
                   </CardContent>
+                  <CardFooter className="border-t pt-6">
+                        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between w-full gap-4">
+                            <p className="text-sm text-muted-foreground max-w-md">Verify your SMTP setup by sending a test email to a service like <a href="https://ethereal.email/" target="_blank" rel="noopener noreferrer" className="underline">Ethereal Email</a>.</p>
+                            <Button type="button" variant="secondary" onClick={handleSendTestEmail} disabled={isSendingTest}>
+                                {isSendingTest ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Mail className="mr-2 h-4 w-4" />}
+                                Send Test Email
+                            </Button>
+                        </div>
+                    </CardFooter>
                 </Card>
             </TabsContent>
           </Tabs>

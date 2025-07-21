@@ -237,9 +237,18 @@ export async function changeUserSubscription(
   await batch.commit();
 
   // Send notification email
-  if (user.email) {
+  if (user.email && options.status !== 'pending') {
+    let templateId: string;
+    if (options.remarks?.toLowerCase().includes('extended')) {
+        templateId = 'subscription-extension';
+    } else if (options.remarks?.toLowerCase().includes('renewed')) {
+        templateId = 'subscription-renewal';
+    } else {
+        templateId = 'new-subscription';
+    }
+
     await sendEmail({
-        templateId: options.remarks?.includes('extended') ? 'subscription-extension' : 'new-subscription',
+        templateId: templateId,
         to: user.email,
         props: {
             userName: user.name || "Valued Customer",
@@ -247,7 +256,7 @@ export async function changeUserSubscription(
             expiryDate: newExpiryDate ? newExpiryDate.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' }) : 'Never',
             adminRemarks: options.remarks || ''
         }
-    });
+    }).catch(err => console.error("Failed to send subscription change email:", err));
   }
 }
 
