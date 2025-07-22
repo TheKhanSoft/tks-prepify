@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { useAuth } from '@/hooks/use-auth';
 import { getUserProfile, fetchUserPlanHistory } from '@/lib/user-service';
 import { fetchPlans } from '@/lib/plan-service';
@@ -20,15 +20,145 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { useToast } from '@/hooks/use-toast';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 
+// --- Type Definitions ---
+
 type UsageInfo = {
     used: number;
     limit: number;
     resetDate: Date | null;
 };
 
-// Enhanced loading skeleton component
+type SubscriptionData = {
+    userProfile: UserProfile | null;
+    plans: Plan[];
+    currentPlan: Plan | null;
+    planHistory: UserPlan[];
+};
+
+type DataState = {
+    data: SubscriptionData | null;
+    usage: Record<string, UsageInfo>;
+    loading: boolean;
+    loadingUsage: boolean;
+    error: string | null;
+};
+
+// --- Custom Hooks ---
+
+/**
+ * @remarks
+ * Encapsulating data fetching logic within a custom hook improves separation of concerns.
+ * This makes the main component cleaner and the data fetching logic reusable.
+ * It also simplifies state management by co-locating related states.
+ */
+const useSubscriptionData = () => {
+    const { user, loading: authLoading } = useAuth();
+    const [state, setState] = useState<DataState>({
+        data: null,
+        usage: {},
+        loading: true,
+        loadingUsage: true,
+        error: null,
+    });
+    const { toast } = useToast();
+
+    const loadData = useCallback(async (forceRefresh = false) => {
+        if (!user) return;
+
+        setState(prev => ({ ...prev, loading: true, error: null }));
+
+        try {
+            const [profile, fetchedPlans, history] = await Promise.all([
+                getUserProfile(user.uid),
+                fetchPlans(),
+                fetchUserPlanHistory(user.uid),
+            ]);
+
+            const currentPlan = fetchedPlans.find(p => p.id === profile?.planId) || null;
+            const subscriptionData = { userProfile: profile, plans: fetchedPlans, currentPlan, planHistory: history };
+
+            setState(prev => ({ ...prev, data: subscriptionData, loading: false }));
+
+            // Load usage data after initial data is loaded
+            if (currentPlan && profile) {
+                loadUsage(user.uid, currentPlan, profile, history, toast);
+            } else {
+                setState(prev => ({ ...prev, loadingUsage: false }));
+            }
+
+            if (forceRefresh) {
+                toast({
+                    title: "Data refreshed",
+                    description: "Your subscription data has been updated.",
+                });
+            }
+        } catch (error) {
+            console.error("Failed to load subscription data:", error);
+            setState(prev => ({ ...prev, error: "Failed to load subscription data. Please try again.", loading: false }));
+        }
+    }, [user, toast]);
+
+    const loadUsage = useCallback(async (uid: string, plan: Plan, userProfile: UserProfile, planHistory: UserPlan[], toast: any) => {
+        setState(prev => ({ ...prev, loadingUsage: true }));
+        try {
+            const usageData: Record<string, UsageInfo> = {};
+            const activePlanHistory = planHistory.find(p => p.status === 'active');
+            const subscriptionStartDate = activePlanHistory?.subscriptionDate
+                ? new Date(activePlanHistory.subscriptionDate)
+                : (userProfile.createdAt ? new Date(userProfile.createdAt) : new Date());
+
+            const quotaFeatures = plan.features.filter(f => f.isQuota && f.key);
+
+            for (const feature of quotaFeatures) {
+                const usageKey = `${feature.key!}${feature.period ? `_${feature.period}` : ''}`;
+                let usedCount = 0;
+                let resetDate: Date | null = null;
+                const limit = feature.limit ?? 0;
+
+                if (feature.key === 'bookmarks') {
+                    usedCount = await countActiveBookmarks(uid);
+                } else if (feature.key === 'downloads' && feature.period) {
+                    const result = await countDownloadsForPeriod(uid, feature.period, subscriptionStartDate);
+                    usedCount = result.count;
+                    resetDate = result.resetDate;
+                }
+                
+                usageData[usageKey] = { used: usedCount, limit, resetDate };
+            }
+
+            setState(prev => ({ ...prev, usage: usageData, loadingUsage: false }));
+        } catch (error) {
+            console.error("Failed to load usage data:", error);
+            toast({
+                title: "Could not load usage data",
+                description: "There was an error fetching your current usage statistics.",
+                variant: "destructive",
+            });
+            setState(prev => ({...prev, loadingUsage: false }));
+        }
+    }, []);
+
+    useEffect(() => {
+        if (user && !authLoading) {
+            loadData();
+        } else if (!authLoading) {
+            setState(prev => ({...prev, loading: false }));
+        }
+    }, [user, authLoading, loadData]);
+
+    return { ...state, refresh: () => loadData(true) };
+};
+
+
+// --- UI Components ---
+
+/**
+ * @remarks
+ * Skeleton loaders provide a better user experience by giving an indication of the content that is about to be displayed.
+ * This is preferable to a blank screen or a simple loading spinner.
+ */
 const SubscriptionSkeleton = () => (
-    <div className="space-y-8">
+    <div className="space-y-8 animate-pulse">
         <div className="space-y-2">
             <Skeleton className="h-9 w-64" />
             <Skeleton className="h-5 w-96" />
@@ -69,10 +199,9 @@ const SubscriptionSkeleton = () => (
     </div>
 );
 
-// Enhanced usage card component
-const UsageCard = ({ feature, usageInfo, loadingUsage }: { 
-    feature: PlanFeature; 
-    usageInfo?: UsageInfo; 
+const UsageCard = ({ feature, usageInfo, loadingUsage }: {
+    feature: PlanFeature;
+    usageInfo?: UsageInfo;
     loadingUsage: boolean;
 }) => {
     if (loadingUsage) {
@@ -156,7 +285,6 @@ const UsageCard = ({ feature, usageInfo, loadingUsage }: {
     );
 };
 
-// Enhanced plan status badge
 const PlanStatusBadge = ({ status }: { status: string }) => {
     const variants = {
         active: { variant: "default" as const, className: "bg-green-600 hover:bg-green-700", icon: Check },
@@ -176,119 +304,32 @@ const PlanStatusBadge = ({ status }: { status: string }) => {
     );
 };
 
+
+// --- Main Page Component ---
+
 export default function SubscriptionPage() {
-    const { user, loading: authLoading } = useAuth();
-    const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
-    const [plans, setPlans] = useState<Plan[]>([]);
-    const [plan, setPlan] = useState<Plan | null>(null);
-    const [planHistory, setPlanHistory] = useState<UserPlan[]>([]);
-    const [loading, setLoading] = useState(true);
-    const [usage, setUsage] = useState<Record<string, UsageInfo>>({});
-    const [loadingUsage, setLoadingUsage] = useState(true);
-    const [error, setError] = useState<string | null>(null);
+    const { data, usage, loading, loadingUsage, error, refresh } = useSubscriptionData();
     const [refreshing, setRefreshing] = useState(false);
-    const { toast } = useToast();
-
-    const loadInitialData = async () => {
-        if (!user) return;
-        
-        try {
-            setError(null);
-            const [profile, fetchedPlans, history] = await Promise.all([
-                getUserProfile(user.uid),
-                fetchPlans(),
-                fetchUserPlanHistory(user.uid),
-            ]);
-
-            setUserProfile(profile);
-            setPlans(fetchedPlans);
-            setPlanHistory(history);
-
-            if (profile?.planId) {
-                const currentPlan = fetchedPlans.find(p => p.id === profile.planId);
-                setPlan(currentPlan || null);
-            }
-        } catch (error) {
-            console.error("Failed to load initial subscription data:", error);
-            setError("Failed to load subscription data. Please try again.");
-        } finally {
-            setLoading(false);
-        }
-    };
-
-    const loadUsageData = async () => {
-        if (!user || !plan || !userProfile) return;
-
-        setLoadingUsage(true);
-        try {
-            const usageData: Record<string, UsageInfo> = {};
-            
-            const activePlanHistory = planHistory.find(p => p.status === 'active');
-            const subscriptionStartDate = activePlanHistory?.subscriptionDate
-                ? new Date(activePlanHistory.subscriptionDate)
-                : (userProfile.createdAt ? new Date(userProfile.createdAt) : new Date());
-
-            const quotaFeatures = plan.features.filter(f => f.isQuota && f.key);
-
-            for (const feature of quotaFeatures) {
-                const usageKey = feature.key! + (feature.period ? `_${feature.period}` : '');
-                let usedCount = 0;
-                let resetDate: Date | null = null;
-                const limit = feature.limit ?? 0;
-
-                if (feature.key === 'bookmarks') {
-                    usedCount = await countActiveBookmarks(user.uid);
-                    resetDate = null; // Lifetime
-                } else if (feature.key === 'downloads' && feature.period) {
-                     const result = await countDownloadsForPeriod(user.uid, feature.period, subscriptionStartDate);
-                     usedCount = result.count;
-                     resetDate = result.resetDate;
-                }
-                
-                usageData[usageKey] = { used: usedCount, limit, resetDate };
-            }
-
-            setUsage(usageData);
-        } catch (error) {
-            console.error("Failed to load usage data:", error);
-            toast({
-                title: "Could not load usage data",
-                description: "There was an error fetching your current usage statistics. Please try refreshing the page.",
-                variant: "destructive",
-            });
-        } finally {
-            setLoadingUsage(false);
-        }
-    };
 
     const handleRefresh = async () => {
         setRefreshing(true);
-        await Promise.all([loadInitialData(), loadUsageData()]);
+        await refresh();
         setRefreshing(false);
-        toast({
-            title: "Data refreshed",
-            description: "Your subscription data has been updated.",
-        });
     };
 
-    useEffect(() => {
-        if (!user || authLoading) return;
-        loadInitialData();
-    }, [user, authLoading]);
-    
-    useEffect(() => {
-        if (!user || !plan || !userProfile) return;
-        loadUsageData();
-    }, [user, plan, userProfile, planHistory]);
-
-    if (authLoading || loading) {
+    /**
+     * @remarks
+     * Proper handling of loading and error states is crucial for a good user experience. [3, 22]
+     * Displaying a skeleton loader during initial load and a clear error message with a retry option are best practices.
+     */
+    if (loading) {
         return <SubscriptionSkeleton />;
     }
 
     if (error) {
         return (
-            <div className="space-y-6">
-                <Alert variant="destructive">
+            <div className="space-y-6 text-center py-12">
+                <Alert variant="destructive" className="max-w-md mx-auto">
                     <AlertCircle className="h-4 w-4" />
                     <AlertDescription>{error}</AlertDescription>
                 </Alert>
@@ -300,28 +341,32 @@ export default function SubscriptionPage() {
         );
     }
 
-    if (!userProfile) {
+    if (!data?.userProfile) {
         return (
             <div className="text-center py-12">
                 <AlertCircle className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
                 <p className="text-lg font-medium">Could not load user profile</p>
-                <p className="text-muted-foreground mb-4">Please try refreshing the page</p>
-                <Button onClick={handleRefresh} variant="outline">
-                    <RefreshCw className="h-4 w-4 mr-2" />
+                <p className="text-muted-foreground mb-4">Please try refreshing the page.</p>
+                <Button onClick={handleRefresh} variant="outline" disabled={refreshing}>
+                    {refreshing ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <RefreshCw className="h-4 w-4 mr-2" />}
                     Refresh
                 </Button>
             </div>
         );
     }
 
-    const currentPlan = plans.find(p => p.id === userProfile.planId);
+    const { userProfile, currentPlan, planHistory } = data;
     const hasActivePlan = !!currentPlan;
     const quotaFeatures = currentPlan?.features.filter(f => f.isQuota) || [];
     const hasNearLimitUsage = Object.values(usage).some(u => u.limit > 0 && (u.used / u.limit) > 0.8);
 
+    /**
+     * @remarks
+     * The main content is structured using Card components from shadcn/ui for a consistent and clean layout. [27, 34]
+     * Visual hierarchy is used to guide the user's attention to important information. [6]
+     */
     return (
         <div className="space-y-8">
-            {/* Header with refresh button */}
             <div className="flex justify-between items-start">
                 <div className="space-y-1">
                     <h1 className="text-3xl font-bold tracking-tight">My Subscription</h1>
@@ -334,26 +379,20 @@ export default function SubscriptionPage() {
                     disabled={refreshing}
                     className="shrink-0"
                 >
-                    {refreshing ? (
-                        <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                    ) : (
-                        <RefreshCw className="h-4 w-4 mr-2" />
-                    )}
+                    {refreshing ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <RefreshCw className="h-4 w-4 mr-2" />}
                     Refresh
                 </Button>
             </div>
 
-            {/* Usage warning alert */}
             {hasNearLimitUsage && (
                 <Alert className="border-amber-200 bg-amber-50/50 dark:border-amber-800 dark:bg-amber-950/20">
                     <AlertCircle className="h-4 w-4 text-amber-600" />
                     <AlertDescription>
-                        You're approaching the limit for some features. Consider upgrading your plan to avoid interruptions.
+                        You're approaching the limit for some features. Consider <Link href="/pricing" className="font-semibold underline">upgrading your plan</Link> to avoid interruptions.
                     </AlertDescription>
                 </Alert>
             )}
 
-            {/* Main subscription card */}
             <Card className="overflow-hidden">
                 <CardHeader className="bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-950/20 dark:to-indigo-950/20">
                     <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
@@ -362,9 +401,7 @@ export default function SubscriptionPage() {
                                 <CardTitle className="text-2xl">
                                     {currentPlan?.name || 'No Active Plan'}
                                 </CardTitle>
-                                {hasActivePlan && (
-                                    <Crown className="h-5 w-5 text-amber-500" />
-                                )}
+                                {hasActivePlan && <Crown className="h-5 w-5 text-amber-500" />}
                             </div>
                             <CardDescription className="text-base">
                                 {currentPlan?.description || "You don't have an active subscription."}
@@ -380,11 +417,10 @@ export default function SubscriptionPage() {
                     </div>
                 </CardHeader>
                 
-                {hasActivePlan && (
+                {hasActivePlan && currentPlan && (
                     <>
                         <CardContent className="p-6">
                             <div className="grid gap-8 lg:grid-cols-2">
-                                {/* Features section */}
                                 <div className="space-y-4">
                                     <h4 className="font-semibold text-lg flex items-center gap-2">
                                         <Check className="h-5 w-5 text-green-500" />
@@ -400,7 +436,6 @@ export default function SubscriptionPage() {
                                     </div>
                                 </div>
 
-                                {/* Usage section */}
                                 <div className="space-y-4">
                                     <h4 className="font-semibold text-lg flex items-center gap-2">
                                         <TrendingUp className="h-5 w-5 text-blue-500" />
@@ -409,21 +444,19 @@ export default function SubscriptionPage() {
                                     {quotaFeatures.length > 0 ? (
                                         <div className="space-y-4">
                                             {quotaFeatures.map((feature: PlanFeature, index) => {
-                                                const usageKey = (feature.key || '') + (feature.period ? `_${feature.period}` : '');
-                                                const usageInfo = usage[usageKey];
-                                                
+                                                const usageKey = `${feature.key || ''}${feature.period ? `_${feature.period}` : ''}`;
                                                 return (
                                                     <UsageCard
                                                         key={index}
                                                         feature={feature}
-                                                        usageInfo={usageInfo}
+                                                        usageInfo={usage[usageKey]}
                                                         loadingUsage={loadingUsage}
                                                     />
                                                 );
                                             })}
                                         </div>
                                     ) : (
-                                        <div className="text-center py-8 text-muted-foreground">
+                                        <div className="text-center py-8 text-muted-foreground bg-muted/50 rounded-lg">
                                             <TrendingUp className="h-12 w-12 mx-auto mb-3 opacity-50" />
                                             <p>This plan has unlimited usage for all features.</p>
                                         </div>
@@ -432,7 +465,7 @@ export default function SubscriptionPage() {
                             </div>
                         </CardContent>
                         
-                        <CardFooter className="bg-muted/20 border-t">
+                        <CardFooter className="bg-muted/20 border-t p-4">
                             <div className="flex items-center gap-2 text-sm text-muted-foreground">
                                 <Calendar className="h-4 w-4" />
                                 {userProfile.planExpiryDate ? (
@@ -443,7 +476,7 @@ export default function SubscriptionPage() {
                                     </span>
                                 ) : (
                                     <span>
-                                        You have <strong className="text-foreground">Lifetime Access</strong> to this plan
+                                        You have <strong className="text-foreground">Lifetime Access</strong> to this plan.
                                     </span>
                                 )}
                             </div>
@@ -452,19 +485,23 @@ export default function SubscriptionPage() {
                 )}
             </Card>
 
-            {/* Billing history */}
             <Card>
                 <CardHeader>
                     <CardTitle className="flex items-center gap-2">
                         <Calendar className="h-5 w-5" />
-                        Billing History & Orders
+                        Billing History
                     </CardTitle>
                     <CardDescription>
-                        A complete record of your subscription history and transactions.
+                        A complete record of your subscription history.
                     </CardDescription>
                 </CardHeader>
                 <CardContent>
                     {planHistory.length > 0 ? (
+                        /**
+                         * @remarks
+                         * The `Table` component from shadcn/ui is used for displaying tabular data. [1, 11]
+                         * It provides a clean and responsive way to present the billing history.
+                         */
                         <div className="overflow-x-auto">
                             <Table>
                                 <TableHeader>
@@ -495,10 +532,10 @@ export default function SubscriptionPage() {
                             </Table>
                         </div>
                     ) : (
-                        <div className="text-center py-12">
-                            <Calendar className="h-12 w-12 text-muted-foreground mx-auto mb-4 opacity-50" />
+                        <div className="text-center py-12 text-muted-foreground bg-muted/50 rounded-lg">
+                            <Calendar className="h-12 w-12 mx-auto mb-4 opacity-50" />
                             <p className="text-lg font-medium">No billing history yet</p>
-                            <p className="text-muted-foreground mb-4">Your subscription history will appear here</p>
+                            <p className="text-sm mb-4">Your subscription history will appear here.</p>
                             <Button asChild variant="outline">
                                 <Link href="/pricing">
                                     Browse Plans

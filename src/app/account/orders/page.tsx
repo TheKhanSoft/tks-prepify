@@ -1,17 +1,18 @@
 
 'use client';
 
-import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
-import { Loader2, ShoppingCart } from 'lucide-react';
+import React, { useState, useEffect } from "react";
 import { useAuth } from "@/hooks/use-auth";
 import { fetchOrdersForUser } from "@/lib/order-service";
 import type { Order, OrderStatus } from "@/types";
-import { useEffect, useState } from "react";
+import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { format } from "date-fns";
 import { Badge } from "@/components/ui/badge";
+import { Loader2, ShoppingCart } from 'lucide-react';
+import { format } from "date-fns";
 import { cn } from "@/lib/utils";
 
+// Configuration for styling status badges
 const statusConfig: { [key in OrderStatus]: { color: string; label: string } } = {
     pending: { color: 'bg-amber-100 text-amber-800 border-amber-200 dark:bg-amber-900/50 dark:text-amber-300 dark:border-amber-700', label: 'Pending' },
     completed: { color: 'bg-green-100 text-green-800 border-green-200 dark:bg-green-900/50 dark:text-green-300 dark:border-green-700', label: 'Completed' },
@@ -22,32 +23,33 @@ const statusConfig: { [key in OrderStatus]: { color: string; label: string } } =
 export default function OrdersPage() {
     const { user, loading: authLoading } = useAuth();
     const [orders, setOrders] = useState<Order[]>([]);
-    const [loading, setLoading] = useState(true);
+    const [loadingData, setLoadingData] = useState(true);
 
     useEffect(() => {
         if (authLoading) return;
+        
         if (!user) {
-            setLoading(false);
+            setLoadingData(false);
             return;
         }
 
         const loadOrders = async () => {
-            setLoading(true);
+            setLoadingData(true);
             try {
                 const fetchedOrders = await fetchOrdersForUser(user.uid);
                 setOrders(fetchedOrders);
             } catch (err) {
-                // Handle error, e.g., show a toast
                 console.error("Failed to load orders:", err);
             } finally {
-                setLoading(false);
+                setLoadingData(false);
             }
         };
 
         loadOrders();
     }, [user, authLoading]);
     
-    if (authLoading || loading) {
+    // Loading state for initial auth check or data fetching
+    if (authLoading || loadingData) {
         return (
             <div className="flex justify-center items-center h-full min-h-[calc(100vh-20rem)]">
                 <Loader2 className="h-8 w-8 animate-spin text-primary" />
