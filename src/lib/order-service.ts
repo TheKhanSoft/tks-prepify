@@ -117,17 +117,19 @@ export async function getOrderById(orderId: string, userId: string): Promise<Ord
 /**
  * Fetches all orders for a specific user.
  */
+
 export async function fetchOrdersForUser(userId: string): Promise<Order[]> {
     if (!userId) return [];
     
     const ordersCol = collection(db, 'orders');
-    const q = query(ordersCol, where("userId", "==", userId), orderBy("createdAt", "desc"));
+    const q = query(ordersCol, where("userId", "==", userId));
 
     const snapshot = await getDocs(q);
     if (snapshot.empty) {
         return [];
     }
-    return snapshot.docs.map(docToOrder);
+    return snapshot.docs.map(docToOrder)
+      .sort((a, b) => new Date(b.createdAt!).getTime() - new Date(a.createdAt!).getTime());
 }
 
 // Admin function to fetch all orders
@@ -136,7 +138,7 @@ export type OrderWithUserData = Order & { userName?: string; userEmail?: string;
 export async function fetchAllOrders(): Promise<OrderWithUserData[]> {
   const ordersCol = collection(db, 'orders');
   const q = query(ordersCol, orderBy('createdAt', 'desc'));
-  
+   
   const [ordersSnapshot, usersSnapshot] = await Promise.all([
     getDocs(q),
     getDocs(collection(db, 'users'))
@@ -152,7 +154,9 @@ export async function fetchAllOrders(): Promise<OrderWithUserData[]> {
       userName: userData?.name,
       userEmail: userData?.email,
     };
-  });
+  })
+  // submissions.sort((a,b) => new Date(b.lastRepliedAt!).getTime() - new Date(a.lastRepliedAt!).getTime());
+  
 }
 
 /**
