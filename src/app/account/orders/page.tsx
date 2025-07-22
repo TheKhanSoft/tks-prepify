@@ -38,6 +38,7 @@ export default function OrdersPage() {
                 setOrders(fetchedOrders);
             } catch (err) {
                 // Handle error, e.g., show a toast
+                console.error("Failed to load orders:", err);
             } finally {
                 setLoading(false);
             }
@@ -46,7 +47,7 @@ export default function OrdersPage() {
         loadOrders();
     }, [user, authLoading]);
     
-    if (loading || authLoading) {
+    if (authLoading || loading) {
         return (
             <div className="flex justify-center items-center h-full min-h-[calc(100vh-20rem)]">
                 <Loader2 className="h-8 w-8 animate-spin text-primary" />
