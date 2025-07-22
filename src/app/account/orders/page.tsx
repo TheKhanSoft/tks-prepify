@@ -5,18 +5,18 @@ import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/com
 import { Loader2, ShoppingCart } from 'lucide-react';
 import { useAuth } from "@/hooks/use-auth";
 import { fetchOrdersForUser } from "@/lib/order-service";
-import type { Order } from "@/types";
+import type { Order, OrderStatus } from "@/types";
 import { useEffect, useState } from "react";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { format } from "date-fns";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 
-const statusConfig: { [key in Order['status']]: { color: string; label: string } } = {
-    pending: { color: 'bg-amber-100 text-amber-800 border-amber-200', label: 'Pending' },
-    completed: { color: 'bg-green-100 text-green-800 border-green-200', label: 'Completed' },
-    failed: { color: 'bg-red-100 text-red-800 border-red-200', label: 'Failed' },
-    refunded: { color: 'bg-gray-100 text-gray-800 border-gray-200', label: 'Refunded' },
+const statusConfig: { [key in OrderStatus]: { color: string; label: string } } = {
+    pending: { color: 'bg-amber-100 text-amber-800 border-amber-200 dark:bg-amber-900/50 dark:text-amber-300 dark:border-amber-700', label: 'Pending' },
+    completed: { color: 'bg-green-100 text-green-800 border-green-200 dark:bg-green-900/50 dark:text-green-300 dark:border-green-700', label: 'Completed' },
+    failed: { color: 'bg-red-100 text-red-800 border-red-200 dark:bg-red-900/50 dark:text-red-300 dark:border-red-700', label: 'Failed' },
+    refunded: { color: 'bg-gray-100 text-gray-800 border-gray-200 dark:bg-gray-700 dark:text-gray-300 dark:border-gray-600', label: 'Refunded' },
 };
 
 export default function OrdersPage() {
