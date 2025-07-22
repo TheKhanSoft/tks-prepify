@@ -69,7 +69,7 @@ export default function AccountDashboardPage() {
     return (
         <div className="space-y-6">
             <div>
-                <h1 className="text-3xl font-bold">Welcome, {user?.displayName || 'Member'}!</h1>
+                <h1 className="text-3xl font-bold">Welcome, {user?.displayName || 'Member'}! {plan.pricingOptions[0].name}</h1>
                 <p className="text-muted-foreground">Here's a summary of your activity and subscription.</p>
             </div>
             
