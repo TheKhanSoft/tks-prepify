@@ -13,23 +13,33 @@ import { cn } from "@/lib/utils";
 import type { Order } from "@/types";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
+import { rejects } from "assert";
 
 const statusConfig = {
   pending: { 
     color: 'bg-amber-100 text-amber-800 border-amber-200 dark:bg-amber-900/50 dark:text-amber-300 dark:border-amber-700', 
-    label: 'Pending' 
+    label: 'UNPAID' 
   },
   completed: { 
     color: 'bg-green-100 text-green-800 border-green-200 dark:bg-green-900/50 dark:text-green-300 dark:border-green-700', 
-    label: 'Completed' 
+    label: 'PAID' 
   },
   failed: { 
     color: 'bg-red-100 text-red-800 border-red-200 dark:bg-red-900/50 dark:text-red-300 dark:border-red-700', 
-    label: 'Failed' 
+    label: 'FAILED' 
   },
   refunded: { 
     color: 'bg-gray-100 text-gray-800 border-gray-200 dark:bg-gray-700 dark:text-gray-300 dark:border-gray-600', 
-    label: 'Refunded' 
+    label: 'REFUNDED' 
+  },
+  rejected: { 
+    color: 'bg-red-100 text-red-800 border-red-200 dark:bg-red-900/50 dark:text-red-300 dark:border-red-700',  
+    label: 'REJECTED' 
+  },
+  cancelled:
+  { 
+    color: 'bg-red-100 text-red-800 border-red-200 dark:bg-red-900/50 dark:text-red-300 dark:border-red-700',  
+    label: 'CANCELED' 
   },
 } as const;
 
@@ -97,7 +107,8 @@ export default function OrdersPage() {
             <TableHeader>
               <TableRow>
                 <TableHead>Plan</TableHead>
-                <TableHead>Amount</TableHead>
+                <TableHead>Details</TableHead>
+                <TableHead>Payment Method</TableHead>
                 <TableHead>Status</TableHead>
                 <TableHead>Date</TableHead>
                 <TableHead className="text-right">Actions</TableHead>
@@ -119,8 +130,27 @@ export default function OrdersPage() {
                           {order.pricingOptionLabel}
                         </div>
                       </TableCell>
+                      <TableCell>
+                        <div className="text-sm space-y-1">
+                          <div>
+                            <span className="text-muted-foreground">Amount: </span>
+                            <span className="text font-medium">{formatCurrency(order.finalAmount)}</span>
+                          </div>
+                          {order.discountCode && (
+                            <div>
+                              <hr />
+                              <span className="text-muted-foreground">Discount: </span>
+                              {order.discountCode} (-{formatCurrency(order.discountAmount)})
+                            <br />
+                              <span className="text-muted-foreground">Original: </span>
+                              {formatCurrency(order.originalPrice)}
+                            </div>
+                          )}
+                          
+                        </div>
+                      </TableCell>
                       <TableCell className="font-medium">
-                        {formatCurrency(order.finalAmount)}
+                        {order.paymentMethod}
                       </TableCell>
                       <TableCell>
                         <Badge className={cn("capitalize", statusInfo.color)}>

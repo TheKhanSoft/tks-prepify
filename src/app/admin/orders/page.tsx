@@ -8,7 +8,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Loader2, CheckCircle2, MoreHorizontal, Calendar, Clock, XCircle, AlertTriangle, User, Search, DollarSign, ShoppingCart, Check, UserCircle } from 'lucide-react';
+import { Loader2, CheckCircle2, MoreHorizontal, Calendar, Clock, XCircle, AlertTriangle, User, Search, DollarSign, ShoppingCart, Check, UserCircle, CrossIcon, DiamondPlus, X, SquareX, Ban, CopyX, BookX, FileX, FileX2 } from 'lucide-react';
 import { format } from 'date-fns';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuLabel, DropdownMenuSeparator } from "@/components/ui/dropdown-menu";
 import { cn } from "@/lib/utils";
@@ -23,6 +23,8 @@ const statusConfig: { [key in OrderStatus]: { color: string; label: string; icon
     pending: { color: 'bg-amber-100 text-amber-800 border-amber-200 dark:bg-amber-900/50 dark:text-amber-300 dark:border-amber-700', label: 'Pending', icon: Clock },
     completed: { color: 'bg-green-100 text-green-800 border-green-200 dark:bg-green-900/50 dark:text-green-300 dark:border-green-700', label: 'Completed', icon: CheckCircle2 },
     failed: { color: 'bg-red-100 text-red-800 border-red-200 dark:bg-red-900/50 dark:text-red-300 dark:border-red-700', label: 'Failed', icon: XCircle },
+    cancelled: { color: 'bg-red-100 text-red-800 border-red-200 dark:bg-red-900/50 dark:text-red-300 dark:border-red-700', label: 'Cancelled', icon: XCircle },
+    rejected: { color: 'bg-red-100 text-red-800 border-red-200 dark:bg-red-900/50 dark:text-red-300 dark:border-red-700', label: 'Rejected', icon: XCircle },
     refunded: { color: 'bg-gray-100 text-gray-800 border-gray-200 dark:bg-gray-700 dark:text-gray-300 dark:border-gray-600', label: 'Refunded', icon: AlertTriangle },
 };
 
@@ -66,9 +68,31 @@ const OrderStats = ({ orders }: { orders: OrderWithUserData[] }) => {
 /**
  * 2. OrderDetailSheet: The new slide-in panel for viewing order details.
  */
-const OrderDetailSheet = ({ order, isOpen, onClose }: { order: OrderWithUserData | null, isOpen: boolean, onClose: () => void }) => {
+const OrderDetailSheet = ({ order, isOpen, onClose, onUpdateStatus, isLoading, }: { order: OrderWithUserData | null; isOpen: boolean; onClose: () => void; onUpdateStatus: (order: OrderWithUserData, newStatus: OrderStatus) => void; isLoading: boolean;  }) => {
     if (!order) return null;
     const statusInfo = statusConfig[order.status];
+    
+    const handleApproveClick = (e: React.MouseEvent) => {
+        e.stopPropagation(); 
+        onUpdateStatus(order, 'completed');
+    };
+
+    const handleCancelClick = (e: React.MouseEvent) => {
+        e.stopPropagation(); 
+        onUpdateStatus(order, 'cancelled');
+    };
+
+    const handleRejectClick = (e: React.MouseEvent) => {
+        e.stopPropagation(); 
+        onUpdateStatus(order, 'rejected');
+    };
+
+    const handleFailClick = (e: React.MouseEvent) => {
+        e.stopPropagation(); 
+        onUpdateStatus(order, 'failed');
+    };
+
+    
 
     return (
         <Sheet open={isOpen} onOpenChange={onClose}>
@@ -113,6 +137,56 @@ const OrderDetailSheet = ({ order, isOpen, onClose }: { order: OrderWithUserData
                     </Card>
                 </div>
                  <SheetFooter className='mt-6'>
+                    {order.status === 'pending' && (
+                        <Button 
+                            size="sm"
+                            onClick={handleFailClick}
+                            disabled={isLoading}
+                            className="bg-amber-500 hover:bg-amber-600 text-white"
+                            >
+                            {isLoading ? <Loader2 className="h-4 w-4 animate-spin"/> : <SquareX className="h-4 w-4" />} Fail
+                        </Button>
+                    )}
+                    {order.status === 'pending' && (
+                        <Button 
+                            size="sm"
+                            onClick={handleCancelClick}
+                            disabled={isLoading}
+                            className="bg-red-500 hover:bg-red-600 text-white"
+                            >
+                            {isLoading ? <Loader2 className="h-4 w-4 animate-spin"/> : <X className="h-4 w-4" />} Cancel
+                        </Button>
+                    )}
+                    {order.status === 'pending' && (
+                        <Button 
+                            size="sm"
+                            onClick={handleRejectClick}
+                            disabled={isLoading}
+                            className="bg-red-500 hover:bg-red-600 text-white">
+                            {isLoading ? <Loader2 className="h-4 w-4 animate-spin"/> : <XCircle className="h-4 w-4" />} Reject
+                        </Button>
+                    )}
+                    {order.status === 'pending'  && (
+                        <Button 
+                            size="sm"
+                            onClick={handleApproveClick}
+                            disabled={isLoading}
+                            className="mr-2">
+                            {isLoading ? <Loader2 className="h-4 w-4 animate-spin"/> : <Check className="h-4 w-4" />} Approve
+                        </Button>
+                    )}
+                    {order.status !== 'completed' && order.status !== 'pending' && (
+                        <Button 
+                            size="sm"
+                            onClick={handleCancelClick}
+                            disabled={isLoading}
+                            className="bg-amber-500 hover:bg-amber-600 text-white"
+
+                            >
+                            {isLoading ? <Loader2 className="h-4 w-4 animate-spin"/> : <Clock className="h-4 w-4" />} Pending
+                        </Button>
+                    )}
+                    
                     <SheetClose asChild><Button variant="outline">Close</Button></SheetClose>
                 </SheetFooter>
             </SheetContent>
@@ -128,8 +202,23 @@ const OrderRow = ({ order, onUpdateStatus, isLoading, onViewDetails }: { order: 
     const statusInfo = statusConfig[order.status] || { color: 'bg-gray-100 text-gray-800', label: 'Unknown', icon: AlertTriangle };
 
     const handleApproveClick = (e: React.MouseEvent) => {
-        e.stopPropagation(); // Important: Prevents the row's onViewDetails from firing
+        e.stopPropagation(); 
         onUpdateStatus(order, 'completed');
+    };
+
+    const handleCancelClick = (e: React.MouseEvent) => {
+        e.stopPropagation(); 
+        onUpdateStatus(order, 'cancelled');
+    };
+
+    const handleRejectClick = (e: React.MouseEvent) => {
+        e.stopPropagation(); 
+        onUpdateStatus(order, 'rejected');
+    };
+
+    const handleFailClick = (e: React.MouseEvent) => {
+        e.stopPropagation(); 
+        onUpdateStatus(order, 'failed');
     };
 
     return (
@@ -191,8 +280,14 @@ const OrderRow = ({ order, onUpdateStatus, isLoading, onViewDetails }: { order: 
                         <DropdownMenuItem onClick={onViewDetails}><Search className="mr-2 h-4 w-4"/> View Details</DropdownMenuItem>
                         <DropdownMenuSeparator />
                         <DropdownMenuLabel>Change Status</DropdownMenuLabel>
-                         <DropdownMenuItem onClick={() => onUpdateStatus(order, 'completed')} disabled={order.status === 'completed' || isLoading}>
-                            <CheckCircle2 className="mr-2 h-4 w-4"/> Mark as Completed
+                        <DropdownMenuItem onClick={() => onUpdateStatus(order, 'completed')} disabled={order.status === 'completed' || isLoading}>
+                            <CheckCircle2 className="mr-2 h-4 w-4"/> Mark as Approved
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => onUpdateStatus(order, 'cancelled')} disabled={order.status === 'cancelled' || isLoading}>
+                            <CheckCircle2 className="mr-2 h-4 w-4"/> Mark as Cancelled
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => onUpdateStatus(order, 'rejected')} disabled={order.status === 'rejected' || isLoading}>
+                            <CheckCircle2 className="mr-2 h-4 w-4"/> Mark as Rejected
                         </DropdownMenuItem>
                         <DropdownMenuItem onClick={() => onUpdateStatus(order, 'failed')} disabled={order.status === 'failed' || isLoading}>
                             <XCircle className="mr-2 h-4 w-4"/> Mark as Failed
@@ -279,6 +374,8 @@ export default function AdminOrdersPage() {
                                 <TabsTrigger value="all">All</TabsTrigger>
                                 <TabsTrigger value="pending">Pending</TabsTrigger>
                                 <TabsTrigger value="completed">Completed</TabsTrigger>
+                                <TabsTrigger value="cancelled">Cancelled</TabsTrigger>
+                                <TabsTrigger value="rejected">Rejected</TabsTrigger>
                                 <TabsTrigger value="failed">Failed</TabsTrigger>
                             </TabsList>
                         </Tabs>
@@ -321,6 +418,8 @@ export default function AdminOrdersPage() {
                 isOpen={!!selectedOrder}
                 onClose={() => setSelectedOrder(null)}
                 order={selectedOrder}
+                onUpdateStatus={handleUpdateStatus}
+                isLoading={actionLoading[selectedOrder?.id || ''] || false}
             />
         </div>
     );

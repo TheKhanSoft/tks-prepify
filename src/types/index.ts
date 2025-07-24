@@ -301,7 +301,7 @@ export interface Discount {
   endDate?: string | null; // ISO string
 }
 
-export type OrderStatus = 'pending' | 'completed' | 'failed' | 'refunded';
+export type OrderStatus = 'pending' | 'completed' | 'failed' | 'refunded' | 'rejected' | 'cancelled' | 'approved';
 
 export interface Order {
     id: string;
