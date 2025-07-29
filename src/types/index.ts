@@ -97,6 +97,8 @@ export interface User {
   email: string | null;
   photoURL?: string | null;
   role?: string;
+  roleId?: string;
+  isActive: boolean;
   planId: string;
   planExpiryDate?: string | null; // Dates are serialized to strings for client
   createdAt: string | null; // Dates are serialized to strings for client
